@@ -28,6 +28,32 @@
 | npm / marketplace | не публиковались |
 | Английский README | нет |
 
+## Конкурентные приоритеты (2026-11-22)
+
+Полный разбор — `docs/research/cache-extensions.md`, раздел 8.
+
+Что тянем:
+
+- Mode-aware статус и `/cache-monitor` — наша ниша; не размывать в дашборд.
+- Warning-политику — добавить причину мисса: idle > TTL, смена модели,
+  перезапись префикса.
+- Resume/history — tree/compaction и границы resume.
+- Zero-deps/read-only — не тащить warming/optimizer.
+- Тесты/CI — каждое поведение с тестом.
+
+Что забираем:
+
+| Приоритет | Идея | Откуда | Решение |
+|---|---|---|---|
+| P1 | Причина мисса: idle / model switch / rewrite | `catitw` | В warnings, после текущей epoch-логики. |
+| P1 | `cache saved` и `miss premium` в `$` | `pi-cache-hit-monitor`, `omp-cache-meter` | В `/cache-monitor`; `≥` при неизвестных исторических ценах. |
+| P2 | TTL / expiry countdown | `omp-cache-meter`, `ubranch`, `pi-custom-footer` | Только data-gated; на `cline-pass` — скрывать. |
+| P2 | `/compact` payback | `omp-cache-meter` | После P1, когда есть цены и оценка summary. |
+| P2 | История последних N запросов | `omp-cache-meter`, `pi-cache-hit-monitor` | Ring buffer/панель, не ломая статус. |
+| P2 | Powerline-интеграция | `pi-powerline-footer` | Пример/доки через `customItems`. |
+| P3 | Cold-cache budget | `pi-cache-guard` | Отдельный слой, рядом с warming. |
+| P3 | Warming/optimizer/multi-session | `ubranch`, optimizers, Tern | Не наша read-only ниша сейчас. |
+
 ## Этап 0. Гигиена репозитория
 
 | Задача | Статус |
@@ -111,7 +137,19 @@ cache warming, title/composer и др.), `compaction.usage` и
 Ограничение: смена набора инструментов не журналируется, поэтому после
 resume её нельзя восстановить как границу эпохи.
 
-## Этап 3. TTL: решение, а не фича
+## Этап 2.5. P1 из конкурентного анализа
+
+- **Причина мисса в warning**: idle > TTL, смена модели, перезапись префикса.
+  Сейчас `epochCause` знает модель/thinking/tools/компакцию, но не idle и не
+  перезапись.
+- **`cache saved` и `miss premium`** в `/cache-monitor`: сколько сэкономлено
+  на cache-read против полной цены и сколько переплачено на miss premium.
+  При неизвестных исторических ценах — `≥` или пропуск, без выдуманных чисел.
+- Тесты на оба поведения, обновить README/HANDOFF.
+- Критерий: warning объясняет причину, отчёт показывает saved/miss premium в
+  деньгах и не врёт после resume.
+
+## Этап 3. TTL: data-gated (P2)
 
 Проверено:
 
@@ -121,9 +159,11 @@ resume её нельзя восстановить как границу эпох
   модельные `promptCache`-оценки, а не точное время истечения от провайдера.
 - Native-сегмент `cache` уже существует; в текущем `statusLine` он не включён.
 
-Решение: **не показывать countdown на `cline-pass`**. Это была бы догадка,
-а не метрика. Вернуться, только если провайдер начнёт отдавать expiry или
-модель получит декларированный `promptCache`.
+Решение: **P2, data-gated, не показывать countdown на `cline-pass`**. Это была
+бы догадка, а не метрика. Если добавляем: lifetime из `model.promptCache` или
+`cache_control.ttl`, время последнего запроса/записи, остаток `~mm:ss`;
+данных нет — скрыть или `n/a`. Native OMP `cache`-сегмент уже показывает
+warm/cold и причину инвалидации, поэтому TTL не должен дублировать его.
 
 ## Этап 4. Релиз-кандидат
 
@@ -143,7 +183,7 @@ resume её нельзя восстановить как границу эпох
 
 ### 4.3. Тег и GitHub release
 
-- `CHANGELOG.md`, тег `v0.3.x`, private GitHub release.
+- `CHANGELOG.md`, тег `v0.5.x` после этапа 2.5, private GitHub release.
 - Проверить `omp plugin install github:metapeka/omp-cache-monitor` под
   авторизованным аккаунтом.
 - Критерий: чистая машина/профиль ставит плагин из GitHub.
@@ -159,9 +199,10 @@ resume её нельзя восстановить как границу эпох
 
 1. Этап 1 — тесты и CI. Без него не мержим поведенческие изменения.
 2. Этап 2 — resume и полный учёт usage. Это ядро корректности.
-3. Этап 3 — решение по TTL, без реализации на догадках.
-4. Этап 4 — английский README, пакет, установка, тег.
-5. Этап 5 — публикация, только после явного разрешения.
+3. Этап 2.5 — P1 cache economics: причина мисса и saved/miss premium.
+4. Этап 3 — TTL, только data-gated, без реализации на догадках.
+5. Этап 4 — английский README, пакет, установка, тег.
+6. Этап 5 — публикация, только после явного разрешения.
 
 ## Агенты
 
@@ -171,6 +212,7 @@ resume её нельзя восстановить как границу эпох
 | `Typecheck` | 1.2: типы и `npm run typecheck` | task |
 | `CI` | 1.3: GitHub Actions и защита `main` | task |
 | `ResumeImplementer` | 2.1–2.2: восстановление и полный учёт usage | task |
+| `CacheEconomics` | 2.5: причина мисса, saved/miss premium | task |
 | `Reviewer` | ревью каждого поведенческого PR | reviewer |
 | `DocsEnglish` | 4.1: английский README | task |
 | `ReleaseCheck` | 4.2–4.3: tarball, тег, установка | task |

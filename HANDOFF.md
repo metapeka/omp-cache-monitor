@@ -114,10 +114,11 @@ omp --no-tools --session-dir /tmp/cm-check
 ## Возможные следующие шаги (по решению владельца)
 
 Полный план с этапами, критериями и назначением агентов — `ROADMAP.md`.
-Кратко: этапы 1–2 (тесты/CI и resume/compaction accounting) готовы; дальше
-английский README и установка из tarball; npm/marketplace/public — только после
-отдельного решения. TTL на `cline-pass` не делаем: провайдер не декларирует
-lifetime.
+Кратко: этапы 1–2 (тесты/CI и resume/compaction accounting) готовы; следующий
+P1 — причина мисса и `cache saved`/`miss premium` (этап 2.5), затем английский
+README и установка из tarball; npm/marketplace/public — только после отдельного
+решения. TTL на `cline-pass` не делаем: провайдер не декларирует lifetime;
+TTL — data-gated P2.
 
 ## Ограничения
 

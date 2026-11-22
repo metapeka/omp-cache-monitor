@@ -159,9 +159,10 @@ function isEpochBoundary(type: unknown): boolean {
 /**
  * Свести журнал сессии к тем же метрикам, что копятся live-событиями.
  *
- * Assistant-сообщения дают суммы, ходы, тренд и последний ход. Записи usage
- * (cache warming), compaction и branch_summary дают только суммы. Границы
- * эпохи сбрасывают сравнение пере-оплаты. Цены прошлых моделей в журнале не
+ * Assistant-сообщения дают токены, ходы, тренд и последний ход. Записи usage
+ * (cache warming, title/composer), compaction и branch_summary добавляют только
+ * стоимость: их токены не должны разбавлять hit диалога. Границы эпохи
+ * сбрасывают сравнение пере-оплаты. Цены прошлых моделей в журнале не
  * хранятся, поэтому `reBillCost` восстановленных ходов остаётся `null`.
  */
 function aggregateEntries(entries: readonly unknown[]): SessionAggregate {
@@ -178,6 +179,21 @@ function aggregateEntries(entries: readonly unknown[]): SessionAggregate {
 	};
 	/** Prompt предыдущего assistant-сообщения внутри текущей эпохи. */
 	let prevPrompt: number | null = null;
+	/**
+	 * Пере-оплата последнего assistant-сообщения. Добавляется, только когда
+	 * появляется следующее сообщение или граница эпохи: самый последний ход
+	 * перед resume мог быть первым ходом прошлой эпохи, а эта граница в журнал
+	 * не пишется.
+	 */
+	let pendingReBilled: number | null = null;
+	const flushPending = (): void => {
+		if (pendingReBilled !== null && pendingReBilled > 0) {
+			result.reBilled += pendingReBilled;
+			// Историческая цена модели неизвестна: деньги не придумываем.
+			result.reBillCostMissing = true;
+		}
+		pendingReBilled = null;
+	};
 
 	for (const entry of entries) {
 		const type = field(entry, "type");
@@ -197,45 +213,49 @@ function aggregateEntries(entries: readonly unknown[]): SessionAggregate {
 
 			result.turns += 1;
 			addUsageTotals(result, usage);
-			result.last = { ...usage, hit, reBilled, reBillCost: null };
+			// У последнего хода пере-оплату не показываем: граница resume не
+			// журналируется, поэтому его сравнение с прошлым префиксом не
+			// доказано. Сумма по сессии учитывает только ходы с продолжением.
+			result.last = { ...usage, hit, reBilled: null, reBillCost: null };
 			result.trend.push(hit);
 			if (result.trend.length > TREND_POINTS) result.trend.shift();
 
-			if (reBilled !== null && reBilled > 0) {
-				result.reBilled += reBilled;
-				// Историческая цена модели неизвестна: деньги не придумываем.
-				result.reBillCostMissing = true;
-			}
+			flushPending();
+			pendingReBilled = reBilled;
 			prevPrompt = prompt;
 			continue;
 		}
 
 		if (type === "usage") {
-			if (field(entry, "kind") === "cache_warm") {
-				const usage = entryUsage(field(entry, "usage"));
-				if (usage) addUsageTotals(result, usage);
-			}
+			// `kind` произвольный: в стоимость входят все виды, но не в hit/ходы.
+			const usage = entryUsage(field(entry, "usage"));
+			if (usage) result.cost += usage.cost;
 			continue;
 		}
 
-		// В OMP 19.1 cache warming и другие off-transcript вызовы пишутся как
-		// `model_usage`; их usage входит в нативные суммы сессии.
+		// В OMP 19.1 cache warming, title/composer и другие off-transcript
+		// вызовы пишутся как `model_usage`: стоимость входит, токены — нет.
 		if (type === "model_usage") {
 			const usage = entryUsage(field(entry, "usage"));
-			if (usage) addUsageTotals(result, usage);
+			if (usage) result.cost += usage.cost;
 			continue;
 		}
 
 		if (type === "compaction" || type === "branch_summary") {
 			const usage = entryUsage(field(entry, "usage"));
-			if (usage) addUsageTotals(result, usage);
+			if (usage) result.cost += usage.cost;
+			flushPending();
 			prevPrompt = null;
 			continue;
 		}
 
-		if (isEpochBoundary(type)) prevPrompt = null;
+		if (isEpochBoundary(type)) {
+			flushPending();
+			prevPrompt = null;
+		}
 	}
 
+	// pendingReBilled последнего хода намеренно отбрасывается: см. выше.
 	return result;
 }
 

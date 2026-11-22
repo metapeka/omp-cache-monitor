@@ -101,6 +101,11 @@ function usageEntry(turnUsage, kind = "cache_warm") {
 	return { type: "usage", kind, usage: turnUsage };
 }
 
+/** OMP 19.1 off-transcript usage entry (title/composer/cache warming). */
+function modelUsageEntry(turnUsage, purpose = "title-fork") {
+	return { type: "model_usage", purpose, usage: turnUsage };
+}
+
 async function started({ mode, agentKind, model, ui, entries = [], reason = "startup" } = {}) {
 	const extension = install();
 	const view = context({ mode, agentKind, model, ui, entries });
@@ -316,10 +321,11 @@ describe("session lifecycle", () => {
 });
 
 describe("resume restoration", () => {
-	it("restores totals, trend, last turn and re-billed tokens from the journal", async () => {
+	it("restores totals, trend and re-billed tokens, but not the last turn's miss", async () => {
 		const entries = [
 			assistantEntry(usage(0, 0, 5000, 0.05)),
 			assistantEntry(usage(3000, 1000, 0, 0.02)),
+			assistantEntry(usage(0, 5000, 0, 0.01)),
 			usageEntry(usage(100, 200, 0, 0.001)),
 			{ type: "compaction", usage: usage(0, 300, 0, 0.002) },
 		];
@@ -329,22 +335,26 @@ describe("resume restoration", () => {
 		const out = notifications.at(-1).text;
 		assert.match(
 			out,
-			/ход: ↺ 25% · in 3000 · cacheRead 1000 · cacheWrite 0 · \$0\.0200/,
+			/ход: ↺ 100% · in 0 · cacheRead 5000 · cacheWrite 0 · \$0\.0100/,
 		);
-		// The journal has no historical prices: tokens restore, money is omitted.
-		assert.match(out, /пере-оплата: 3000 tok/);
+		// The last turn before resume has no journaled epoch boundary: its
+		// re-bill is conservatively not shown.
+		assert.doesNotMatch(out, /пере-оплата/);
+		assert.equal(spark(out), "▁▃█");
+		// The earlier miss (A→B) is restored in tokens; money is not invented.
 		assert.doesNotMatch(out, /\$0\.0081/);
-		assert.equal(spark(out), "▁▃");
 		assert.match(
 			out,
-			/сессия: \$0\.0730, ходов 2, ↺ 15\.6%, мисс 3000 tok$/,
+			/сессия: \$0\.0830, ходов 3, ↺ 42\.9%, мисс 3000 tok$/,
 		);
 	});
 
-	it("counts cache warming and compaction usage in totals but not turns or trend", async () => {
+	it("counts every background usage kind in totals but not turns or trend", async () => {
 		const entries = [
 			assistantEntry(usage(0, 100, 0, 0.01)),
-			usageEntry(usage(500, 500, 0, 0.02)),
+			usageEntry(usage(500, 500, 0, 0.02), "cache_warm"),
+			usageEntry(usage(10, 0, 0, 0.005), "other"),
+			modelUsageEntry(usage(20, 0, 0, 0.005), "title-fork"),
 			{ type: "branch_summary", usage: usage(0, 0, 200, 0.03) },
 			{ type: "compaction", usage: usage(100, 0, 0, 0.04) },
 		];
@@ -352,7 +362,8 @@ describe("resume restoration", () => {
 
 		await command(extension, ctx);
 		const out = notifications.at(-1).text;
-		assert.match(out, /сессия: \$0\.1000, ходов 1, ↺ 42\.9%/);
+		// Background calls add cost, not dialog tokens: the only turn is 100%.
+		assert.match(out, /сессия: \$0\.1100, ходов 1, ↺ 100%/);
 		assert.equal(spark(out), "█");
 	});
 

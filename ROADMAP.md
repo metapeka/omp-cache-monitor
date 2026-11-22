@@ -1,6 +1,6 @@
 # Roadmap: omp-cache-monitor
 
-Дата: 2026-11-22. Версия: 0.4.0. GitHub: private.
+Дата: 2026-11-22. Версия: 0.5.0. GitHub: private.
 Цель: довести расширение до релиза, которому можно доверять по цифрам,
 установке и поведению на всех переходах сессии.
 
@@ -18,11 +18,11 @@
 
 | Что | Состояние |
 |---|---|
-| Версия | 0.4.0: resume-восстановление, полный учёт cache warming/компакции |
+| Версия | 0.5.0: причина мисса, `saved` и `miss premium` в `/cache-monitor` |
 | GitHub | `metapeka/omp-cache-monitor`, private, `main` |
-| Установка | `omp plugin link` на боевой чекаут; `omp plugin list` — 0.4.0 |
-| Проверки | `npm test` 22/22, typecheck, загрузка OMP, TUI, `/new` и resume |
-| Постоянные тесты | `test/extension.test.mjs`, 22 теста, `npm test` |
+| Установка | `omp plugin link` на боевой чекаут; боевой чекаут — 0.5.0 после merge ветки `feat/cache-economics` |
+| Проверки | `npm test` 31/31, typecheck; ранее (0.4.0) — загрузка OMP, TUI, `/new` и resume |
+| Постоянные тесты | `test/extension.test.mjs`, 31 тест, `npm test` |
 | CI | GitHub Actions, зелёный (`npm ci`, `npm test`, `typecheck`) |
 | Рынок/конкуренты | `docs/research/cache-extensions.md` (2026-11-22) |
 | Инструкции агенту | `AGENTS.md` + глобальный `~/.omp/agent/AGENTS.md` |
@@ -39,8 +39,8 @@
 Что тянем:
 
 - Mode-aware статус и `/cache-monitor` — наша ниша; не размывать в дашборд.
-- Warning-политику — добавить причину мисса: idle > TTL, смена модели,
-  перезапись префикса.
+- Warning-политику — причину мисса: простой (idle) или перезапись префикса
+  (готово в 0.5.0).
 - Resume/history — tree/compaction и границы resume.
 - Zero-deps/read-only — не тащить warming/optimizer.
 - Тесты/CI — каждое поведение с тестом.
@@ -49,8 +49,8 @@
 
 | Приоритет | Идея | Откуда | Решение |
 |---|---|---|---|
-| P1 | Причина мисса: idle / model switch / rewrite | `catitw` | В warnings, после текущей epoch-логики. |
-| P1 | `cache saved` и `miss premium` в `$` | `pi-cache-hit-monitor`, `omp-cache-meter` | В `/cache-monitor`; `≥` при неизвестных исторических ценах. |
+| P1 | Причина мисса: idle / model switch / rewrite | `catitw` | В warnings 0.5.0: idle/rewrite per-turn. |
+| P1 | `cache saved` и `miss premium` в `$` | `pi-cache-hit-monitor`, `omp-cache-meter` | В `/cache-monitor` 0.5.0; `≥` при неизвестных исторических ценах. |
 | P2 | TTL / expiry countdown | `omp-cache-meter`, `ubranch`, `pi-custom-footer` | Только data-gated; на `cline-pass` — скрывать. |
 | P2 | `/compact` payback | `omp-cache-meter` | После P1, когда есть цены и оценка summary. |
 | P2 | История последних N запросов | `omp-cache-meter`, `pi-cache-hit-monitor` | Ring buffer/панель, не ломая статус. |
@@ -74,11 +74,12 @@
 
 - `test/extension.test.mjs` импортирует реальный `index.ts` через Node 22
   `--experimental-strip-types` и подменяет `pi`/`ctx`.
-- Покрыто: формула hit, спарклайн и усечение до 12, накопление `мисс`,
-  включая ходы без цен, сброс на `/new`, смена эпохи, пороги warnings,
-  non-TUI no-op, restore после resume, границы эпохи в журнале,
-  cache warming/компакция в суммах без ходов, отсутствие двойного счёта.
-- `npm test` — 22/22, детерминированно, без сети и модели.
+- Покрыто: формула hit, спарклайн и усечение до 12, `saved` и `miss premium`,
+  включая ходы без цен и `≥` после resume, сброс на `/new`, смена эпохи,
+  причина мисса (idle/rewrite/без timestamp), пороги warnings, non-TUI no-op,
+  restore после resume, границы эпохи в журнале, cache warming/компакция в
+  суммах без ходов, отсутствие двойного счёта.
+- `npm test` — 31/31, детерминированно, без сети и модели.
 
 ### 1.2. Типы — готово
 
@@ -142,17 +143,29 @@ cache warming, title/composer и др.), `compaction.usage` и
 Ограничение: смена набора инструментов не журналируется, поэтому после
 resume её нельзя восстановить как границу эпохи.
 
-## Этап 2.5. P1 из конкурентного анализа
+## Этап 2.5. P1 из конкурентного анализа — готово (P1)
 
-- **Причина мисса в warning**: idle > TTL, смена модели, перезапись префикса.
-  Сейчас `epochCause` знает модель/thinking/tools/компакцию, но не idle и не
-  перезапись.
+- **Причина мисса в warning**: простой (idle) или перезапись префикса,
+  per-turn; смена модели/thinking/tools остаётся границей эпохи и не
+  предупреждает.
 - **`cache saved` и `miss premium`** в `/cache-monitor`: сколько сэкономлено
   на cache-read против полной цены и сколько переплачено на miss premium.
   При неизвестных исторических ценах — `≥` или пропуск, без выдуманных чисел.
 - Тесты на оба поведения, обновить README/HANDOFF.
 - Критерий: warning объясняет причину, отчёт показывает saved/miss premium в
   деньгах и не врёт после resume.
+
+Реализовано в 0.5.0: `turn_end` читает `message.timestamp` и считает простой
+между завершёнными ходами; канонический промах печатает `простой N мин` при
+разрыве ≥ 5 минут (эмпирический порог, не TTL провайдера) либо
+`перезапись префикса`. `lastTurnAt` сбрасывается на границе эпохи, поэтому
+простой через неё новому префиксу не приписывается; без timestamp причина —
+перезапись, а ход без timestamp разрывает цепочку простоя.
+`saved` и `miss premium` считаются одним helper `cacheDeltaCost` по
+`model.cost`; `saved` входит в строку хода и в итог сессии, `miss premium` —
+отдельной частью перед трендом. После resume восстановленный `cacheRead` не
+оценивается: `saved` считает только live-часть и показывает `≥`. Тестов 31,
+typecheck зелёный; `epochCause` удалён.
 
 ## Этап 2.6. Context guard / handoff — готово (P1)
 
@@ -293,7 +306,7 @@ warm/cold и причину инвалидации, поэтому TTL не до
 
 ### 4.3. Тег и GitHub release
 
-- `CHANGELOG.md`, тег `v0.5.x` после этапа 2.5, private GitHub release.
+- `CHANGELOG.md`, тег `v0.5.0` после этапа 2.5, private GitHub release.
 - Проверить `omp plugin install github:metapeka/omp-cache-monitor` под
   авторизованным аккаунтом.
 - Критерий: чистая машина/профиль ставит плагин из GitHub.
@@ -309,7 +322,7 @@ warm/cold и причину инвалидации, поэтому TTL не до
 
 1. Этап 1 — тесты и CI. Без него не мержим поведенческие изменения.
 2. Этап 2 — resume и полный учёт usage. Это ядро корректности.
-3. Этап 2.5 — P1 cache economics: причина мисса и saved/miss premium.
+3. Этап 2.5 — готово: причина мисса (idle/rewrite) и saved/miss premium.
 4. Этап 2.6 — готово: context guard и `/handoff` в `omp-agent-workflow`.
 5. Этап 2.7 — готово: `/handoff-new`, state, `newSession`.
 6. Этап 2.8 — готово (e2e в Orca): supervisor.
@@ -326,7 +339,7 @@ warm/cold и причину инвалидации, поэтому TTL не до
 | `Typecheck` | 1.2: типы и `npm run typecheck` | task |
 | `CI` | 1.3: GitHub Actions и защита `main` | task |
 | `ResumeImplementer` | 2.1–2.2: восстановление и полный учёт usage | task |
-| `CacheEconomics` | 2.5: причина мисса, saved/miss premium | task |
+| `CacheEconomics` | 2.5: готово, причина мисса, saved/miss premium | task |
 | `ContextGuard` | 2.6: готово в `omp-agent-workflow` 0.3.0, 19 тестов | task |
 | `HandoffNew` | 2.7: готово в `omp-agent-workflow` 0.3.0 | task |
 | `Supervisor` | 2.8: готово, e2e в Orca пройден | task, опция |

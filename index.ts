@@ -15,7 +15,11 @@
  * журнала (`ctx.sessionManager.getEntries()`). Записи cache warming и
  * компакции/ветвления учитываются в суммах, но не в ходах и тренде. Цены
  * прошлых моделей в журнале не хранятся, поэтому деньги за восстановленную
- * пере-оплату не выдумываются.
+ * пере-оплату (`miss premium`) и экономию (`saved`) не выдумываются.
+ *
+ * Причина канонического промаха считается per-turn: простой ≥ 5 минут между
+ * завершёнными ходами (эмпирический порог, не TTL провайдера) либо перезапись
+ * префикса. Простой через границу эпохи не считается.
  *
  * Установка: `omp plugin link <каталог>` либо копия в `~/.omp/agent/extensions/`
  * (одно из двух). Сегмент `status` ставит статус в общий ряд; без него при
@@ -37,6 +41,8 @@ type LastTurn = TurnUsage & {
 	reBilled: number | null;
 	/** Стоимость пере-оплаты по цене модели этого хода; `null` — цен нет. */
 	reBillCost: number | null;
+	/** Экономия на чтении кэша по цене модели; `null` — цен нет или `cacheRead == 0`. */
+	savedCost: number | null;
 };
 
 /** Итог по журналу сессии: то, что можно восстановить после resume/reload. */
@@ -61,6 +67,12 @@ const STATUS_KEY = "cache-monitor";
 const MIN_PROMPT = 4000;
 /** Префикс предыдущего хода должен быть достаточно большим для сравнения. */
 const MIN_PREV_PROMPT = 2048;
+/**
+ * Простой между ходами, после которого промах объясняется истечением кэша, а
+ * не перезаписью префикса. Эмпирический порог, **не** объявленный TTL
+ * провайдера: `cline-pass` не декларирует lifetime.
+ */
+const IDLE_GAP_MS = 5 * 60_000;
 /** Сколько последних ходов держим в спарклайне. */
 const TREND_POINTS = 12;
 /** Уровни спарклайна: 0–100% по возрастанию. */
@@ -106,16 +118,18 @@ function sparkLevel(hit: number | null): string {
 }
 
 /**
- * Стоимость пере-оплаченных токенов: цена нового input минус цена чтения кэша,
- * обе — `$/1M` в `model.cost`. Без числовых цен возвращает `null`.
+ * Стоимость разницы цен на токены: цена нового input минус цена чтения кэша,
+ * обе — `$/1M` в `model.cost`. Одна дельта обслуживает обе метрики: `saved`
+ * (против полной цены input) и `miss premium` (пере-оплата). Без числовых цен
+ * возвращает `null`.
  */
-function rebillCost(model: unknown, tokens: number): number | null {
+function cacheDeltaCost(model: unknown, tokens: number): number | null {
 	const cost = field(model, "cost");
 	const inputPrice = field(cost, "input");
 	const cacheReadPrice = field(cost, "cacheRead");
 	if (typeof inputPrice !== "number" || !Number.isFinite(inputPrice)) return null;
 	if (typeof cacheReadPrice !== "number" || !Number.isFinite(cacheReadPrice)) return null;
-	return (tokens / 1e6) * (inputPrice - cacheReadPrice);
+	return (tokens / 1e6) * Math.max(0, inputPrice - cacheReadPrice);
 }
 
 /** Usage-объект записи; `null` — запись не несёт числового usage. */
@@ -163,7 +177,7 @@ function isEpochBoundary(type: unknown): boolean {
  * (cache warming, title/composer), compaction и branch_summary добавляют только
  * стоимость: их токены не должны разбавлять hit диалога. Границы эпохи
  * сбрасывают сравнение пере-оплаты. Цены прошлых моделей в журнале не
- * хранятся, поэтому `reBillCost` восстановленных ходов остаётся `null`.
+ * хранятся, поэтому `reBillCost` и `savedCost` восстановленных ходов — `null`.
  */
 function aggregateEntries(entries: readonly unknown[]): SessionAggregate {
 	const result: SessionAggregate = {
@@ -216,7 +230,7 @@ function aggregateEntries(entries: readonly unknown[]): SessionAggregate {
 			// У последнего хода пере-оплату не показываем: граница resume не
 			// журналируется, поэтому его сравнение с прошлым префиксом не
 			// доказано. Сумма по сессии учитывает только ходы с продолжением.
-			result.last = { ...usage, hit, reBilled: null, reBillCost: null };
+			result.last = { ...usage, hit, reBilled: null, reBillCost: null, savedCost: null };
 			result.trend.push(hit);
 			if (result.trend.length > TREND_POINTS) result.trend.shift();
 
@@ -320,6 +334,10 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 	let sessionReBillCost = 0;
 	/** Хотя бы у одного пере-оплаченного хода не было цен модели. */
 	let sessionReBillCostMissing = false;
+	/** Накопленная экономия на чтении кэша; растёт только по известным ценам. */
+	let sessionSaved = 0;
+	/** Хотя бы у одного хода с cacheRead не было цен модели (в т.ч. после resume). */
+	let sessionSavedMissing = false;
 	const trendHits: (number | null)[] = [];
 
 	// Состояние «эпохи» префикса: сравнение с prev действительно только внутри неё.
@@ -327,8 +345,9 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 	let epochModel = "";
 	let epochThinking = "?";
 	let epochTools = "";
-	let epochCause: string | null = null;
 	let epochWarned = new Set<string>();
+	/** Время последнего завершённого хода; `null` — timestamp не приходил. */
+	let lastTurnAt: number | null = null;
 
 	/** Ленивый (и кэшированный) резолв реестра; значение читается на каждом ходе. */
 	let registryPromise: Promise<RegistryHandle | null> | null = null;
@@ -369,13 +388,14 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 	};
 
 	/** Пересобрать базовую линию эпохи и сбросить сравнение. */
-	const resetEpoch = async (ctx: ExtensionContext, cause: string | null): Promise<void> => {
+	const resetEpoch = async (ctx: ExtensionContext): Promise<void> => {
 		epochModel = String(field(ctx.model, "id") ?? "");
 		epochThinking = await thinkingLevel();
 		epochTools = activeToolsSignature();
-		epochCause = cause;
 		epochWarned = new Set<string>();
 		prevPrompt = null;
+		// Простой через границу эпохи не приписываем новому префиксу.
+		lastTurnAt = null;
 		epochResetPending = true;
 		epochReady = true;
 	};
@@ -391,6 +411,8 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 		sessionReBilled = 0;
 		sessionReBillCost = 0;
 		sessionReBillCostMissing = false;
+		sessionSaved = 0;
+		sessionSavedMissing = false;
 		trendHits.length = 0;
 	};
 
@@ -407,6 +429,10 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 		// а флаг заставляет `/cache-monitor` показать `≥`, когда деньги появятся.
 		sessionReBillCost = 0;
 		sessionReBillCostMissing = aggregate.reBillCostMissing;
+		// Цены прошлых моделей неизвестны: восстановленный cacheRead не оценён,
+		// `saved` покажет только live-ходы и маркер `≥`.
+		sessionSaved = 0;
+		sessionSavedMissing = aggregate.cached > 0;
 		trendHits.length = 0;
 		trendHits.push(...aggregate.trend);
 	};
@@ -436,9 +462,9 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 
 	/**
 	 * Определить, сменилась ли эпоха с прошлого хода, и обновить базовую линию.
-	 * Возвращает причину смены или `null`.
+	 * `true` — эпоха сменилась: первый ход новой эпохи не сравнивается.
 	 */
-	const syncEpoch = async (ctx: ExtensionContext): Promise<string | null> => {
+	const syncEpoch = async (ctx: ExtensionContext): Promise<boolean> => {
 		const model = String(field(ctx.model, "id") ?? "");
 		const thinking = await thinkingLevel();
 		const tools = activeToolsSignature();
@@ -447,20 +473,19 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 			epochThinking = thinking;
 			epochTools = tools;
 			epochReady = true;
-			return null;
+			return false;
 		}
-		let cause: string | null = null;
-		if (model !== epochModel) cause = "смена модели";
-		else if (thinking !== epochThinking) cause = "смена thinking";
-		else if (tools !== epochTools) cause = "смена набора инструментов";
-		if (cause === null) return null;
+		const changed =
+			model !== epochModel || thinking !== epochThinking || tools !== epochTools;
+		if (!changed) return false;
 		epochModel = model;
 		epochThinking = thinking;
 		epochTools = tools;
-		epochCause = cause;
 		epochWarned = new Set<string>();
 		prevPrompt = null;
-		return cause;
+		// Граница эпохи: простой до неё новому префиксу не принадлежит.
+		lastTurnAt = null;
+		return true;
 	};
 
 	pi.on("session_start", async (_event, ctx) => {
@@ -468,14 +493,14 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 			setStatus(ctx, mode ? `${mode} ↺ …` : "↺ …");
 		}
 		resetTranscriptTotals();
-		await resetEpoch(ctx, null);
+		await resetEpoch(ctx);
 		// Все причины старта: у новой сессии журнал пуст, у resume/reload/fork —
 		// содержит восстановимые суммы и тренд.
 		restoreFromEntries(ctx);
 	});
 
 	pi.on("session_compact", async (_event, ctx) => {
-		await resetEpoch(ctx, "компакция");
+		await resetEpoch(ctx);
 	});
 
 	// Смена транскрипта в том же runner: `/new`, `/fork`, `/switch`/resume.
@@ -486,25 +511,35 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 		}
 		const reason = field(event, "reason");
 		if (reason === "resume" || reason === "fork") restoreFromEntries(ctx);
-		await resetEpoch(ctx, null);
+		await resetEpoch(ctx);
 	});
 
 	// `/clear` и переходы по дереву: суммы сессии остаются, префикс — новый.
 	pi.on("session_clear", async (_event, ctx) => {
-		await resetEpoch(ctx, null);
+		await resetEpoch(ctx);
 	});
 
 	pi.on("session_branch", async (_event, ctx) => {
-		await resetEpoch(ctx, null);
+		await resetEpoch(ctx);
 	});
 
 	pi.on("session_tree", async (_event, ctx) => {
-		await resetEpoch(ctx, null);
+		await resetEpoch(ctx);
 	});
 
 	pi.on("turn_end", async (event, ctx) => {
-		const raw = field(field(event, "message"), "usage");
+		const message = field(event, "message");
+		const raw = field(message, "usage");
 		if (raw === null || typeof raw !== "object") return;
+		const rawTimestamp = field(message, "timestamp");
+		const timestamp =
+			typeof rawTimestamp === "number" && Number.isFinite(rawTimestamp) && rawTimestamp > 0
+				? rawTimestamp
+				: 0;
+		const idleMs =
+			lastTurnAt !== null && timestamp > 0
+				? Math.max(0, timestamp - lastTurnAt)
+				: null;
 		const usage: TurnUsage = {
 			input: num(field(raw, "input")),
 			cacheRead: num(field(raw, "cacheRead")),
@@ -530,7 +565,7 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 		const prev = prevPrompt;
 		const changed = await syncEpoch(ctx);
 		// Первый ход новой эпохи не сравнивается и не предупреждает.
-		const freshEpoch = changed !== null || epochResetPending;
+		const freshEpoch = changed || epochResetPending;
 		epochResetPending = false;
 		const comparePrompt = freshEpoch ? null : prev;
 		const reBilled =
@@ -538,14 +573,23 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 				? Math.max(0, Math.min(comparePrompt, prompt) - usage.cacheRead)
 				: null;
 		const reBillCost =
-			reBilled !== null && reBilled > 0 ? rebillCost(ctx.model, reBilled) : null;
-		last = { ...usage, hit, reBilled, reBillCost };
+			reBilled !== null && reBilled > 0 ? cacheDeltaCost(ctx.model, reBilled) : null;
+		const savedCost =
+			usage.cacheRead > 0 ? cacheDeltaCost(ctx.model, usage.cacheRead) : null;
+		last = { ...usage, hit, reBilled, reBillCost, savedCost };
 		prevPrompt = prompt;
+		// База для простоя следующего хода. Ход без timestamp разрывает цепочку:
+		// иначе следующий gap приписал бы этому ходу чужой простой.
+		lastTurnAt = timestamp > 0 ? timestamp : null;
 
 		if (reBilled !== null && reBilled > 0) {
 			sessionReBilled += reBilled;
 			if (reBillCost === null) sessionReBillCostMissing = true;
 			else sessionReBillCost += reBillCost;
+		}
+		if (usage.cacheRead > 0) {
+			if (savedCost === null) sessionSavedMissing = true;
+			else sessionSaved += savedCost;
 		}
 		trendHits.push(hit);
 		if (trendHits.length > TREND_POINTS) trendHits.shift();
@@ -563,7 +607,10 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 			!epochWarned.has("canonical-miss")
 		) {
 			epochWarned.add("canonical-miss");
-			const reason = epochCause ?? "неизвестно";
+			const reason =
+				idleMs !== null && idleMs >= IDLE_GAP_MS
+					? `простой ${Math.round(idleMs / 60000)} мин`
+					: "перезапись префикса";
 			const costText =
 				reBilled !== null && reBilled > 0
 					? ` Пере-оплачено ≈ ${reBilled} tok${reBillCost === null ? "" : ` ($${reBillCost.toFixed(4)})`}.`
@@ -600,14 +647,20 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 
 			const parts = [`режим: ${mode || "без пресета"}`, modelLabel, `thinking ${thinking}`];
 			if (last) {
+				const savedTurn =
+					last.savedCost !== null && last.savedCost > 0
+						? ` · saved $${last.savedCost.toFixed(4)}`
+						: "";
 				parts.push(
 					`ход: ↺ ${hitPercentText(last.hit)} · in ${last.input} · cacheRead ${last.cacheRead} · ` +
-						`cacheWrite ${last.cacheWrite} · $${last.cost.toFixed(4)}`,
+						`cacheWrite ${last.cacheWrite} · $${last.cost.toFixed(4)}${savedTurn}`,
 				);
 				if (last.reBilled !== null && last.reBilled > 0) {
 					const money = last.reBillCost;
 					parts.push(
-						`пере-оплата: ${last.reBilled} tok${money === null ? "" : ` ($${money.toFixed(4)})`}`,
+						money === null
+							? `miss premium: ${last.reBilled} tok`
+							: `miss premium: $${money.toFixed(4)} (${last.reBilled} tok)`,
 					);
 				}
 			} else {
@@ -617,14 +670,21 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 				parts.push(`тренд: ${trendHits.map(sparkLevel).join("")}`);
 			}
 			const sessionHit = hitPercent(sessionInput, sessionCached, sessionWrite);
-			const sessionMissCost =
-				sessionReBillCost > 0
-					? ` (${sessionReBillCostMissing ? "≥" : ""}$${sessionReBillCost.toFixed(4)})`
+			const sessionSavedPart =
+				sessionSaved > 0
+					? `, saved ${sessionSavedMissing ? "≥" : ""}$${sessionSaved.toFixed(4)}`
 					: "";
-			const sessionMiss =
-				sessionReBilled > 0 ? `, мисс ${sessionReBilled} tok${sessionMissCost}` : "";
+			const sessionMissPart =
+				sessionReBilled > 0
+					? sessionReBillCostMissing
+						? sessionReBillCost > 0
+							? `, miss premium ≥$${sessionReBillCost.toFixed(4)} (${sessionReBilled} tok)`
+							: `, miss premium ${sessionReBilled} tok`
+						: `, miss premium $${sessionReBillCost.toFixed(4)} (${sessionReBilled} tok)`
+					: "";
 			parts.push(
-				`сессия: $${sessionCost.toFixed(4)}, ходов ${turns}, ↺ ${hitPercentText(sessionHit)}${sessionMiss}`,
+				`сессия: $${sessionCost.toFixed(4)}, ходов ${turns}, ↺ ${hitPercentText(sessionHit)}` +
+					`${sessionSavedPart}${sessionMissPart}`,
 			);
 
 			notify(ctx, parts.join(" · "), "info");

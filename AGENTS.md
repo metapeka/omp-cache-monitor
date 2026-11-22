@@ -16,10 +16,10 @@ read-only: не греет кэш, не меняет промпты, не тра
 
 ## Текущее состояние
 
-- Версия `0.4.0`, private GitHub `metapeka/omp-cache-monitor`, `main`.
-- `omp plugin link` → боевой чекаут; `omp plugin list` — 0.4.0 и
+- Версия `0.5.0`, private GitHub `metapeka/omp-cache-monitor`, `main`.
+- `omp plugin link` → боевой чекаут; `omp plugin list` — 0.5.0 и
   `omp-agent-workflow` 0.3.0 (context guard, handoff, supervisor, modes).
-- `npm test` — 22 теста; `npm run typecheck`; CI зелёный.
+- `npm test` — 31 тест; `npm run typecheck`; CI зелёный.
 - Установка одна: `omp plugin link` **или** копия файла, не оба.
 
 ## Нельзя

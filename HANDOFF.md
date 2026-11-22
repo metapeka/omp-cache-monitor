@@ -1,6 +1,7 @@
 # Передача: cache-monitor
 
-Дата: 2026-11-22. Репозиторий: `omp-cache-monitor`, ветка `main`, коммит `c849901`.
+Дата: 2026-11-22. Репозиторий: `omp-cache-monitor`, ветка `main`; состояние —
+последний коммит, где менялся этот файл (`git log -1 -- HANDOFF.md`).
 Это продолжение работы, начатой в docs-репозитории
 `docs-omp-debian-availability` (там же пресеты, `omp-mode` и публичная вики).
 
@@ -37,12 +38,46 @@
 | Продукт (код, пакет) | этот репозиторий |
 | Пресеты, `omp-mode`, план, вики | `metapeka/docs-omp-debian-availability` |
 | Публичная инструкция | https://metapeka.github.io/docs-omp-debian-availability/wiki/guide.html |
-| Установленная копия | `omp plugin link`, файла в `~/.omp/agent/extensions/` нет (одно из двух, не оба) |
+| Установленная копия | `omp plugin link` → `/home/db1/projects/omp-cache-monitor`; файла в `~/.omp/agent/extensions/` нет (одно из двух, не оба) |
+
+## Схема работы (не смешивать)
+
+Один боевой чекаут и одноразовые worktree под задачу. `omp plugin link` всегда
+указывает на боевой чекаут и **никогда** не переключается на ветки.
+
+| Роль | Путь | Ветка | Правило |
+|---|---|---|---|
+| Боевой | `/home/db1/projects/omp-cache-monitor` | `main` | это то, что установлено; код приходит сюда только merge; отсюда релизы |
+| Задача | `/home/db1/orca/workspaces/omp-cache-monitor/<slug>` | `feat/<slug>` | создаётся под задачу, удаляется после merge |
+
+Причина: линкованный каталог — это живая сессия OMP. Правка в нём немедленно
+меняет работающий OMP, поэтому эксперименты держим снаружи, а `main` остаётся
+известным хорошим.
+
+```bash
+# новая задача
+orca worktree create --repo name:omp-cache-monitor --name <slug> \
+  --branch feat/<slug> --base-branch main --no-parent --activate
+
+# финал
+git -C /home/db1/projects/omp-cache-monitor merge --ff-only feat/<slug>
+orca worktree rm --worktree branch:feat/<slug>
+```
+
+`--no-parent` обязателен: иначе Orca записывает `parentWorktreeId` от активного
+worktree (даже чужого репозитория) и работа уезжает в чужой проект в сайдбаре.
+`--branch` обязателен: дефолт Orca — `metapeka/<name>`, в публичной истории
+такой префикс ничего не значит.
 
 ## Проверка после изменений
 
 ```bash
-# загрузка без TUI
+# код ветки — без пере-линковки; --no-extensions обязателен, иначе плагин
+# загрузится дважды (линкованный + этот файл)
+omp --no-extensions -e ./index.ts --no-session --no-tools --mode json \
+  -p 'Reply with exactly: OK'                                    # exit 0, stderr пуст
+
+# загрузка без TUI из боевого чекаута
 omp --no-session --no-tools -p 'Reply with exactly: OK' --mode json   # exit 0, stderr пуст
 
 # TUI: статус и команда(в tmux/терминале Orca)

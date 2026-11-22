@@ -1,6 +1,6 @@
 # Roadmap: omp-cache-monitor
 
-Дата: 2026-11-23. Версия: 0.7.0. GitHub: private.
+Дата: 2026-11-23. Версия: 0.8.0. GitHub: private.
 Цель: довести расширение до релиза, которому можно доверять по цифрам,
 установке и поведению на всех переходах сессии.
 
@@ -18,11 +18,11 @@
 
 | Что | Состояние |
 |---|---|
-| Версия | 0.7.0: разбивка стоимости сессии в `/cache-monitor costs` |
+| Версия | 0.8.0: настройки плагина, `/cache-monitor settings` и `help` |
 | GitHub | `metapeka/omp-cache-monitor`, private, `main` |
-| Установка | `omp plugin link` на боевой чекаут; `omp plugin list` — `omp-cache-monitor@0.7.0` |
-| Проверки | `npm test` 46/46, typecheck, загрузка OMP, TUI (`/cache-monitor history`, `/cache-monitor costs`), `/new` и resume |
-| Постоянные тесты | `test/extension.test.mjs`, 46 тестов, `npm test` |
+| Установка | `omp plugin link` на боевой чекаут; `omp plugin list` — `omp-cache-monitor@0.7.0`, 0.8.0 готовится в ветке `feat/ui-settings` |
+| Проверки | `npm test` 60/60, typecheck, загрузка OMP, TUI (`/cache-monitor history`, `/cache-monitor costs`, `/cache-monitor settings`), `/new` и resume |
+| Постоянные тесты | `test/extension.test.mjs`, 60 тестов, `npm test` |
 | CI | GitHub Actions, зелёный (`npm ci`, `npm test`, `typecheck`) |
 | Рынок/конкуренты | `docs/research/cache-extensions.md` (2026-11-22) |
 | Инструкции агенту | `AGENTS.md` + глобальный `~/.omp/agent/AGENTS.md` |
@@ -55,6 +55,7 @@
 | P2 | `/compact` payback | `omp-cache-meter` | **Не делаем**: с кэшем допущение «removed-токены платились бы каждый ход» ложно → цифра будет врать. |
 | P2 | История последних N запросов | `omp-cache-meter`, `pi-cache-hit-monitor` | Готово в 0.6.0: `/cache-monitor history`, окно 8, без панели. |
 | P2 | Разбивка стоимости по типам записей | `omp-cache-meter` | Готово в 0.7.0: `/cache-monitor costs`, только `cost.total`, `?`/`≥` без оценок. |
+| P2 | UI/настройки и справка | `omp-cache-meter`, OMP plugin settings | Готово в 0.8.0: 8 ключей в `omp.settings`, runtime-чтение, `/cache-monitor settings` и `help`; defaults сохраняют прежний вывод. |
 | P2 | Powerline-интеграция | `pi-powerline-footer` | Пример/доки через `customItems`. |
 | P3 | Cold-cache budget | `pi-cache-guard` | Отдельный слой, рядом с warming. |
 | P3 | Warming/optimizer/multi-session | `ubranch`, optimizers, Tern | Не наша read-only ниша сейчас. |
@@ -312,6 +313,36 @@ auto-compaction fallback 70%, `manual` выключает оба, `assisted` —
 Реализовано в 0.7.0: `CostBucket`/`SessionAggregate.costs`, live-бакет
 `диалог` в `turn_end`, `costBucket`/`addCost`/`costReport`. Тестов 46.
 
+## Этап 2.12. Настройки плагина и справка — Phase 1 готово (P2)
+
+- Схема `package.json` → `omp.settings`: 8 ключей (`statusEnabled`,
+  `statusShowMode`, `warningsEnabled`, `lowHitPercent`, `idleMinutes`,
+  `minPromptTokens`, `historySize`, `showMoney`) с `default`, границами и
+  английскими `description`. OMP показывает их в Settings → Plugins и в
+  `omp plugin config list/set`.
+- Runtime читает настройки через `getPluginSettings(pluginName, cwd)` на
+  `session_start` (до restore) и перед командами; любая ошибка внутреннего
+  API — defaults, без падения расширения.
+- Применение: `statusEnabled`/`statusShowMode` — статус-строка;
+  `warningsEnabled`/`lowHitPercent`/`minPromptTokens` — предупреждения;
+  `idleMinutes` — причина простоя в warning и restore;
+  `historySize` — live/restore-окно и делитель `история (N/M):`;
+  `showMoney` — `saved` и деньги `miss premium` (токены остаются),
+  `/cache-monitor costs` деньги не скрывает.
+- `/cache-monitor settings` (алиас `setting`) — значения, `(changed)`/
+  `(default)`, наличие цен модели; `/cache-monitor help` (алиас `?`) —
+  статическая справка без обещаний TTL.
+- Defaults сохраняют вывод 0.7.0 побайтово; старые 46 тестов не переписаны.
+- Документация: `docs/ui-settings.md` (RU), разделы Settings в README (EN) и
+  `docs/README.ru.md`.
+- Критерий: настройки видны OMP, меняют поведение, не ломают прежний вывод и
+  переживают недоступность внутреннего API.
+
+Реализовано в 0.8.0: `Config`/`DEFAULT_CONFIG`/`normalizeConfig` (named
+export), `readSettings`, `AggregateOptions`; тестов 60 (46 старых + 14 новых),
+typecheck зелёный, `npm pack` — 4 файла. Phase 2 (language `ru|en`) и Phase 3
+(advanced-ключи) — в `docs/ui-settings.md`.
+
 ## Этап 3. TTL: data-gated (P2)
 
 Проверено:
@@ -409,9 +440,10 @@ auto-compaction fallback 70%, `manual` выключает оба, `assisted` —
 7. Этап 2.9 — готово (e2e в Orca): supervisor.
 8. Этап 2.10 — режимы готовы; оркестратор — дизайн в `omp-agent-workflow`.
 9. Этап 2.11 — готово: разбивка стоимости в `/cache-monitor costs`.
-10. Этап 3 — TTL, только data-gated, без реализации на догадках.
-11. Этап 4 — английский README, пакет, установка, тег.
-12. Этап 5 — публикация, только после явного разрешения.
+10. Этап 2.12 — готово: настройки плагина Phase 1 и `/cache-monitor help`.
+11. Этап 3 — TTL, только data-gated, без реализации на догадках.
+12. Этап 4 — английский README, пакет, установка, тег.
+13. Этап 5 — публикация, только после явного разрешения.
 
 ## Агенты
 
@@ -425,6 +457,7 @@ auto-compaction fallback 70%, `manual` выключает оба, `assisted` —
 | `ContextGuard` | 2.6: готово в `omp-agent-workflow` 0.3.0, 19 тестов | task |
 | `HandoffNew` | 2.7: готово в `omp-agent-workflow` 0.3.0 | task |
 | `TurnHistory` | 2.8: готово, история 8 ходов в `/cache-monitor` | task |
+| `UiSettings` | 2.12: готово, `omp.settings`, `settings`/`help`, docs/ui-settings.md | task |
 | `Supervisor` | 2.9: готово, e2e в Orca пройден | task, опция |
 | `YodaOrchestrator` | 2.10: режимы, план/state, оркестрация | task |
 | `Reviewer` | ревью каждого поведенческого PR | reviewer |

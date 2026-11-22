@@ -4,7 +4,8 @@
 
 Расширение OMP: hit rate кэша префикса в статус-строке, предупреждения о промахах
 и команда `/cache-monitor` (`history` — последние 8 ходов, `costs` — разбивка
-стоимости сессии по типам записей журнала).
+стоимости сессии по типам записей журнала, `settings` — настройки плагина,
+`help` — краткая справка).
 
 Ничего не меняет в настройках и запросах: читает usage завершённого хода
 (`turn_end.message.usage`) и журнал сессии (`sessionManager.getEntries()`),
@@ -61,7 +62,8 @@ resume/reload/fork на `session_start` они восстанавливаютс�
   `? (N tok)` без цены.
 - Причина (`простой N мин` / `перезапись префикса`) — только у канонического
   промаха; первый ход эпохи её не получает.
-- Окно — 8 ходов; более старые вытесняются. Нет данных — `история: нет данных`.
+- Окно — 8 ходов по умолчанию (`historySize`); более старые вытесняются. Нет
+  данных — `история: нет данных`.
 
 `/new` очищает историю; resume/fork восстанавливают её из журнала (последние 8
 assistant-сообщений), `/clear` и переходы по дереву сохраняют. У последней
@@ -183,6 +185,58 @@ live-часть и показывает `≥`.
 
 Предупреждение — сигнал проверить, что менялось за 1–2 хода до него, а не ошибка
 само по себе.
+
+## Настройки
+
+Схема лежит в `package.json` → `omp.settings`. OMP показывает её в
+**Settings → Plugins → omp-cache-monitor** и в CLI:
+
+```bash
+omp plugin config list omp-cache-monitor
+omp plugin config set omp-cache-monitor lowHitPercent 30
+omp plugin config set omp-cache-monitor statusEnabled false
+omp plugin config set omp-cache-monitor showMoney false
+```
+
+Настройки читаются на старте/переключении сессии и перед каждой командой,
+поэтому изменение из UI применяется со следующего хода после любой команды
+`/cache-monitor` (или в новой сессии).
+`/cache-monitor settings` (алиас `setting`) перечитывает их сразу и печатает
+текущие значения, пометку `(changed)`/`(default)` и наличие цен модели:
+
+```
+настройки cache-monitor:
+statusEnabled: true (default)
+statusShowMode: true (default)
+warningsEnabled: true (default)
+lowHitPercent: 50 (default)
+idleMinutes: 5 (default)
+minPromptTokens: 4000 (default)
+historySize: 8 (default)
+showMoney: true (default)
+цены модели: да
+изменить: omp plugin config set omp-cache-monitor <key> <value>
+```
+
+| Ключ | Default | Диапазон | Что меняет |
+|---|---|---|---|
+| `statusEnabled` | `true` | boolean | Публиковать hit rate в статус-строке. `false` — `setStatus` не вызывается, старый статус не чистится. |
+| `statusShowMode` | `true` | boolean | Префикс `OMP_MODE` у статуса (`cache-safe ↺ 75%`). `false` — только `↺ 75%`. |
+| `warningsEnabled` | `true` | boolean | Предупреждения о каноническом промахе и низком hit. `false` — ни одного warning. |
+| `lowHitPercent` | `50` | 1–100 | Warning, когда hit ниже этого процента. |
+| `idleMinutes` | `5` | 1–240 | Разрыв, который причина промаха называет простоем (`простой N мин`). Эмпирика, **не** TTL провайдера. |
+| `minPromptTokens` | `4000` | 0–1 000 000 | Не предупреждать на меньших промптах; тот же порог в причине и restore. |
+| `historySize` | `8` | 1–50 | Окно `/cache-monitor history` (live и после resume) и делитель `история (N/M):`. |
+| `showMoney` | `true` | boolean | `saved` и деньги `miss premium` в отчёте и history. При `false` остаются токены (`miss premium: 3000 tok` / `miss premium 3000 tok`), а `/cache-monitor costs` деньги показывает. |
+
+Невалидные значения откатываются к default; числа округляются и зажимаются
+(`lowHitPercent: 500` → `100`, `idleMinutes: 0` → `1`, `historySize: 3.6` → `4`).
+Defaults воспроизводят вывод до 0.8.0 побайтово. Подробности:
+[`ui-settings.md`](ui-settings.md).
+
+`/cache-monitor help` (алиас `?`) печатает короткую справку: что значит `↺`,
+список подкоманд (`отчёт`, `history`, `costs`, `settings`, `help`), где менять
+настройки, и ссылку на README. Обещаний TTL нет.
 
 ## Установка
 

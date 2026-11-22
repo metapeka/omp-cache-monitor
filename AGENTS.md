@@ -12,14 +12,18 @@ read-only: не греет кэш, не меняет промпты, не тра
 2. `ROADMAP.md` — этапы, приоритеты, агенты.
 3. `docs/research/cache-extensions.md` — конкуренты и что заимствуем.
 4. `README.md` — пользовательский контракт (EN), `docs/README.ru.md` — RU.
-5. `index.ts` и `test/extension.test.mjs` — реализация и тесты.
+5. `docs/ui-settings.md` — настройки, команды `settings`/`help`, Phase 2/3, риски.
+6. `index.ts` и `test/extension.test.mjs` — реализация и тесты.
 
 ## Текущее состояние
 
-- Версия `0.7.0`, private GitHub `metapeka/omp-cache-monitor`, `main`.
+- Версия `0.8.0`, private GitHub `metapeka/omp-cache-monitor`, `main`.
 - `omp plugin link` → боевой чекаут; `omp plugin list` — `omp-cache-monitor@0.7.0`
-  и `omp-agent-workflow@0.5.2` (context guard, handoff, supervisor, modes).
-- `npm test` — 46 тестов; `npm run typecheck`; CI зелёный.
+  до merge 0.8.0 и `omp-agent-workflow@0.5.2` (context guard, handoff,
+  supervisor, modes).
+- `npm test` — 60 тестов; `npm run typecheck`; CI зелёный.
+- Настройки: `package.json#omp.settings` (8 ключей), `/cache-monitor settings`
+  и `help`; таблица и риски — `docs/ui-settings.md`.
 - Установка одна: `omp plugin link` **или** копия файла, не оба.
 
 ## Нельзя
@@ -29,7 +33,7 @@ read-only: не греет кэш, не меняет промпты, не тра
 - Править боевой линкованный чекаут под эксперимент: для задач — worktree.
 - Переключать `omp plugin link` на ветку: он всегда смотрит на `main`.
 - Добавлять runtime-зависимости, `any`, фейковый TTL, warming, optimizer.
-- Менять контракт v0.6 без решения владельца.
+- Менять контракт v0.8 без решения владельца.
 - Коммитить секреты, логи сессий, `node_modules`, временные файлы.
 
 ## Рабочий процесс
@@ -120,8 +124,10 @@ npm run yoda -- --resume=<session.jsonl>
 ## Ссылки
 
 - `ROADMAP.md` — этапы 2.5 (cache economics), 2.6 (context guard/handoff),
-  2.8 (история 8 ходов), 2.11 (разбивка стоимости), 3 (TTL data-gated),
-  4 (release), 5 (publication).
+  2.8 (история 8 ходов), 2.11 (разбивка стоимости), 2.12 (настройки и
+  справка), 3 (TTL data-gated), 4 (release), 5 (publication).
+- `docs/ui-settings.md` — ключи `omp.settings`, `settings`/`help`, применение к
+  новой сессии, внутренний `getPluginSettings`, Phase 2/3.
 - `docs/research/cache-extensions.md` — рынок и что заимствуем.
 - `HANDOFF.md` — точка продолжения.
 - `~/projects/omp-agent-workflow/docs/yoda-workflow.md` — режимы

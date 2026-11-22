@@ -17,16 +17,22 @@
  * прошлых моделей в журнале не хранятся, поэтому деньги за восстановленную
  * пере-оплату (`miss premium`) и экономию (`saved`) не выдумываются.
  *
- * Причина канонического промаха считается per-turn: простой ≥ 5 минут между
- * завершёнными ходами (эмпирический порог, не TTL провайдера) либо перезапись
- * префикса. Простой через границу эпохи не считается.
+ * Причина канонического промаха считается per-turn: простой ≥ настроенного
+ * порога между завершёнными ходами (по умолчанию 5 минут, эмпирическая
+ * эвристика, не TTL провайдера) либо перезапись префикса. Простой через
+ * границу эпохи не считается.
  *
- * `/cache-monitor history` (алиас `hist`) печатает последние 8 завершённых
- * ходов с той же причиной, `saved` и `miss premium`; при resume история
- * восстанавливается из журнала, а неизвестные цены показываются как `?`.
+ * `/cache-monitor history` (алиас `hist`) печатает последние
+ * `historySize` завершённых ходов (по умолчанию 8) с той же причиной, `saved`
+ * и `miss premium`; при resume история восстанавливается из журнала, а
+ * неизвестные цены показываются как `?`.
  * `/cache-monitor costs` (алиас `cost`) печатает фактическую разбивку стоимости
  * сессии по типам записей журнала: только `cost.total` из журнала, без оценок;
  * неизвестная цена даёт `?` или `≥`. Отчёт без аргумента не меняется.
+ * `/cache-monitor settings` (алиас `setting`) перечитывает настройки из
+ * `package.json#omp.settings` и печатает их значения; `/cache-monitor help`
+ * (алиас `?`) — краткая справка. Настройки применяются к новой сессии, команда
+ * `settings` видит свежие значения сразу.
  *
  * Установка: `omp plugin link <каталог>` либо копия в `~/.omp/agent/extensions/`
  * (одно из двух). Сегмент `status` ставит статус в общий ряд; без него при
@@ -90,20 +96,91 @@ type SessionAggregate = {
 type RegistryHandle = { get(scope: unknown): unknown };
 
 const STATUS_KEY = "cache-monitor";
-/** Мелочь на первом ходе ни о чём не говорит. */
-const MIN_PROMPT = 4000;
+const PLUGIN_NAME = "omp-cache-monitor";
 /** Префикс предыдущего хода должен быть достаточно большим для сравнения. */
 const MIN_PREV_PROMPT = 2048;
-/**
- * Простой между ходами, после которого промах объясняется истечением кэша, а
- * не перезаписью префикса. Эмпирический порог, **не** объявленный TTL
- * провайдера: `cline-pass` не декларирует lifetime.
- */
-const IDLE_GAP_MS = 5 * 60_000;
 /** Сколько последних ходов держим в спарклайне. */
 const TREND_POINTS = 12;
-/** Окно `/cache-monitor history`: последние завершённые ходы. */
-const HISTORY_POINTS = 8;
+
+/** Настройки плагина; значения и границы объявлены в `package.json#omp.settings`. */
+type Config = {
+	statusEnabled: boolean;
+	statusShowMode: boolean;
+	warningsEnabled: boolean;
+	lowHitPercent: number;
+	idleMinutes: number;
+	minPromptTokens: number;
+	historySize: number;
+	showMoney: boolean;
+};
+
+/** Параметры восстановления из журнала; подмножество настроек. */
+type AggregateOptions = Pick<Config, "historySize" | "minPromptTokens" | "idleMinutes">;
+
+/** Значения по умолчанию; они же — контракт прежнего вывода без настроек. */
+const DEFAULT_CONFIG: Config = {
+	statusEnabled: true,
+	statusShowMode: true,
+	warningsEnabled: true,
+	lowHitPercent: 50,
+	idleMinutes: 5,
+	minPromptTokens: 4000,
+	historySize: 8,
+	showMoney: true,
+};
+
+/** Настройки из OMP; `settings` задают тесты вместо чтения loader'а. */
+type PluginSource = { settings?: Readonly<Record<string, unknown>> };
+
+/** Число: finite → round → clamp в [min, max]; всё остальное — default. */
+function configNumber(value: unknown, fallback: number, min: number, max: number): number {
+	if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
+	return Math.min(max, Math.max(min, Math.round(value)));
+}
+
+/** Привести сырые настройки OMP к валидному `Config`, не доверяя их форме. */
+export function normalizeConfig(raw: unknown): Config {
+	const settings: Record<string, unknown> =
+		raw !== null && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+	return {
+		statusEnabled:
+			typeof settings.statusEnabled === "boolean"
+				? settings.statusEnabled
+				: DEFAULT_CONFIG.statusEnabled,
+		statusShowMode:
+			typeof settings.statusShowMode === "boolean"
+				? settings.statusShowMode
+				: DEFAULT_CONFIG.statusShowMode,
+		warningsEnabled:
+			typeof settings.warningsEnabled === "boolean"
+				? settings.warningsEnabled
+				: DEFAULT_CONFIG.warningsEnabled,
+		lowHitPercent: configNumber(settings.lowHitPercent, DEFAULT_CONFIG.lowHitPercent, 1, 100),
+		idleMinutes: configNumber(settings.idleMinutes, DEFAULT_CONFIG.idleMinutes, 1, 240),
+		minPromptTokens: configNumber(
+			settings.minPromptTokens,
+			DEFAULT_CONFIG.minPromptTokens,
+			0,
+			1_000_000,
+		),
+		historySize: configNumber(settings.historySize, DEFAULT_CONFIG.historySize, 1, 50),
+		showMoney:
+			typeof settings.showMoney === "boolean" ? settings.showMoney : DEFAULT_CONFIG.showMoney,
+	};
+}
+
+/** Статическая справка `/cache-monitor help`; без обещаний TTL. */
+const HELP_TEXT = [
+	"cache-monitor: hit rate кэша префикса в статус-строке.",
+	"↺ N% — доля prompt, прочитанная из кэша; ↺ … до первого хода, n/a без знаменателя.",
+	"/cache-monitor — отчёт: режим, модель, ход, тренд, итог сессии.",
+	"/cache-monitor history — последние ходы; /cache-monitor costs — разбивка стоимости.",
+	"/cache-monitor settings — текущие настройки; /cache-monitor help — эта справка.",
+	"Настройки: Settings → Plugins → omp-cache-monitor или omp plugin config set omp-cache-monitor <key> <value>.",
+	"Применяются к новой сессии; команда settings перечитывает их сразу.",
+	"Подробнее: https://github.com/metapeka/omp-cache-monitor#settings",
+].join("\n");
+
 /** Уровни спарклайна: 0–100% по возрастанию. */
 const SPARK_LEVELS = "▁▂▃▄▅▆▇█";
 /** Нет знаменателя — hit не определён. */
@@ -295,40 +372,45 @@ function isCanonicalMiss(
 	prevPrompt: number | null,
 	usage: TurnUsage,
 	prompt: number,
+	minPromptTokens: number,
 ): boolean {
 	return (
 		prevPrompt !== null &&
 		prevPrompt >= MIN_PREV_PROMPT &&
 		usage.cacheRead === 0 &&
 		usage.cacheWrite > 0 &&
-		prompt >= MIN_PROMPT
+		prompt >= minPromptTokens
 	);
 }
 
 /** Причина канонического промаха: простой или перезапись префикса. */
-function missCause(idleMs: number | null): string {
-	return idleMs !== null && idleMs >= IDLE_GAP_MS
+function missCause(idleMs: number | null, idleMinutes: number): string {
+	return idleMs !== null && idleMs >= idleMinutes * 60_000
 		? `простой ${Math.round(idleMs / 60000)} мин`
 		: "перезапись префикса";
 }
 
 /** Одна строка `/cache-monitor history`: деньги только по известным ценам. */
-function historyLine(record: TurnRecord, index: number): string {
+function historyLine(record: TurnRecord, index: number, showMoney: boolean): string {
 	const parts = [
 		`${index + 1}. ↺ ${hitPercentText(record.hit)} · prompt ${record.prompt}`,
 	];
-	if (record.cacheRead > 0) {
+	if (record.cacheRead > 0 && showMoney) {
 		parts.push(
 			record.savedCost === null ? "saved ?" : `saved $${record.savedCost.toFixed(4)}`,
 		);
 	}
 	if (record.reBilled !== null && record.reBilled > 0) {
-		const tokens = `(${record.reBilled} tok)`;
-		parts.push(
-			record.reBillCost === null
-				? `miss premium ? ${tokens}`
-				: `miss premium $${record.reBillCost.toFixed(4)} ${tokens}`,
-		);
+		if (!showMoney) {
+			parts.push(`miss premium ${record.reBilled} tok`);
+		} else {
+			const tokens = `(${record.reBilled} tok)`;
+			parts.push(
+				record.reBillCost === null
+					? `miss premium ? ${tokens}`
+					: `miss premium $${record.reBillCost.toFixed(4)} ${tokens}`,
+			);
+		}
 	}
 	if (record.cause !== null) parts.push(record.cause);
 	return parts.join(" · ");
@@ -549,7 +631,34 @@ async function resolveRegistryHandle(): Promise<RegistryHandle | null> {
 	}
 }
 
-export default function cacheMonitor(pi: ExtensionAPI): void {
+/**
+ * Настройки плагина: `source.settings` в тестах, иначе loader OMP (global +
+ * project). Внутренний subpath может переехать, поэтому любая ошибка — `{}`,
+ * то есть поведение по умолчанию.
+ */
+async function readSettings(
+	source: PluginSource,
+	cwd: string,
+): Promise<Readonly<Record<string, unknown>>> {
+	if (source.settings !== undefined) return source.settings;
+	try {
+		// Динамический импорт намеренно: недоступный subpath не должен мешать
+		// расширению загрузиться, а настройки нужны лишь при старте/команде.
+		const mod: unknown = await import(
+			"@oh-my-pi/pi-coding-agent/extensibility/plugins/loader"
+		);
+		const getPluginSettings = field(mod, "getPluginSettings");
+		if (typeof getPluginSettings !== "function") return {};
+		const raw: unknown = await Reflect.apply(getPluginSettings, undefined, [PLUGIN_NAME, cwd]);
+		if (raw === null || typeof raw !== "object") return {};
+		return raw as Record<string, unknown>;
+	} catch {
+		// loader переехал или конфиг недоступен — defaults
+		return {};
+	}
+}
+
+export default function cacheMonitor(pi: ExtensionAPI, source: PluginSource = {}): void {
 	const mode = process.env.OMP_MODE?.trim() || "";
 
 	let last: LastTurn | null = null;
@@ -568,7 +677,7 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 	/** Хотя бы у одного хода с cacheRead не было цен модели (в т.ч. после resume). */
 	let sessionSavedMissing = false;
 	const trendHits: (number | null)[] = [];
-	/** Последние завершённые ходы для `history`; окно — `HISTORY_POINTS`. */
+	/** Последние завершённые ходы для `history`; окно — `config.historySize`. */
 	const history: TurnRecord[] = [];
 	/** Live-разбивка стоимости: диалог из `turn_end`, фон — только из журнала. */
 	let costs = new Map<string, CostBucket>();
@@ -586,6 +695,19 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 	let registryPromise: Promise<RegistryHandle | null> | null = null;
 	/** Эпоха сменилась, и её первый ход ещё не завершился: не предупреждать. */
 	let epochResetPending = false;
+
+	let config: Config = DEFAULT_CONFIG;
+	/** Ключи, реально пришедшие из OMP: для пометки `(changed)` в `settings`. */
+	let configuredKeys = new Set<string>();
+
+	/** Перечитать настройки; недоступный loader даёт defaults. */
+	const refreshConfig = async (ctx: ExtensionContext): Promise<void> => {
+		const raw = await readSettings(source, ctx.cwd);
+		config = normalizeConfig(raw);
+		configuredKeys = new Set(Object.keys(raw));
+		// Команда видит свежее окно: старые записи сверх него не показываем.
+		while (history.length > config.historySize) history.shift();
+	};
 
 	/** Signature активных инструментов: отсортированные имена. */
 	const activeToolsSignature = (): string => {
@@ -685,7 +807,7 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 	const recomputeTotals = (ctx: ExtensionContext): SessionAggregate | null => {
 		const entries = sessionEntries(ctx);
 		if (entries.length === 0) return null;
-		const aggregate = aggregateEntries(entries);
+		const aggregate = aggregateEntries(entries, config);
 		sessionInput = aggregate.input;
 		sessionCached = aggregate.cached;
 		sessionWrite = aggregate.write;
@@ -697,7 +819,7 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 	const restoreFromEntries = (ctx: ExtensionContext): void => {
 		const entries = sessionEntries(ctx);
 		if (entries.length === 0) return;
-		applyAggregate(aggregateEntries(entries));
+		applyAggregate(aggregateEntries(entries, config));
 	};
 
 	/**
@@ -729,8 +851,9 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 	};
 
 	pi.on("session_start", async (_event, ctx) => {
-		if (ctx.mode === "tui" && ctx.agent.kind === "main") {
-			setStatus(ctx, mode ? `${mode} ↺ …` : "↺ …");
+		await refreshConfig(ctx);
+		if (config.statusEnabled && ctx.mode === "tui" && ctx.agent.kind === "main") {
+			setStatus(ctx, config.statusShowMode && mode ? `${mode} ↺ …` : "↺ …");
 		}
 		resetTranscriptTotals();
 		await resetEpoch(ctx);
@@ -745,9 +868,10 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 
 	// Смена транскрипта в том же runner: `/new`, `/fork`, `/switch`/resume.
 	pi.on("session_switch", async (event, ctx) => {
+		await refreshConfig(ctx);
 		resetTranscriptTotals();
-		if (ctx.mode === "tui" && ctx.agent.kind === "main") {
-			setStatus(ctx, mode ? `${mode} ↺ …` : "↺ …");
+		if (config.statusEnabled && ctx.mode === "tui" && ctx.agent.kind === "main") {
+			setStatus(ctx, config.statusShowMode && mode ? `${mode} ↺ …` : "↺ …");
 		}
 		const reason = field(event, "reason");
 		if (reason === "resume" || reason === "fork") restoreFromEntries(ctx);
@@ -799,9 +923,9 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 		if (dialogCost) addCost(costs, "dialog", dialogCost);
 
 		const mainTui = ctx.mode === "tui" && ctx.agent.kind === "main";
-		if (mainTui) {
-			const text = mode ? `${mode} ↺ ${hitPercentText(hit)}` : `↺ ${hitPercentText(hit)}`;
-			setStatus(ctx, text);
+		if (config.statusEnabled && mainTui) {
+			const prefix = config.statusShowMode && mode ? `${mode} ` : "";
+			setStatus(ctx, `${prefix}↺ ${hitPercentText(hit)}`);
 		}
 
 		// Предыдущий ход той же эпохи (syncEpoch может его сбросить).
@@ -820,8 +944,9 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 		const savedCost =
 			usage.cacheRead > 0 ? cacheDeltaCost(ctx.model, usage.cacheRead) : null;
 		const cause =
-			!freshEpoch && isCanonicalMiss(comparePrompt, usage, prompt)
-				? missCause(idleMs)
+			!freshEpoch &&
+			isCanonicalMiss(comparePrompt, usage, prompt, config.minPromptTokens)
+				? missCause(idleMs, config.idleMinutes)
 				: null;
 		history.push({
 			hit,
@@ -832,7 +957,7 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 			reBillCost,
 			cause,
 		});
-		if (history.length > HISTORY_POINTS) history.shift();
+		if (history.length > config.historySize) history.shift();
 		last = { ...usage, hit, reBilled, reBillCost, savedCost };
 		prevPrompt = prompt;
 		// База для простоя следующего хода. Ход без timestamp разрывает цепочку:
@@ -852,16 +977,21 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 		if (trendHits.length > TREND_POINTS) trendHits.shift();
 
 		const turnIndex = num(field(event, "turnIndex"));
-		const canWarn = mainTui && !freshEpoch && turnIndex >= 1 && prompt >= MIN_PROMPT;
+		const canWarn =
+			config.warningsEnabled &&
+			mainTui &&
+			!freshEpoch &&
+			turnIndex >= 1 &&
+			prompt >= config.minPromptTokens;
 		if (!canWarn) return;
 
 		// Канонический промах: префикс переписан целиком, кэш не прочитан.
 		if (
-			isCanonicalMiss(comparePrompt, usage, prompt) &&
+			isCanonicalMiss(comparePrompt, usage, prompt, config.minPromptTokens) &&
 			!epochWarned.has("canonical-miss")
 		) {
 			epochWarned.add("canonical-miss");
-			const reason = missCause(idleMs);
+			const reason = missCause(idleMs, config.idleMinutes);
 			const costText =
 				reBilled !== null && reBilled > 0
 					? ` Пере-оплачено ≈ ${reBilled} tok${reBillCost === null ? "" : ` ($${reBillCost.toFixed(4)})`}.`
@@ -874,7 +1004,7 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 		}
 
 		// Низкий hit — не обязательно промах, но признак смены префикса.
-		if (hit !== null && hit < 50 && !epochWarned.has("low-hit")) {
+		if (hit !== null && hit < config.lowHitPercent && !epochWarned.has("low-hit")) {
 			epochWarned.add("low-hit");
 			notify(
 				ctx,
@@ -886,11 +1016,44 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 		}
 	});
 
+	/** Строка `/cache-monitor settings`: значения, источник и наличие цен модели. */
+	const settingsReport = (ctx: ExtensionContext): string => {
+		const rows: [string, string][] = [
+			["statusEnabled", String(config.statusEnabled)],
+			["statusShowMode", String(config.statusShowMode)],
+			["warningsEnabled", String(config.warningsEnabled)],
+			["lowHitPercent", String(config.lowHitPercent)],
+			["idleMinutes", String(config.idleMinutes)],
+			["minPromptTokens", String(config.minPromptTokens)],
+			["historySize", String(config.historySize)],
+			["showMoney", String(config.showMoney)],
+		];
+		const prices = cacheDeltaCost(ctx.model, 0) !== null ? "да" : "нет";
+		return [
+			"настройки cache-monitor:",
+			...rows.map(
+				([key, value]) => `${key}: ${value} (${configuredKeys.has(key) ? "changed" : "default"})`,
+			),
+			`цены модели: ${prices}`,
+			"изменить: omp plugin config set omp-cache-monitor <key> <value>",
+		].join("\n");
+	};
+
 	pi.registerCommand("cache-monitor", {
 		description:
-			"Показать режим, модель, hit rate и тренд кэша; history — последние 8 ходов, costs — разбивка стоимости",
+			"Показать режим, модель, hit rate и тренд кэша; history — история, costs — стоимость, settings — настройки, help — справка",
 		handler: async (args, ctx) => {
 			const subcommand = args.trim().toLowerCase();
+			// Команда видит свежие настройки; новый сеанс читает их сам.
+			await refreshConfig(ctx);
+			if (subcommand === "settings" || subcommand === "setting") {
+				notify(ctx, settingsReport(ctx), "info");
+				return;
+			}
+			if (subcommand === "help" || subcommand === "?") {
+				notify(ctx, HELP_TEXT, "info");
+				return;
+			}
 			if (subcommand === "costs" || subcommand === "cost") {
 				// Cache warming и компакция могли не прийти событиями хода.
 				const aggregate = recomputeTotals(ctx);
@@ -906,8 +1069,8 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 				const text =
 					history.length === 0
 						? "история: нет данных"
-						: `история (${history.length}/${HISTORY_POINTS}):\n${history
-								.map(historyLine)
+						: `история (${history.length}/${config.historySize}):\n${history
+								.map((record, index) => historyLine(record, index, config.showMoney))
 								.join("\n")}`;
 				notify(ctx, text, "info");
 				return;
@@ -920,7 +1083,7 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 			const parts = [`режим: ${mode || "без пресета"}`, modelLabel, `thinking ${thinking}`];
 			if (last) {
 				const savedTurn =
-					last.savedCost !== null && last.savedCost > 0
+					config.showMoney && last.savedCost !== null && last.savedCost > 0
 						? ` · saved $${last.savedCost.toFixed(4)}`
 						: "";
 				parts.push(
@@ -928,12 +1091,16 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 						`cacheWrite ${last.cacheWrite} · $${last.cost.toFixed(4)}${savedTurn}`,
 				);
 				if (last.reBilled !== null && last.reBilled > 0) {
-					const money = last.reBillCost;
-					parts.push(
-						money === null
-							? `miss premium: ${last.reBilled} tok`
-							: `miss premium: $${money.toFixed(4)} (${last.reBilled} tok)`,
-					);
+					if (!config.showMoney) {
+						parts.push(`miss premium: ${last.reBilled} tok`);
+					} else {
+						const money = last.reBillCost;
+						parts.push(
+							money === null
+								? `miss premium: ${last.reBilled} tok`
+								: `miss premium: $${money.toFixed(4)} (${last.reBilled} tok)`,
+						);
+					}
 				}
 			} else {
 				parts.push("ход: нет данных");
@@ -943,16 +1110,18 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 			}
 			const sessionHit = hitPercent(sessionInput, sessionCached, sessionWrite);
 			const sessionSavedPart =
-				sessionSaved > 0
+				config.showMoney && sessionSaved > 0
 					? `, saved ${sessionSavedMissing ? "≥" : ""}$${sessionSaved.toFixed(4)}`
 					: "";
 			const sessionMissPart =
 				sessionReBilled > 0
-					? sessionReBillCostMissing
-						? sessionReBillCost > 0
-							? `, miss premium ≥$${sessionReBillCost.toFixed(4)} (${sessionReBilled} tok)`
-							: `, miss premium ${sessionReBilled} tok`
-						: `, miss premium $${sessionReBillCost.toFixed(4)} (${sessionReBilled} tok)`
+					? !config.showMoney
+						? `, miss premium ${sessionReBilled} tok`
+						: sessionReBillCostMissing
+							? sessionReBillCost > 0
+								? `, miss premium ≥$${sessionReBillCost.toFixed(4)} (${sessionReBilled} tok)`
+								: `, miss premium ${sessionReBilled} tok`
+							: `, miss premium $${sessionReBillCost.toFixed(4)} (${sessionReBilled} tok)`
 					: "";
 			parts.push(
 				`сессия: $${sessionCost.toFixed(4)}, ходов ${turns}, ↺ ${hitPercentText(sessionHit)}` +

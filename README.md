@@ -4,7 +4,8 @@ English | [Русский](docs/README.ru.md)
 
 OMP extension: prefix-cache hit rate in the status line, miss warnings, and the
 `/cache-monitor` command (`history` shows the last 8 turns, `costs` breaks the
-session cost down by journal entry type).
+session cost down by journal entry type, `settings` shows plugin settings,
+`help` prints a short reference).
 
 It changes nothing in settings or requests: it reads the completed turn usage
 (`turn_end.message.usage`) and the session journal
@@ -64,8 +65,8 @@ completed turns as a separate notification, oldest first:
   `? (N tok)` without a price.
 - The cause (`простой N мин` / `перезапись префикса`) is attached only to a
   canonical miss; the first turn of an epoch never gets one.
-- The window is 8 turns; older ones fall off. No data prints
-  `история: нет данных`.
+- The window is 8 turns by default (`historySize`); older ones fall off. No data
+  prints `история: нет данных`.
 
 `/new` clears the history; resume/fork restores it from the journal (last 8
 assistant messages); `/clear` and tree navigation keep it. The last restored
@@ -188,6 +189,59 @@ event is not treated as a mid-session miss.
 
 A warning is a signal to check what changed 1–2 turns before it, not an error
 by itself.
+
+## Settings
+
+The schema lives in `package.json` → `omp.settings`. OMP shows it in
+**Settings → Plugins → omp-cache-monitor** and through the CLI:
+
+```bash
+omp plugin config list omp-cache-monitor
+omp plugin config set omp-cache-monitor lowHitPercent 30
+omp plugin config set omp-cache-monitor statusEnabled false
+omp plugin config set omp-cache-monitor showMoney false
+```
+
+Settings are read on session start/switch and before each command, so a change
+made in the UI applies from the next turn after any `/cache-monitor` command
+(or in a new session).
+`/cache-monitor settings` (alias `setting`) re-reads them immediately and prints
+the current values, whether each key is `(changed)` or `(default)`, and whether
+the model has numeric prices:
+
+```
+настройки cache-monitor:
+statusEnabled: true (default)
+statusShowMode: true (default)
+warningsEnabled: true (default)
+lowHitPercent: 50 (default)
+idleMinutes: 5 (default)
+minPromptTokens: 4000 (default)
+historySize: 8 (default)
+showMoney: true (default)
+цены модели: да
+изменить: omp plugin config set omp-cache-monitor <key> <value>
+```
+
+| Key | Default | Range | Effect |
+|---|---|---|---|
+| `statusEnabled` | `true` | boolean | Publish the hit rate in the status line. `false` skips every `setStatus` call; the old status is not cleared. |
+| `statusShowMode` | `true` | boolean | Prefix the status with `OMP_MODE` (`cache-safe ↺ 75%`). `false` prints just `↺ 75%`. |
+| `warningsEnabled` | `true` | boolean | Canonical-miss and low-hit warnings. `false` emits none. |
+| `lowHitPercent` | `50` | 1–100 | Warn when a turn's hit is below this percent. |
+| `idleMinutes` | `5` | 1–240 | Gap named as idle in a miss cause (`простой N мин`). Empirical heuristic, **not** a provider TTL. |
+| `minPromptTokens` | `4000` | 0–1 000 000 | Do not warn on smaller prompts; the same floor is used by the miss cause and restore. |
+| `historySize` | `8` | 1–50 | `/cache-monitor history` window (live and after resume) and the `история (N/M):` denominator. |
+| `showMoney` | `true` | boolean | `saved` and `miss premium` dollar amounts in the report and history. With `false` the tokens stay (`miss premium: 3000 tok` / `miss premium 3000 tok`) and `/cache-monitor costs` still shows money. |
+
+Invalid values fall back to the default; numbers are rounded and clamped
+(`lowHitPercent: 500` → `100`, `idleMinutes: 0` → `1`, `historySize: 3.6` → `4`).
+The default values reproduce the pre-0.8.0 output byte for byte. More detail:
+[`docs/ui-settings.md`](docs/ui-settings.md).
+
+`/cache-monitor help` (alias `?`) prints a short reference: what `↺` means, the
+subcommands (`отчёт`, `history`, `costs`, `settings`, `help`), where to change
+settings, and a link to this README. It makes no TTL promises.
 
 ## Installation
 

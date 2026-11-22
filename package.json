@@ -1,6 +1,6 @@
 {
   "name": "omp-cache-monitor",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "type": "module",
   "scripts": {
     "test": "node --experimental-strip-types test/extension.test.mjs",
@@ -32,9 +32,64 @@
     "LICENSE"
   ],
   "omp": {
+    "description": "Prefix-cache hit rate, warnings, history and cost reports for OMP",
     "extensions": [
       "./index.ts"
-    ]
+    ],
+    "settings": {
+      "statusEnabled": {
+        "type": "boolean",
+        "default": true,
+        "description": "Show the cache hit rate in the status line. Applied to new sessions."
+      },
+      "statusShowMode": {
+        "type": "boolean",
+        "default": true,
+        "description": "Prefix the status with OMP_MODE. Applied to new sessions."
+      },
+      "warningsEnabled": {
+        "type": "boolean",
+        "default": true,
+        "description": "Enable cache miss warnings. Applied to new sessions."
+      },
+      "lowHitPercent": {
+        "type": "number",
+        "default": 50,
+        "min": 1,
+        "max": 100,
+        "step": 1,
+        "description": "Warn when a turn's cache hit is below this percent. Applied to new sessions."
+      },
+      "idleMinutes": {
+        "type": "number",
+        "default": 5,
+        "min": 1,
+        "max": 240,
+        "step": 1,
+        "description": "Gaps of at least this many minutes are reported as idle. Empirical heuristic, not a provider TTL. Applied to new sessions."
+      },
+      "minPromptTokens": {
+        "type": "number",
+        "default": 4000,
+        "min": 0,
+        "max": 1000000,
+        "step": 500,
+        "description": "Do not warn on prompts smaller than this many tokens. Applied to new sessions."
+      },
+      "historySize": {
+        "type": "number",
+        "default": 8,
+        "min": 1,
+        "max": 50,
+        "step": 1,
+        "description": "Number of turns kept by /cache-monitor history. Applied to new sessions."
+      },
+      "showMoney": {
+        "type": "boolean",
+        "default": true,
+        "description": "Show saved / miss premium dollar amounts in reports and history. /cache-monitor costs always shows money. Applied to new sessions."
+      }
+    }
   },
   "pi": {
     "extensions": [

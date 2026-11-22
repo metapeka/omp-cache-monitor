@@ -1,7 +1,7 @@
 # Передача: cache-monitor
 
-Дата: 2026-11-23. Репозиторий: `omp-cache-monitor`, ветка `main`; состояние —
-последний коммит, где менялся этот файл (`git log -1 -- HANDOFF.md`).
+Дата: 2026-11-23. Репозиторий: `omp-cache-monitor`; 0.8.0 подготовлен в ветке
+`feat/ui-settings` от `main`, состояние — последний коммит ветки.
 Это продолжение работы, начатой в docs-репозитории
 `docs-omp-debian-availability` (там же пресеты, `omp-mode` и публичная вики).
 
@@ -9,20 +9,41 @@
 
 | Что | Состояние |
 |---|---|
-| Расширение `index.ts` | v0.7.0, 965 строк, контракт ниже |
-| Пакет | `package.json` (`omp.extensions` + `pi.extensions`, repository/homepage/bugs/engines), MIT, README (EN) + `docs/README.ru.md`, CHANGELOG 0.7.0 |
-| Установка на машине | `omp plugin list` — `omp-cache-monitor@0.7.0` и `omp-agent-workflow@0.5.2` |
-| Проверки | `npm test` 46/46 (включая разбивку стоимости), typecheck; TUI `/cache-monitor costs` на реальном журнале: `стоимость сессии: $0.7406`, `диалог $0.6416` + recap/composer/job-widget/title, дефолтный отчёт показал ту же `сессия: $0.7406`; предыдущие проверки 0.6.0 остаются в силе: `npm pack` — 4 файла, чистый `HOME` (tarball и `git+ssh`), загрузка OMP, TUI `/cache-monitor history`, hit/saved совпадают с JSONL, non-TUI чист |
-| Ревью | v0.4/v0.5/v0.6/v0.7 — merge |
+| Расширение `index.ts` | v0.8.0, 1138 строк, контракт ниже |
+| Пакет | `package.json` (`omp.extensions` + `omp.settings` из 8 ключей, `pi.extensions`, repository/homepage/bugs/engines), MIT, README (EN) + `docs/README.ru.md`, CHANGELOG 0.8.0 |
+| Установка на машине | `omp plugin list` — `omp-cache-monitor@0.7.0` и `omp-agent-workflow@0.5.2`; 0.8.0 подготовлен в ветке `feat/ui-settings` |
+| Проверки | `npm test` 60/60 (46 старых + 14 настроек), typecheck; `npm pack --dry-run` — 4 файла; прежние проверки 0.7.0 в силе: TUI `/cache-monitor costs` на реальном журнале, чистый `HOME` (tarball и `git+ssh`), загрузка OMP, TUI `/cache-monitor history`, hit/saved совпадают с JSONL, non-TUI чист |
+| Ревью | v0.4/v0.5/v0.6/v0.7 — merge; v0.8 — на ревью |
 | Ревью v0.4 | фоновый usage отделён от hit/ходов; граница resume не даёт ложной пере-оплаты |
 | Ревью v0.5 | reviewer: merge; исправлены пробелы покрытия — граница 5 мин, `/clear`/tree, ход без timestamp разрывает цепочку простоя |
 | Ревью v0.6 | reviewer: merge; nits исправлены — убрано мёртвое поле, покрыты live-epoch gate и регистр/пробелы алиаса |
 | Ревью v0.7 | reviewer: merge; nits закрыты — `/clear` retention, пустой label, compaction/branch-summary из `model_usage` сведены в общие бакеты |
 | Публикация | GitHub: `metapeka/omp-cache-monitor` (private, `main`); npm, marketplace — нет |
 
-## Контракт v0.7 (v0.6 + разбивка стоимости; не менять без решения владельца)
+## Контракт v0.8 (v0.7 + настройки и справка; не менять без решения владельца)
 
 - `hit = cacheRead / (input + cacheRead + cacheWrite)`; знаменатель 0 → `n/a`.
+- Настройки: `package.json#omp.settings` — ровно 8 ключей (`statusEnabled`,
+  `statusShowMode`, `warningsEnabled`, `lowHitPercent`, `idleMinutes`,
+  `minPromptTokens`, `historySize`, `showMoney`) с `default`, границами и
+  английскими `description`. Runtime читает их динамическим
+  `getPluginSettings("omp-cache-monitor", ctx.cwd)` на `session_start` (до
+  restore) и перед командами; любая ошибка/недоступность API → `{}` и defaults.
+  `normalizeConfig` (named export) принимает только bool для bool, числа —
+  finite → round → clamp, иначе default. Defaults дают вывод 0.7.0 побайтово.
+- `statusEnabled=false` — `setStatus` не вызывается (старый статус не
+  чистится); `statusShowMode=false` — статус `↺ N%` без `OMP_MODE`.
+  `warningsEnabled=false` — ни одного warning; `lowHitPercent`,
+  `minPromptTokens`, `idleMinutes` заменяют прежние константы 50/4000/5;
+  `historySize` — live- и restore-окно и делитель `история (N/M):`.
+  `showMoney=false` — в отчёте и history нет `saved` и денег `miss premium`
+  (`miss premium: 3000 tok` / `miss premium 3000 tok`), `/cache-monitor costs`
+  деньги показывает.
+- `/cache-monitor settings` (алиас `setting`) перечитывает настройки и печатает
+  8 ключей с `(changed)`/`(default)`, `цены модели: да|нет` и команду
+  изменения. `/cache-monitor help` (алиас `?`) — статическая справка: `↺`,
+  подкоманды, Settings → Plugins, `omp plugin config`, ссылка на README.
+  Документация: `docs/ui-settings.md`.
 - Статус-ключ `cache-monitor`, текст `<OMP_MODE> ↺ N%` (без режима — `↺ N%`).
 - Команда `/cache-monitor` (не `/cache`: имя занято `ubranch/omp-cache-control`).
   Аргумент `history`/`hist` печатает историю, `costs`/`cost` — разбивку
@@ -46,13 +67,14 @@
   (`$X (N tok)` или `? (N tok)`); причина — только у канонического промаха
   (`простой N мин` / `перезапись префикса`), первый ход эпохи её не получает.
   Нет ходов — `история: нет данных`.
-- История живёт в окне 8: live-ходы добавляются в `turn_end` с известными
-  ценами, восстановленные из журнала — с `savedCost`/`reBillCost = null`.
-  Причина в live и в warning считается одним `missCause(idleMs)`, промах —
-  одним `isCanonicalMiss(prevPrompt, usage, prompt)` (пороги `MIN_PREV_PROMPT`,
-  `MIN_PROMPT`, `IDLE_GAP_MS`).
-- Restore истории на resume/fork: последние 8 assistant-сообщений; границы
-  `model_change`/`thinking_level_change`/`reset_boundary`/`compaction`/
+- История живёт в окне `historySize` (default 8): live-ходы добавляются в
+  `turn_end` с известными ценами, восстановленные из журнала — с
+  `savedCost`/`reBillCost = null`. Причина в live и в warning считается одним
+  `missCause(idleMs, idleMinutes)`, промах — одним
+  `isCanonicalMiss(prevPrompt, usage, prompt, minPromptTokens)` (порог
+  предыдущего хода — `MIN_PREV_PROMPT`).
+- Restore истории на resume/fork: последние `historySize` assistant-сообщений;
+  границы `model_change`/`thinking_level_change`/`reset_boundary`/`compaction`/
   `branch_summary` начинают новую эпоху (причина `null`, база простоя
   сброшена). `idleMs` — из `message.timestamp`; сообщение без timestamp
   разрывает цепочку. У последней записи окна `reBilled = null`: граница
@@ -62,11 +84,12 @@
 - Эпоха префикса сбрасывается на: старт сессии, компакцию, смену модели,
   смену thinking (live, fallback на настройки), смену набора инструментов,
   `/new`/`/fork`/`/switch` (суммы тоже), `/clear`/ветку/дерево (только сравнение).
-- Предупреждения: только TUI, `agent.kind === "main"`, не первый ход эпохи,
-  prompt ≥ 4000; канонический промах (`prev ≥ 2048 && cacheRead == 0 && cacheWrite > 0`)
-  и низкий hit (< 50%), по одному на эпоху.
+- Предупреждения: только TUI, `agent.kind === "main"`, `warningsEnabled`, не
+  первый ход эпохи, prompt ≥ `minPromptTokens` (default 4000); канонический
+  промах (`prev ≥ 2048 && cacheRead == 0 && cacheWrite > 0`) и низкий hit
+  (< `lowHitPercent`, default 50), по одному на эпоху.
 - Причина канонического промаха — per-turn: `простой N мин`, если
-  `message.timestamp` даёт разрыв ≥ `IDLE_GAP_MS` (5 минут), иначе
+  `message.timestamp` даёт разрыв ≥ `idleMinutes` (default 5 минут), иначе
   `перезапись префикса`. Порог — эмпирический, не TTL провайдера. `lastTurnAt`
   сбрасывается в `resetEpoch` и при смене эпохи, поэтому простой через границу
   не приписывается новому префиксу; без timestamp причина — перезапись.
@@ -106,8 +129,8 @@
 | Часть | Репозиторий/путь |
 |---|---|
 | Продукт (код, пакет) | этот репозиторий; GitHub — https://github.com/metapeka/omp-cache-monitor |
-| Документация | `README.md` (EN), `docs/README.ru.md` (RU), `CHANGELOG.md`; в tarball входит только `README.md` |
-| Релиз | https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.6.0 (private, tarball-ассет); тег `v0.7.0` — по решению владельца |
+| Документация | `README.md` (EN), `docs/README.ru.md` (RU), `docs/ui-settings.md` (настройки/справка), `CHANGELOG.md`; в tarball входит только `README.md` |
+| Релиз | https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.6.0 (private, tarball-ассет); теги `v0.7.0`/`v0.8.0` — по решению владельца |
 | План развития | `ROADMAP.md` |
 | Исследование конкурентов | `docs/research/cache-extensions.md` |
 | Инструкции агенту | `AGENTS.md`; глобальные — `~/.omp/agent/AGENTS.md` |
@@ -176,6 +199,8 @@ omp --no-tools --session-dir /tmp/cm-check
 #   ↺ … на старте, затем ↺ N%; /cache-monitor печатает строку
 #   /cache-monitor history → «история (N/8):» и строки ходов
 #   /cache-monitor costs → «стоимость сессии: $…» и строки бакетов
+#   /cache-monitor settings → 8 ключей и «цены модели: да|нет»
+#   /cache-monitor help → справка с подкомандами и путями к настройкам
 #   /new → статус ↺ …, команда: ходов 0, ↺ n/a; history: «история: нет данных»,
 #          costs: «стоимость: нет данных»
 
@@ -186,11 +211,16 @@ omp --no-tools --session-dir /tmp/cm-check
 ## Возможные следующие шаги (по решению владельца)
 
 Полный план с этапами, критериями и назначением агентов — `ROADMAP.md`.
-Кратко: этапы 1–2, 2.5, 2.8, 2.11 и 4 (README, пакет, tarball, тег/release
-0.6.0) готовы; 0.7.0 с `/cache-monitor costs` в `main`, TUI-проверка пройдена.
-Следующее — только по решению владельца: тег/release `v0.7.0`, этап 5
-(npm/marketplace) или P2-бэклог (powerline, панель). TTL на `cline-pass` не
-делаем: провайдер не декларирует lifetime; TTL — data-gated P2.
+Кратко: этапы 1–2, 2.5, 2.8, 2.11, 2.12 и 4 (README, пакет, tarball,
+тег/release 0.6.0) готовы; 0.7.0 (`/cache-monitor costs`) в `main`, 0.8.0
+(настройки, `settings`, `help`) — в ветке `feat/ui-settings` до ff-merge;
+тесты и typecheck зелёные. Следующее — только по
+решению владельца: тег/release `v0.7.0` и/или `v0.8.0`, этап 5
+(npm/marketplace) или P2-бэклог (powerline, панель). Phase 2 настроек —
+`language: ru|en`; Phase 3 — advanced-ключи (`warnCanonicalMiss`,
+`minPrevPromptTokens`, `oncePerEpoch`, `trendSize`, `statusShowCost`), см.
+`docs/ui-settings.md`. TTL на `cline-pass` не делаем: провайдер не декларирует
+lifetime; TTL — data-gated P2.
 
 ## Ограничения
 
@@ -225,3 +255,9 @@ omp --no-tools --session-dir /tmp/cm-check
   записи в журнал не видны. Если у записи нет числового `cost.total`, её
   стоимость неизвестна (`?`/`≥`), а не оценена; нестроковый `kind`/`purpose`
   попадает в `прочее`.
+- Настройки читаются внутренним `getPluginSettings` из
+  `@oh-my-pi/pi-coding-agent/extensibility/plugins/loader`: subpath может
+  переехать между версиями OMP. Импорт динамический, любая ошибка даёт defaults,
+  поэтому расширение не падает, но новые ключи без loader'а не видны. Настройки
+  применяются к новой сессии; открытая сессия сама их не перечитывает — это
+  делает команда `settings`.

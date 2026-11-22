@@ -8,7 +8,7 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it } from "node:test";
 
-import cacheMonitor from "../index.ts";
+import cacheMonitor, { normalizeConfig } from "../index.ts";
 
 const MODEL = {
 	id: "model-a",
@@ -17,7 +17,7 @@ const MODEL = {
 };
 
 /** Faked `pi`: records handlers/commands, exposes mutable tools and thinking. */
-function install() {
+function install(options = { settings: {} }) {
 	const handlers = new Map();
 	const commands = new Map();
 	const state = { thinking: "high", tools: ["read"] };
@@ -34,7 +34,7 @@ function install() {
 		getThinkingLevel: () => state.thinking,
 		pi: { settings: {} },
 	};
-	cacheMonitor(pi);
+	cacheMonitor(pi, options);
 	return { handlers, commands, state };
 }
 
@@ -112,8 +112,16 @@ function modelUsageEntry(turnUsage, purpose = "title-fork") {
 	return { type: "model_usage", purpose, usage: turnUsage };
 }
 
-async function started({ mode, agentKind, model, ui, entries = [], reason = "startup" } = {}) {
-	const extension = install();
+async function started({
+	mode,
+	agentKind,
+	model,
+	ui,
+	entries = [],
+	reason = "startup",
+	settings,
+} = {}) {
+	const extension = install(settings === undefined ? undefined : { settings });
 	const view = context({ mode, agentKind, model, ui, entries });
 	await fire(extension, "session_start", view.ctx, { reason });
 	return { extension, ...view };
@@ -1029,5 +1037,250 @@ describe("cost breakdown", () => {
 		await command(extension, ctx, "history");
 		assert.match(notifications.at(-1).text, /^история \(1\/8\):/);
 		assert.doesNotMatch(notifications.at(-1).text, /стоимость сессии:/);
+	});
+});
+
+describe("plugin settings", () => {
+	const DEFAULTS = {
+		statusEnabled: true,
+		statusShowMode: true,
+		warningsEnabled: true,
+		lowHitPercent: 50,
+		idleMinutes: 5,
+		minPromptTokens: 4000,
+		historySize: 8,
+		showMoney: true,
+	};
+
+	it("normalizes numbers by rounding, clamping and falling back", () => {
+		const config = normalizeConfig({
+			statusEnabled: "yes",
+			statusShowMode: false,
+			warningsEnabled: null,
+			lowHitPercent: 500,
+			idleMinutes: 0,
+			minPromptTokens: 499.4,
+			historySize: 3.6,
+			showMoney: "false",
+		});
+		assert.deepEqual(config, {
+			statusEnabled: true,
+			statusShowMode: false,
+			warningsEnabled: true,
+			lowHitPercent: 100,
+			idleMinutes: 1,
+			minPromptTokens: 499,
+			historySize: 4,
+			showMoney: true,
+		});
+	});
+
+	it("falls back to defaults for invalid values and shapes", () => {
+		assert.deepEqual(normalizeConfig(undefined), DEFAULTS);
+		assert.deepEqual(normalizeConfig("text"), DEFAULTS);
+		assert.deepEqual(
+			normalizeConfig({
+				statusEnabled: 1,
+				statusShowMode: "true",
+				warningsEnabled: "no",
+				lowHitPercent: Number.NaN,
+				idleMinutes: Number.POSITIVE_INFINITY,
+				minPromptTokens: "4000",
+				historySize: null,
+				showMoney: 0,
+			}),
+			DEFAULTS,
+		);
+	});
+
+	it("does not publish a status when statusEnabled is false", async () => {
+		const settings = { statusEnabled: false };
+		const { extension, ctx, statuses } = await started({ settings });
+		assert.equal(statuses.length, 0);
+
+		await turn(extension, ctx, usage(1000, 3000, 0));
+		assert.equal(statuses.length, 0);
+
+		await fire(extension, "session_switch", ctx, { reason: "new" });
+		assert.equal(statuses.length, 0);
+	});
+
+	it("omits the OMP_MODE prefix when statusShowMode is false", async () => {
+		process.env.OMP_MODE = "cache-safe";
+		const { extension, ctx, statuses } = await started({
+			settings: { statusShowMode: false },
+		});
+		assert.deepEqual(statuses.at(-1), { key: "cache-monitor", text: "↺ …" });
+
+		await turn(extension, ctx, usage(1000, 3000, 0));
+		assert.deepEqual(statuses.at(-1), { key: "cache-monitor", text: "↺ 75%" });
+	});
+
+	it("emits no warnings when warningsEnabled is false", async () => {
+		const { extension, ctx, notifications } = await started({
+			settings: { warningsEnabled: false },
+		});
+		await turn(extension, ctx, usage(0, 0, 5000), 1);
+		await turn(extension, ctx, usage(0, 0, 5000), 2);
+		assert.equal(notifications.length, 0);
+	});
+
+	it("uses lowHitPercent instead of a fixed 50%", async () => {
+		const { extension, ctx, notifications } = await started({
+			settings: { lowHitPercent: 10 },
+		});
+		await turn(extension, ctx, usage(0, 0, 5000), 1);
+		// 25% is above the configured threshold: silent.
+		await turn(extension, ctx, usage(3000, 1000, 0), 2);
+		assert.equal(notifications.length, 0);
+
+		// 5% is below 10%: warned.
+		await turn(extension, ctx, usage(3800, 200, 0), 3);
+		assert.equal(notifications.length, 1);
+		assert.match(notifications[0].text, /hit 5%/);
+	});
+
+	it("uses idleMinutes for the miss cause", async () => {
+		const START = 3_000_000;
+		const { extension, ctx, notifications } = await started({
+			settings: { idleMinutes: 1 },
+		});
+		await turn(extension, ctx, usage(0, 0, 5000), 1, START);
+		await turn(extension, ctx, usage(0, 0, 5000), 2, START + 2 * 60_000);
+
+		const miss = notifications.find((n) => /промах/.test(n.text));
+		assert.ok(miss, "expected a canonical-miss warning");
+		assert.match(miss.text, /причина: простой 2 мин\./);
+	});
+
+	it("uses minPromptTokens as the warning floor", async () => {
+		const { extension, ctx, notifications } = await started({
+			settings: { minPromptTokens: 10000 },
+		});
+		await turn(extension, ctx, usage(0, 0, 5000), 1);
+		await turn(extension, ctx, usage(0, 0, 5000), 2);
+		assert.equal(notifications.length, 0);
+	});
+
+	it("uses historySize for the live and restored windows", async () => {
+		const { extension, ctx, notifications } = await started({
+			settings: { historySize: 3 },
+		});
+		for (let i = 1; i <= 5; i += 1) {
+			await turn(extension, ctx, usage(1000 - i * 10, i * 10, 0), i);
+		}
+
+		await command(extension, ctx, "history");
+		const lines = notifications.at(-1).text.split("\n");
+		assert.equal(lines[0], "история (3/3):");
+		assert.equal(lines.length, 4);
+		assert.match(lines[1], /^1\. ↺ 3%/);
+		assert.match(lines[3], /^3\. ↺ 5%/);
+
+		const entries = [1, 2, 3, 4, 5].map((i) =>
+			assistantEntry(usage(1000 - i * 10, i * 10, 0)),
+		);
+		const resumed = await started({
+			settings: { historySize: 3 },
+			entries,
+			reason: "resume",
+		});
+		await command(resumed.extension, resumed.ctx, "history");
+		assert.match(resumed.notifications.at(-1).text, /^история \(3\/3\):/);
+	});
+
+	it("hides saved and miss-premium money when showMoney is false", async () => {
+		const { extension, ctx, notifications } = await started({
+			settings: { showMoney: false },
+		});
+		await turn(extension, ctx, usage(0, 0, 5000, 0.05), 1);
+		await turn(extension, ctx, usage(3000, 1000, 0, 0.02), 2);
+
+		await command(extension, ctx);
+		const report = notifications.at(-1).text;
+		assert.doesNotMatch(report, /saved/);
+		assert.doesNotMatch(report, /miss premium[^·]*\$/);
+		assert.match(report, /miss premium: 3000 tok/);
+		assert.match(report, /сессия: \$0\.0700, ходов 2, ↺ 11\.1%, miss premium 3000 tok$/);
+
+		await command(extension, ctx, "history");
+		const history = notifications.at(-1).text;
+		assert.doesNotMatch(history, /saved/);
+		assert.doesNotMatch(history, /\$/);
+		assert.match(history, /^2\. ↺ 25% · prompt 4000 · miss premium 3000 tok$/m);
+
+		await command(extension, ctx, "costs");
+		assert.match(notifications.at(-1).text, /^стоимость сессии: \$0\.0700$/m);
+	});
+
+	it("prints default settings with their source", async () => {
+		const { extension, ctx, notifications } = await started();
+		await command(extension, ctx, "settings");
+		assert.equal(
+			notifications.at(-1).text,
+			"настройки cache-monitor:\n" +
+				"statusEnabled: true (default)\n" +
+				"statusShowMode: true (default)\n" +
+				"warningsEnabled: true (default)\n" +
+				"lowHitPercent: 50 (default)\n" +
+				"idleMinutes: 5 (default)\n" +
+				"minPromptTokens: 4000 (default)\n" +
+				"historySize: 8 (default)\n" +
+				"showMoney: true (default)\n" +
+				"цены модели: да\n" +
+				"изменить: omp plugin config set omp-cache-monitor <key> <value>",
+		);
+	});
+
+	it("marks changed keys and reports missing model prices", async () => {
+		const { extension, ctx, notifications } = await started({
+			settings: { lowHitPercent: 10, showMoney: false },
+		});
+		await command(extension, ctx, "setting");
+		const out = notifications.at(-1).text;
+		assert.match(out, /^lowHitPercent: 10 \(changed\)$/m);
+		assert.match(out, /^showMoney: false \(changed\)$/m);
+		assert.match(out, /^statusEnabled: true \(default\)$/m);
+		assert.match(out, /^цены модели: да$/m);
+
+		const noPrices = await started({
+			model: { id: "model-a", provider: "test" },
+			settings: {},
+		});
+		await command(noPrices.extension, noPrices.ctx, "settings");
+		assert.match(noPrices.notifications.at(-1).text, /^цены модели: нет$/m);
+	});
+
+	it("prints help with the commands and settings entry points", async () => {
+		const { extension, ctx, notifications } = await started();
+		await command(extension, ctx, "help");
+		const out = notifications.at(-1).text;
+		assert.match(out, /\/cache-monitor history/);
+		assert.match(out, /\/cache-monitor costs/);
+		assert.match(out, /\/cache-monitor settings/);
+		assert.match(out, /\/cache-monitor help/);
+		assert.match(out, /Settings → Plugins → omp-cache-monitor/);
+		assert.match(out, /omp plugin config/);
+		assert.match(out, /metapeka\/omp-cache-monitor#settings/);
+		const lines = out.split("\n");
+		assert.ok(lines.length >= 6 && lines.length <= 10, `unexpected help size: ${lines.length}`);
+
+		await command(extension, ctx, "?");
+		assert.equal(notifications.at(-1).text, out);
+	});
+
+	it("re-reads settings before a command", async () => {
+		const settings = { lowHitPercent: 10 };
+		const { extension, ctx, notifications } = await started({ settings });
+		await turn(extension, ctx, usage(0, 0, 5000), 1);
+		await turn(extension, ctx, usage(3000, 1000, 0), 2);
+		assert.equal(notifications.length, 0);
+
+		settings.lowHitPercent = 6;
+		await command(extension, ctx, "settings");
+		assert.match(notifications.at(-1).text, /^lowHitPercent: 6 \(changed\)$/m);
+
+		await turn(extension, ctx, usage(3800, 200, 0), 3);
+		assert.match(notifications.at(-1).text, /hit 5%/);
 	});
 });

@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.8.0 — 2026-11-23
+
+- **Настройки плагина.** В `package.json` → `omp.settings` объявлены 8 ключей:
+  `statusEnabled`, `statusShowMode`, `warningsEnabled`, `lowHitPercent`,
+  `idleMinutes`, `minPromptTokens`, `historySize`, `showMoney`. OMP показывает
+  их в Settings → Plugins и в `omp plugin config list/set`; runtime читает их
+  через `getPluginSettings` на старте сессии и перед командами. Любая ошибка
+  внутреннего API — defaults, поэтому поведение без настроек побайтово
+  совпадает с 0.7.0.
+- **`/cache-monitor settings` (алиас `setting`).** Перечитывает настройки и
+  печатает значения с пометкой `(changed)`/`(default)`, наличие цен модели и
+  команду изменения.
+- **`/cache-monitor help` (алиас `?`).** Статическая справка: что значит `↺`,
+  подкоманды, где открыть настройки, ссылка на README.
+- **Пороги и окна из настроек.** `lowHitPercent` заменяет жёсткие 50%,
+  `idleMinutes` — 5-минутную эвристику (в warning и restore), `minPromptTokens`
+  — порог 4000, `historySize` — окно истории и делитель `история (N/M):`.
+  `warningsEnabled=false` глушит все warning, `statusEnabled=false` не трогает
+  статус-строку, `statusShowMode=false` убирает префикс `OMP_MODE`.
+- **`showMoney=false`.** В дефолтном отчёте и history исчезают `saved` и деньги
+  `miss premium`, токены остаются (`miss premium: 3000 tok` /
+  `miss premium 3000 tok`); `/cache-monitor costs` по-прежнему показывает
+  деньги.
+- **Документация.** Новый `docs/ui-settings.md` (RU) с таблицей ключей,
+  командами, Phase 2/3 и рисками; разделы Settings в README (EN) и
+  `docs/README.ru.md`. Тестов 60.
+
 ## 0.7.0 — 2026-11-23
 
 - **`/cache-monitor costs` (алиас `cost`).** Подкоманда печатает фактическую

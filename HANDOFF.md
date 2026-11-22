@@ -12,9 +12,9 @@
 | Расширение `index.ts` | v0.3.0, 413 строк, контракт ниже |
 | Пакет | `package.json` (`omp.extensions` + `pi.extensions`), MIT, README |
 | Установка на машине | `omp plugin link /home/db1/projects/omp-cache-monitor`, в `omp plugin list` — `omp-cache-monitor@0.3.0` |
-| Проверки | TUI hit совпал с JSONL (9.9% → 98.1%), `/new` сбрасывает суммы, предупреждение молчит на первом ходе эпохи, non-TUI чистый; метрики — harness 8/8, загрузка в OMP exit 0 |
+| Проверки | `npm test` 16/16, TUI hit совпал с JSONL (9.9% → 98.1%), `/new` сбрасывает суммы, предупреждение молчит на первом ходе эпохи, non-TUI чистый, загрузка в OMP exit 0 |
 | Ревью | 2 major (сброс после `/new`, ложный warning после компакции) исправлены, ре-ревью «ок» |
-| Публикация | GitHub: `metapeka/omp-cache-monitor` (public, `main`); npm, marketplace — нет |
+| Публикация | GitHub: `metapeka/omp-cache-monitor` (private, `main`); npm, marketplace — нет |
 
 ## Контракт v0.3 (v0.2 + аддитивные метрики; не менять без решения владельца)
 

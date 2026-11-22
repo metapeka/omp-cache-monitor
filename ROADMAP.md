@@ -21,8 +21,8 @@
 | Версия | 0.3.0: hit, trend, стоимость мисса за сессию, warnings, `/cache-monitor` |
 | GitHub | `metapeka/omp-cache-monitor`, private, `main` |
 | Установка | `omp plugin link` на боевой чекаут; `omp plugin list` — 0.3.0 |
-| Проверки | разовый harness 8/8, загрузка OMP, TUI и `/new` |
-| Постоянные тесты | нет |
+| Проверки | `npm test` 16/16, загрузка OMP, TUI и `/new` |
+| Постоянные тесты | `test/extension.test.mjs`, 16 тестов, `npm test` |
 | CI | нет |
 | npm / marketplace | не публиковались |
 | Английский README | нет |
@@ -38,23 +38,26 @@
 
 ## Этап 1. Контур качества (блокирует остальное)
 
-### 1.1. Постоянный harness
+### 1.1. Постоянный harness — готово
 
-- Добавить `test/extension.test.mjs`, который импортирует реальный `index.ts`
-  через Node 22 `--experimental-strip-types` и подменяет `pi`/`ctx`.
-- Покрыть: формулу hit, спарклайн и его усечение до 12, накопление `мисс`,
-  включая ходы без цен, сброс на `/new`/`/fork`/`/switch`, смену эпохи,
+- `test/extension.test.mjs` импортирует реальный `index.ts` через Node 22
+  `--experimental-strip-types` и подменяет `pi`/`ctx`.
+- Покрыто: формула hit, спарклайн и усечение до 12, накопление `мисс`,
+  включая ходы без цен, сброс на `/new`/`/fork`/`/switch`, смена эпохи,
   пороги warnings, non-TUI no-op.
-- Добавить `npm test`.
-- Критерий: детерминированно, без сети и модели, exit 0.
+- `npm test` — 16/16, детерминированно, без сети и модели.
 
 ### 1.2. Типы
 
-- Проверить, можно ли подключить типы `@earendil-works/pi-coding-agent`
-  как devDependency; если да — `tsconfig.json` и `npm run typecheck`.
-- Если пакет недоступен — зафиксировать ручную проверку и не добавлять
-  фиктивные типы.
-- Критерий: `noEmit` проходит на `index.ts`.
+- Подтверждено: `@oh-my-pi/pi-coding-agent@19.1.0` опубликован и отдаёт
+  типы `./dist/types/index.d.ts`; это тот же контракт, который импортирует
+  `index.ts`. `@earendil-works/pi-coding-agent` — установленный runtime, не
+  источник типа для расширения.
+- Добавить devDependencies `@oh-my-pi/pi-coding-agent@19.1.0` и `typescript`;
+  `tsconfig.json` с `module`/`moduleResolution: NodeNext`, `target: ES2022`,
+  `strict`, `noEmit`, `skipLibCheck`; `npm run typecheck`.
+- Критерий: `noEmit` проходит на `index.ts`, devDependencies не попадают
+  в tarball (`files` не меняется).
 
 ### 1.3. CI
 

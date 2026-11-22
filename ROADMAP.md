@@ -20,8 +20,8 @@
 |---|---|
 | Версия | 0.7.0: разбивка стоимости сессии в `/cache-monitor costs` |
 | GitHub | `metapeka/omp-cache-monitor`, private, `main` |
-| Установка | `omp plugin link` на боевой чекаут; `omp plugin list` — `omp-cache-monitor@0.6.0` |
-| Проверки | `npm test` 46/46, typecheck, загрузка OMP, TUI (`/cache-monitor history`), `/new` и resume |
+| Установка | `omp plugin link` на боевой чекаут; `omp plugin list` — `omp-cache-monitor@0.7.0` |
+| Проверки | `npm test` 46/46, typecheck, загрузка OMP, TUI (`/cache-monitor history`, `/cache-monitor costs`), `/new` и resume |
 | Постоянные тесты | `test/extension.test.mjs`, 46 тестов, `npm test` |
 | CI | GitHub Actions, зелёный (`npm ci`, `npm test`, `typecheck`) |
 | Рынок/конкуренты | `docs/research/cache-extensions.md` (2026-11-22) |

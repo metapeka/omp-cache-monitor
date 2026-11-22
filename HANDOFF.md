@@ -11,8 +11,8 @@
 |---|---|
 | Расширение `index.ts` | v0.7.0, 965 строк, контракт ниже |
 | Пакет | `package.json` (`omp.extensions` + `pi.extensions`, repository/homepage/bugs/engines), MIT, README (EN) + `docs/README.ru.md`, CHANGELOG 0.7.0 |
-| Установка на машине | `omp plugin list` — `omp-cache-monitor@0.6.0` (после merge 0.7.0) и `omp-agent-workflow@0.5.0` |
-| Проверки | `npm test` 46/46 (включая разбивку стоимости), typecheck; предыдущие проверки 0.6.0 остаются в силе: `npm pack` — 4 файла, чистый `HOME` (tarball и `git+ssh`), загрузка OMP, TUI `/cache-monitor history`, дефолтный отчёт, hit/saved совпадают с JSONL, non-TUI чист |
+| Установка на машине | `omp plugin list` — `omp-cache-monitor@0.7.0` и `omp-agent-workflow@0.5.2` |
+| Проверки | `npm test` 46/46 (включая разбивку стоимости), typecheck; TUI `/cache-monitor costs` на реальном журнале: `стоимость сессии: $0.7406`, `диалог $0.6416` + recap/composer/job-widget/title, дефолтный отчёт показал ту же `сессия: $0.7406`; предыдущие проверки 0.6.0 остаются в силе: `npm pack` — 4 файла, чистый `HOME` (tarball и `git+ssh`), загрузка OMP, TUI `/cache-monitor history`, hit/saved совпадают с JSONL, non-TUI чист |
 | Ревью | v0.4/v0.5/v0.6/v0.7 — merge |
 | Ревью v0.4 | фоновый usage отделён от hit/ходов; граница resume не даёт ложной пере-оплаты |
 | Ревью v0.5 | reviewer: merge; исправлены пробелы покрытия — граница 5 мин, `/clear`/tree, ход без timestamp разрывает цепочку простоя |
@@ -107,7 +107,7 @@
 |---|---|
 | Продукт (код, пакет) | этот репозиторий; GitHub — https://github.com/metapeka/omp-cache-monitor |
 | Документация | `README.md` (EN), `docs/README.ru.md` (RU), `CHANGELOG.md`; в tarball входит только `README.md` |
-| Релиз | https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.6.0 (private, tarball-ассет); тег 0.7.0 — после merge |
+| Релиз | https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.6.0 (private, tarball-ассет); тег `v0.7.0` — по решению владельца |
 | План развития | `ROADMAP.md` |
 | Исследование конкурентов | `docs/research/cache-extensions.md` |
 | Инструкции агенту | `AGENTS.md`; глобальные — `~/.omp/agent/AGENTS.md` |
@@ -186,11 +186,11 @@ omp --no-tools --session-dir /tmp/cm-check
 ## Возможные следующие шаги (по решению владельца)
 
 Полный план с этапами, критериями и назначением агентов — `ROADMAP.md`.
-Кратко: этапы 1–2, 2.5, 2.8, 2.11 и 4 (README, пакет, tarball, тег/release)
-готовы; ветка `feat/costs` (0.7.0) ждёт ревью и ff-merge, после которого —
-TUI-проверка `/cache-monitor costs`. Следующее — только по решению владельца:
-этап 5 (npm/marketplace) или P2-бэклог (powerline, панель). TTL на `cline-pass`
-не делаем: провайдер не декларирует lifetime; TTL — data-gated P2.
+Кратко: этапы 1–2, 2.5, 2.8, 2.11 и 4 (README, пакет, tarball, тег/release
+0.6.0) готовы; 0.7.0 с `/cache-monitor costs` в `main`, TUI-проверка пройдена.
+Следующее — только по решению владельца: тег/release `v0.7.0`, этап 5
+(npm/marketplace) или P2-бэклог (powerline, панель). TTL на `cline-pass` не
+делаем: провайдер не декларирует lifetime; TTL — data-gated P2.
 
 ## Ограничения
 

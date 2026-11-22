@@ -2,6 +2,9 @@
   "name": "omp-cache-monitor",
   "version": "0.3.0",
   "type": "module",
+  "scripts": {
+    "test": "node --experimental-strip-types test/extension.test.mjs"
+  },
   "description": "Cache hit-rate monitor and /cache-monitor command for OMP",
   "keywords": [
     "omp-plugin",

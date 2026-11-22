@@ -434,7 +434,10 @@ function isEpochBoundary(type: unknown): boolean {
  * сбрасывают сравнение пере-оплаты. Цены прошлых моделей в журнале не
  * хранятся, поэтому `reBillCost` и `savedCost` восстановленных ходов — `null`.
  */
-function aggregateEntries(entries: readonly unknown[]): SessionAggregate {
+function aggregateEntries(
+	entries: readonly unknown[],
+	options: AggregateOptions = DEFAULT_CONFIG,
+): SessionAggregate {
 	const result: SessionAggregate = {
 		last: null,
 		turns: 0,
@@ -500,8 +503,9 @@ function aggregateEntries(entries: readonly unknown[]): SessionAggregate {
 					? Math.max(0, timestamp - lastTimestamp)
 					: null;
 			const cause =
-				!firstOfEpoch && isCanonicalMiss(prevPrompt, usage, prompt)
-					? missCause(idleMs)
+				!firstOfEpoch &&
+				isCanonicalMiss(prevPrompt, usage, prompt, options.minPromptTokens)
+					? missCause(idleMs, options.idleMinutes)
 					: null;
 
 			result.turns += 1;
@@ -522,7 +526,7 @@ function aggregateEntries(entries: readonly unknown[]): SessionAggregate {
 				reBillCost: null,
 				cause,
 			});
-			if (result.history.length > HISTORY_POINTS) result.history.shift();
+			if (result.history.length > options.historySize) result.history.shift();
 
 			flushPending();
 			pendingReBilled = reBilled;

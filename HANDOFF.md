@@ -11,14 +11,15 @@
 |---|---|
 | Расширение `index.ts` | v0.8.1, 1168 строк, контракт ниже |
 | Пакет | `package.json` (`omp.extensions` + `omp.settings` из 8 ключей, `pi.extensions`, repository/homepage/bugs/engines), MIT, README (EN) + `docs/README.ru.md`, CHANGELOG 0.8.1, `docs/ui-settings.md`, `docs/omp-docs-map.md` |
-| Установка на машине | `omp plugin list` — `omp-cache-monitor@0.8.0` (0.8.1 из ветки — после merge и re-link) и `omp-agent-workflow@0.5.3` |
-| Проверки | Phase 1.5 (0.8.1) — **только unit**: `npm test` 60/60, typecheck, `npm pack --dry-run` — 4 файла. 0.8.0 runtime в силе: `npm test` 60/60 (46 старых + 14 настроек), typecheck; runtime: `omp plugin config list` показал 8 ключей с описаниями, `lowHitPercent 70` → `/cache-monitor settings` показал `70 (changed)`, `help` напечатал справку; прежние проверки 0.7.0 в силе: TUI `/cache-monitor costs` на реальном журнале, чистый `HOME` (tarball и `git+ssh`), загрузка OMP, TUI `/cache-monitor history`, hit/saved совпадают с JSONL, non-TUI чист |
-| Ревью | v0.4/v0.5/v0.6/v0.7/v0.8 — merge; v0.8.1 — ожидает |
+| Установка на машине | `omp plugin list` — `omp-cache-monitor@0.8.1` и `omp-agent-workflow@0.5.4` |
+| Проверки | `npm test` 60/60, typecheck, `npm pack` — 4 файла; runtime 0.8.1: `omp plugin config list` показал описания `Status/Warnings/Reports`, TUI `/cache-monitor settings` — сгруппированный вывод с иконками, `help` — 8 строк со ссылкой на docs map; прежние проверки в силе: `lowHitPercent 70` → `(changed)`, TUI `/cache-monitor costs` на реальном журнале, чистый `HOME` (tarball и `git+ssh`), загрузка OMP, TUI `/cache-monitor history`, hit/saved совпадают с JSONL, non-TUI чист |
+| Ревью | v0.4/v0.5/v0.6/v0.7/v0.8/v0.8.1 — merge |
 | Ревью v0.4 | фоновый usage отделён от hit/ходов; граница resume не даёт ложной пере-оплаты |
 | Ревью v0.5 | reviewer: merge; исправлены пробелы покрытия — граница 5 мин, `/clear`/tree, ход без timestamp разрывает цепочку простоя |
 | Ревью v0.6 | reviewer: merge; nits исправлены — убрано мёртвое поле, покрыты live-epoch gate и регистр/пробелы алиаса |
 | Ревью v0.7 | reviewer: merge; nits закрыты — `/clear` retention, пустой label, compaction/branch-summary из `model_usage` сведены в общие бакеты |
 | Ревью v0.8 | reviewer: merge; defaults побайтово прежние, runtime loader проверен, nits по docs исправлены |
+| Ревью v0.8.1 | reviewer: merge; исправлены 404-ссылка docs, версия в ROADMAP и формулировка help про причину мисса |
 | Публикация | GitHub: `metapeka/omp-cache-monitor` (private, `main`); npm, marketplace — нет |
 
 ## Контракт v0.8.1 (v0.8 + сгруппированный UI и карта docs; не менять без решения владельца)

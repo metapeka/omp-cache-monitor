@@ -20,13 +20,13 @@
 |---|---|
 | Версия | 0.8.1: Phase 1.5 — группы настроек, `settings`/`help`, карта docs |
 | GitHub | `metapeka/omp-cache-monitor`, private, `main` |
-| Установка | `omp plugin link` на боевой чекаут; `omp plugin list` — `omp-cache-monitor@0.8.0` (0.8.1 — после merge и re-link) |
-| Проверки | `npm test` 60/60, typecheck, `npm pack` — 4 файла; Phase 1.5 — только unit (TUI-проверки 0.8.0 в силе) |
+| Установка | `omp plugin link` на боевой чекаут; `omp plugin list` — `omp-cache-monitor@0.8.1` |
+| Проверки | `npm test` 60/60, typecheck, `npm pack` — 4 файла; runtime: `omp plugin config list` с описаниями групп, TUI `/cache-monitor settings` (группы/иконки) и `help` |
 | Постоянные тесты | `test/extension.test.mjs`, 60 тестов, `npm test` |
 | CI | GitHub Actions, зелёный (`npm ci`, `npm test`, `typecheck`) |
 | Рынок/конкуренты | `docs/research/cache-extensions.md` (2026-11-22) |
 | Инструкции агенту | `AGENTS.md` + глобальный `~/.omp/agent/AGENTS.md` |
-| Context guard | `omp-agent-workflow` 0.5.0, linked; warning 35/50, auto 60, `/handoff` |
+| Context guard | `omp-agent-workflow` 0.5.4, linked; warning 35/50, auto 60, `/handoff` |
 | Automatic handoff | `/handoff-new`, marker, supervisor; 19 тестов, e2e пройден в Orca |
 | Yoda workflow | `~/projects/omp-agent-workflow/docs/yoda-workflow.md` — отдельный продукт |
 | npm / marketplace | не публиковались; публикация отложена владельцем 2026-11-22 — фокус на продукт |

@@ -12,7 +12,7 @@
 | Расширение `index.ts` | v0.5.0, 693 строки, контракт ниже |
 | Пакет | `package.json` (`omp.extensions` + `pi.extensions`), MIT, README, CHANGELOG |
 | Установка на машине | `omp plugin list` — `omp-cache-monitor@0.5.0` и `omp-agent-workflow@0.3.0` |
-| Проверки | `npm test` 31/31 (включая причину мисса и `saved`/`miss premium`), typecheck; ранее — TUI hit совпал с JSONL (9.9% → 98.1%), `/new` сбрасывает суммы, resume восстанавливает суммы/тренд, фоновые вызовы добавляют только стоимость, предупреждение молчит на первом ходе эпохи, non-TUI чистый, загрузка в OMP exit 0; `/handoff` и warning 35/50 проверены в TUI; `/handoff-new` открыл новую сессию; supervisor e2e в Orca: новая сессия прочитала HANDOFF.md; cooldown и stale-marker guard без цикла |
+| Проверки | `npm test` 31/31 (включая причину мисса и `saved`/`miss premium`), typecheck, загрузка OMP exit 0, stderr пуст; 0.5.0 в TUI: `/cache-monitor` напечатал `saved $0.0008`, статус hit 56.5% совпал с командой; ранее — TUI hit совпал с JSONL (9.9% → 98.1%), `/new` сбрасывает суммы, resume восстанавливает суммы/тренд, фоновые вызовы добавляют только стоимость, предупреждение молчит на первом ходе эпохи, non-TUI чистый; `/handoff` и warning 35/50 проверены в TUI; `/handoff-new` открыл новую сессию; supervisor e2e в Orca: новая сессия прочитала HANDOFF.md; cooldown и stale-marker guard без цикла |
 | Ревью | 2 major (сброс после `/new`, ложный warning после компакции) исправлены, ре-ревью «ок» |
 | Ревью v0.4 | фоновый usage отделён от hit/ходов; граница resume не даёт ложной пере-оплаты |
 | Ревью v0.5 | reviewer: merge; исправлены пробелы покрытия — граница 5 мин, `/clear`/tree, ход без timestamp разрывает цепочку простоя |

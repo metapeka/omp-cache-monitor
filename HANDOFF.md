@@ -40,6 +40,7 @@
 | Часть | Репозиторий/путь |
 |---|---|
 | Продукт (код, пакет) | этот репозиторий; GitHub — https://github.com/metapeka/omp-cache-monitor |
+| План развития | `ROADMAP.md` |
 | Пресеты, `omp-mode`, план, вики | `metapeka/docs-omp-debian-availability` |
 | Публичная инструкция | https://metapeka.github.io/docs-omp-debian-availability/wiki/guide.html |
 | Установленная копия | `omp plugin link` → `/home/db1/projects/omp-cache-monitor`; файла в `~/.omp/agent/extensions/` нет (одно из двух, не оба) |
@@ -95,11 +96,11 @@ omp --no-tools --session-dir /tmp/cm-check
 
 ## Возможные следующие шаги (по решению владельца)
 
-1. npm: `npm publish` → `omp plugin install omp-cache-monitor`.
-2. Marketplace: каталог-репозиторий с `.omp-plugin/marketplace.json`.
-3. Метрики (осталось): TTL-countdown (не дублировать native-сегмент `cache`),
-   восстановление сумм после resume.
-4. Локализация README на английский перед публикацией.
+Полный план с этапами, критериями и назначением агентов — `ROADMAP.md`.
+Кратко: сначала постоянные тесты и CI, затем resume/compaction accounting,
+затем английский README и установка из tarball; npm/marketplace/public —
+только после отдельного решения. TTL на `cline-pass` не делаем: провайдер
+не декларирует lifetime.
 
 ## Ограничения
 

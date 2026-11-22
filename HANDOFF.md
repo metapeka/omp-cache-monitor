@@ -1,7 +1,7 @@
 # Передача: cache-monitor
 
-Дата: 2026-11-23. Репозиторий: `omp-cache-monitor`; 0.8.0 подготовлен в ветке
-`feat/ui-settings` от `main`, состояние — последний коммит ветки.
+Дата: 2026-11-23. Репозиторий: `omp-cache-monitor`; 0.8.1 подготовлен в ветке
+`feat/ui-polish` от `main`, состояние — последний коммит ветки.
 Это продолжение работы, начатой в docs-репозитории
 `docs-omp-debian-availability` (там же пресеты, `omp-mode` и публичная вики).
 
@@ -9,11 +9,11 @@
 
 | Что | Состояние |
 |---|---|
-| Расширение `index.ts` | v0.8.0, 1138 строк, контракт ниже |
-| Пакет | `package.json` (`omp.extensions` + `omp.settings` из 8 ключей, `pi.extensions`, repository/homepage/bugs/engines), MIT, README (EN) + `docs/README.ru.md`, CHANGELOG 0.8.0 |
-| Установка на машине | `omp plugin list` — `omp-cache-monitor@0.8.0` и `omp-agent-workflow@0.5.3` |
-| Проверки | `npm test` 60/60 (46 старых + 14 настроек), typecheck; `npm pack --dry-run` — 4 файла; runtime: `omp plugin config list` показал 8 ключей с описаниями, `lowHitPercent 70` → `/cache-monitor settings` показал `70 (changed)`, `help` напечатал справку; прежние проверки 0.7.0 в силе: TUI `/cache-monitor costs` на реальном журнале, чистый `HOME` (tarball и `git+ssh`), загрузка OMP, TUI `/cache-monitor history`, hit/saved совпадают с JSONL, non-TUI чист |
-| Ревью | v0.4/v0.5/v0.6/v0.7/v0.8 — merge |
+| Расширение `index.ts` | v0.8.1, 1168 строк, контракт ниже |
+| Пакет | `package.json` (`omp.extensions` + `omp.settings` из 8 ключей, `pi.extensions`, repository/homepage/bugs/engines), MIT, README (EN) + `docs/README.ru.md`, CHANGELOG 0.8.1, `docs/ui-settings.md`, `docs/omp-docs-map.md` |
+| Установка на машине | `omp plugin list` — `omp-cache-monitor@0.8.0` (0.8.1 из ветки — после merge и re-link) и `omp-agent-workflow@0.5.3` |
+| Проверки | Phase 1.5 (0.8.1) — **только unit**: `npm test` 60/60, typecheck, `npm pack --dry-run` — 4 файла. 0.8.0 runtime в силе: `npm test` 60/60 (46 старых + 14 настроек), typecheck; runtime: `omp plugin config list` показал 8 ключей с описаниями, `lowHitPercent 70` → `/cache-monitor settings` показал `70 (changed)`, `help` напечатал справку; прежние проверки 0.7.0 в силе: TUI `/cache-monitor costs` на реальном журнале, чистый `HOME` (tarball и `git+ssh`), загрузка OMP, TUI `/cache-monitor history`, hit/saved совпадают с JSONL, non-TUI чист |
+| Ревью | v0.4/v0.5/v0.6/v0.7/v0.8 — merge; v0.8.1 — ожидает |
 | Ревью v0.4 | фоновый usage отделён от hit/ходов; граница resume не даёт ложной пере-оплаты |
 | Ревью v0.5 | reviewer: merge; исправлены пробелы покрытия — граница 5 мин, `/clear`/tree, ход без timestamp разрывает цепочку простоя |
 | Ревью v0.6 | reviewer: merge; nits исправлены — убрано мёртвое поле, покрыты live-epoch gate и регистр/пробелы алиаса |
@@ -21,13 +21,14 @@
 | Ревью v0.8 | reviewer: merge; defaults побайтово прежние, runtime loader проверен, nits по docs исправлены |
 | Публикация | GitHub: `metapeka/omp-cache-monitor` (private, `main`); npm, marketplace — нет |
 
-## Контракт v0.8 (v0.7 + настройки и справка; не менять без решения владельца)
+## Контракт v0.8.1 (v0.8 + сгруппированный UI и карта docs; не менять без решения владельца)
 
 - `hit = cacheRead / (input + cacheRead + cacheWrite)`; знаменатель 0 → `n/a`.
 - Настройки: `package.json#omp.settings` — ровно 8 ключей (`statusEnabled`,
   `statusShowMode`, `warningsEnabled`, `lowHitPercent`, `idleMinutes`,
   `minPromptTokens`, `historySize`, `showMoney`) с `default`, границами и
-  английскими `description`. Runtime читает их динамическим
+  английскими `description` в формате `Group · what. Default/range. Why.`
+  (`Status ·`, `Warnings ·`, `Reports ·`). Runtime читает их динамическим
   `getPluginSettings("omp-cache-monitor", ctx.cwd)` на `session_start` (до
   restore) и перед командами; любая ошибка/недоступность API → `{}` и defaults.
   `normalizeConfig` (named export) принимает только bool для bool, числа —
@@ -41,10 +42,14 @@
   (`miss premium: 3000 tok` / `miss premium 3000 tok`), `/cache-monitor costs`
   деньги показывает.
 - `/cache-monitor settings` (алиас `setting`) перечитывает настройки и печатает
-  8 ключей с `(changed)`/`(default)`, `цены модели: да|нет` и команду
-  изменения. `/cache-monitor help` (алиас `?`) — статическая справка: `↺`,
-  подкоманды, Settings → Plugins, `omp plugin config`, ссылка на README.
-  Документация: `docs/ui-settings.md`.
+  группы `⚙ Статус`/`⚠️ Предупреждения`/`📊 Отчёты`, 8 ключей с
+  `(changed)`/`(default)`, статичные подписи после `—`, `💵 цены модели:
+  да|нет` и команду изменения. `/cache-monitor help` (алиас `?`) — справка из
+  8 строк: `↺` («чем выше, тем дешевле»), промах = `cacheRead 0`,
+  подкоманды, Settings → Plugins, `omp plugin config`, ссылки на `README.md`,
+  `docs/ui-settings.md`, `docs/omp-docs-map.md`.
+  Документация: `docs/ui-settings.md` (ограничения UI OMP, роудмап фаз),
+  `docs/omp-docs-map.md` (135 файлов `omp://docs`).
 - Статус-ключ `cache-monitor`, текст `<OMP_MODE> ↺ N%` (без режима — `↺ N%`).
 - Команда `/cache-monitor` (не `/cache`: имя занято `ubranch/omp-cache-control`).
   Аргумент `history`/`hist` печатает историю, `costs`/`cost` — разбивку
@@ -212,13 +217,18 @@ omp --no-tools --session-dir /tmp/cm-check
 ## Возможные следующие шаги (по решению владельца)
 
 Полный план с этапами, критериями и назначением агентов — `ROADMAP.md`.
-Кратко: этапы 1–2, 2.5, 2.8, 2.11, 2.12 и 4 (README, пакет, tarball,
-тег/release 0.6.0) готовы; 0.7.0 (`/cache-monitor costs`) и 0.8.0 (настройки,
-`settings`, `help`) в `main`, TUI и runtime-настройки проверены. Следующее —
-только по решению владельца: тег/release `v0.7.0` и/или `v0.8.0`, этап 5
+Кратко: этапы 1–2, 2.5, 2.8, 2.11, 2.12 (Phase 1 + 1.5) и 4 (README, пакет,
+tarball, тег/release 0.6.0) готовы; 0.7.0 (`/cache-monitor costs`) и 0.8.0
+(настройки, `settings`, `help`) в `main`; 0.8.1 (группы в описаниях и
+`settings`, help из 8 строк, `docs/omp-docs-map.md`) — в ветке `feat/ui-polish`,
+проверен unit-тестами. Следующее — только по решению владельца: merge 0.8.1,
+тег/release `v0.8.1` (плюс, при желании, `v0.7.0`/`v0.8.0`), этап 5
 (npm/marketplace) или P2-бэклог (powerline, панель). Phase 2 настроек —
-`language: ru|en`; Phase 3 — advanced-ключи (`warnCanonicalMiss`,
-`minPrevPromptTokens`, `oncePerEpoch`, `trendSize`, `statusShowCost`), см.
+`language: ru|en` (все строки, тесты и docs); Phase 3 — `preset`
+(`balanced`/`quiet`/`verbose`/`custom`) и advanced-ключи
+(`warnCanonicalMiss`, `minPrevPromptTokens`, `oncePerEpoch`, `trendSize`,
+`statusShowCost`); Phase 4 — подсказка при первом промахе, скриншоты
+Settings → Plugins, upstream `group`/`icon`. Критерии и чеклист —
 `docs/ui-settings.md`. TTL на `cline-pass` не делаем: провайдер не декларирует
 lifetime; TTL — data-gated P2.
 

@@ -1216,20 +1216,29 @@ describe("plugin settings", () => {
 	it("prints default settings with their source", async () => {
 		const { extension, ctx, notifications } = await started();
 		await command(extension, ctx, "settings");
+		const out = notifications.at(-1).text;
 		assert.equal(
-			notifications.at(-1).text,
-			"настройки cache-monitor:\n" +
-				"statusEnabled: true (default)\n" +
-				"statusShowMode: true (default)\n" +
-				"warningsEnabled: true (default)\n" +
-				"lowHitPercent: 50 (default)\n" +
-				"idleMinutes: 5 (default)\n" +
-				"minPromptTokens: 4000 (default)\n" +
-				"historySize: 8 (default)\n" +
-				"showMoney: true (default)\n" +
-				"цены модели: да\n" +
-				"изменить: omp plugin config set omp-cache-monitor <key> <value>",
+			out,
+			"⚙ настройки cache-monitor\n" +
+				"⚙ Статус\n" +
+				"  statusEnabled: true (default) — ↺ N% в статус-строке\n" +
+				"  statusShowMode: true (default) — префикс OMP_MODE\n" +
+				"⚠️ Предупреждения\n" +
+				"  warningsEnabled: true (default) — toast о промахах\n" +
+				"  lowHitPercent: 50 (default) — порог низкого hit\n" +
+				"  idleMinutes: 5 (default) — «простой N мин», не TTL\n" +
+				"  minPromptTokens: 4000 (default) — не шуметь на мелких промптах\n" +
+				"📊 Отчёты\n" +
+				"  historySize: 8 (default) — окно /cache-monitor history\n" +
+				"  showMoney: true (default) — $ в saved/miss premium\n" +
+				"💵 цены модели: да\n" +
+				"Изменить: omp plugin config set omp-cache-monitor <key> <value>",
 		);
+		assert.match(out, /^⚙ Статус$/m);
+		assert.match(out, /^⚠️ Предупреждения$/m);
+		assert.match(out, /^📊 Отчёты$/m);
+		assert.match(out, /— ↺ N% в статус-строке$/m);
+		assert.match(out, /— \$ в saved\/miss premium$/m);
 	});
 
 	it("marks changed keys and reports missing model prices", async () => {
@@ -1238,30 +1247,29 @@ describe("plugin settings", () => {
 		});
 		await command(extension, ctx, "setting");
 		const out = notifications.at(-1).text;
-		assert.match(out, /^lowHitPercent: 10 \(changed\)$/m);
-		assert.match(out, /^showMoney: false \(changed\)$/m);
-		assert.match(out, /^statusEnabled: true \(default\)$/m);
-		assert.match(out, /^цены модели: да$/m);
+		assert.match(out, /^  lowHitPercent: 10 \(changed\) — порог низкого hit$/m);
+		assert.match(out, /^  showMoney: false \(changed\) — \$ в saved\/miss premium$/m);
+		assert.match(out, /^  statusEnabled: true \(default\) — ↺ N% в статус-строке$/m);
+		assert.match(out, /^💵 цены модели: да$/m);
 
 		const noPrices = await started({
 			model: { id: "model-a", provider: "test" },
 			settings: {},
 		});
 		await command(noPrices.extension, noPrices.ctx, "settings");
-		assert.match(noPrices.notifications.at(-1).text, /^цены модели: нет$/m);
+		assert.match(noPrices.notifications.at(-1).text, /^💵 цены модели: нет$/m);
 	});
 
 	it("prints help with the commands and settings entry points", async () => {
 		const { extension, ctx, notifications } = await started();
 		await command(extension, ctx, "help");
 		const out = notifications.at(-1).text;
-		assert.match(out, /\/cache-monitor history/);
-		assert.match(out, /\/cache-monitor costs/);
-		assert.match(out, /\/cache-monitor settings/);
-		assert.match(out, /\/cache-monitor help/);
+		assert.match(out, /\/cache-monitor — отчёт; history — последние ходы; costs — разбивка денег\./);
+		assert.match(out, /settings — настройки; help — эта справка\./);
+		assert.match(out, /чем выше, тем дешевле/);
 		assert.match(out, /Settings → Plugins → omp-cache-monitor/);
 		assert.match(out, /omp plugin config/);
-		assert.match(out, /metapeka\/omp-cache-monitor#settings/);
+		assert.match(out, /docs\/omp-docs-map\.md/);
 		const lines = out.split("\n");
 		assert.ok(lines.length >= 6 && lines.length <= 10, `unexpected help size: ${lines.length}`);
 
@@ -1278,7 +1286,7 @@ describe("plugin settings", () => {
 
 		settings.lowHitPercent = 6;
 		await command(extension, ctx, "settings");
-		assert.match(notifications.at(-1).text, /^lowHitPercent: 6 \(changed\)$/m);
+		assert.match(notifications.at(-1).text, /^  lowHitPercent: 6 \(changed\) — порог низкого hit$/m);
 
 		await turn(extension, ctx, usage(3800, 200, 0), 3);
 		assert.match(notifications.at(-1).text, /hit 5%/);

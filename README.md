@@ -202,6 +202,15 @@ omp plugin config set omp-cache-monitor statusEnabled false
 omp plugin config set omp-cache-monitor showMoney false
 ```
 
+OMP renders plugin settings as a **flat list**: the `description` of the
+selected row appears in the panel footer, and there are no groups, headers or
+icons in the plugin schema (only core settings have those). `omp-cache-monitor`
+therefore encodes groups with key order and a `Status ·` / `Warnings ·` /
+`Reports ·` prefix in every description; `/cache-monitor settings` repeats the
+same headings. Details and the upstream `group`/`icon` proposal —
+[`docs/ui-settings.md`](docs/ui-settings.md). Built-in OMP docs map —
+[`docs/omp-docs-map.md`](docs/omp-docs-map.md).
+
 Settings are read on session start/switch and before each command, so a change
 made in the UI applies from the next turn after any `/cache-monitor` command
 (or in a new session).
@@ -210,17 +219,20 @@ the current values, whether each key is `(changed)` or `(default)`, and whether
 the model has numeric prices:
 
 ```
-настройки cache-monitor:
-statusEnabled: true (default)
-statusShowMode: true (default)
-warningsEnabled: true (default)
-lowHitPercent: 50 (default)
-idleMinutes: 5 (default)
-minPromptTokens: 4000 (default)
-historySize: 8 (default)
-showMoney: true (default)
-цены модели: да
-изменить: omp plugin config set omp-cache-monitor <key> <value>
+⚙ настройки cache-monitor
+⚙ Статус
+  statusEnabled: true (default) — ↺ N% в статус-строке
+  statusShowMode: true (default) — префикс OMP_MODE
+⚠️ Предупреждения
+  warningsEnabled: true (default) — toast о промахах
+  lowHitPercent: 50 (default) — порог низкого hit
+  idleMinutes: 5 (default) — «простой N мин», не TTL
+  minPromptTokens: 4000 (default) — не шуметь на мелких промптах
+📊 Отчёты
+  historySize: 8 (default) — окно /cache-monitor history
+  showMoney: true (default) — $ в saved/miss premium
+💵 цены модели: да
+Изменить: omp plugin config set omp-cache-monitor <key> <value>
 ```
 
 | Key | Default | Range | Effect |
@@ -239,9 +251,11 @@ Invalid values fall back to the default; numbers are rounded and clamped
 The default values reproduce the pre-0.8.0 output byte for byte. More detail:
 [`docs/ui-settings.md`](docs/ui-settings.md).
 
-`/cache-monitor help` (alias `?`) prints a short reference: what `↺` means, the
-subcommands (`отчёт`, `history`, `costs`, `settings`, `help`), where to change
-settings, and a link to this README. It makes no TTL promises.
+`/cache-monitor help` (alias `?`) prints an eight-line reference: what `↺`
+means (higher is cheaper), that a miss is `cacheRead 0`, the subcommands
+(`отчёт`, `history`, `costs`, `settings`, `help`), where to change settings,
+and links to `README.md`, `docs/ui-settings.md`, `docs/omp-docs-map.md`. It
+makes no TTL promises.
 
 ## Installation
 

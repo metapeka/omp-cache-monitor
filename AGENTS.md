@@ -12,17 +12,21 @@ read-only: не греет кэш, не меняет промпты, не тра
 2. `ROADMAP.md` — этапы, приоритеты, агенты.
 3. `docs/research/cache-extensions.md` — конкуренты и что заимствуем.
 4. `README.md` — пользовательский контракт (EN), `docs/README.ru.md` — RU.
-5. `docs/ui-settings.md` — настройки, команды `settings`/`help`, Phase 2/3, риски.
+5. `docs/ui-settings.md` — настройки, команды `settings`/`help`, ограничения
+   UI OMP, роудмап фаз, риски; `docs/omp-docs-map.md` — карта встроенной
+   документации OMP (`omp://docs`, 135 файлов).
 6. `index.ts` и `test/extension.test.mjs` — реализация и тесты.
 
 ## Текущее состояние
 
-- Версия `0.8.0`, private GitHub `metapeka/omp-cache-monitor`, `main`.
+- Версия `0.8.1`, private GitHub `metapeka/omp-cache-monitor`, `main`.
 - `omp plugin link` → боевой чекаут; `omp plugin list` — `omp-cache-monitor@0.8.0`
-  и `omp-agent-workflow@0.5.3` (context guard, handoff, supervisor, modes).
+  (0.8.1 из ветки — после merge и re-link) и `omp-agent-workflow@0.5.3` (context
+  guard, handoff, supervisor, modes).
 - `npm test` — 60 тестов; `npm run typecheck`; CI зелёный.
-- Настройки: `package.json#omp.settings` (8 ключей), `/cache-monitor settings`
-  и `help`; таблица и риски — `docs/ui-settings.md`.
+- Настройки: `package.json#omp.settings` (8 ключей, `Group · …` в описаниях),
+  `/cache-monitor settings` (группы и подписи) и `help`; таблица и риски —
+  `docs/ui-settings.md`, карта документации OMP — `docs/omp-docs-map.md`.
 - Установка одна: `omp plugin link` **или** копия файла, не оба.
 
 ## Нельзя
@@ -32,7 +36,7 @@ read-only: не греет кэш, не меняет промпты, не тра
 - Править боевой линкованный чекаут под эксперимент: для задач — worktree.
 - Переключать `omp plugin link` на ветку: он всегда смотрит на `main`.
 - Добавлять runtime-зависимости, `any`, фейковый TTL, warming, optimizer.
-- Менять контракт v0.8 без решения владельца.
+- Менять контракт v0.8.1 без решения владельца.
 - Коммитить секреты, логи сессий, `node_modules`, временные файлы.
 
 ## Рабочий процесс

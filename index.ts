@@ -171,14 +171,14 @@ export function normalizeConfig(raw: unknown): Config {
 
 /** Статическая справка `/cache-monitor help`; без обещаний TTL. */
 const HELP_TEXT = [
-	"cache-monitor: hit rate кэша префикса в статус-строке.",
-	"↺ N% — доля prompt, прочитанная из кэша; ↺ … до первого хода, n/a без знаменателя.",
-	"/cache-monitor — отчёт: режим, модель, ход, тренд, итог сессии.",
-	"/cache-monitor history — последние ходы; /cache-monitor costs — разбивка стоимости.",
-	"/cache-monitor settings — текущие настройки; /cache-monitor help — эта справка.",
+	"cache-monitor — hit rate кэша префикса.",
+	"↺ N% — доля prompt, прочитанная из кэша; чем выше, тем дешевле ход. ↺ … до первого хода, n/a без знаменателя.",
+	"Промах — cacheRead 0; причина — в warning и history, переплата — в отчёте и history.",
+	"/cache-monitor — отчёт; history — последние ходы; costs — разбивка денег.",
+	"settings — настройки; help — эта справка.",
 	"Настройки: Settings → Plugins → omp-cache-monitor или omp plugin config set omp-cache-monitor <key> <value>.",
-	"Применяются к новой сессии; команда settings перечитывает их сразу.",
-	"Подробнее: https://github.com/metapeka/omp-cache-monitor#settings",
+	"Применяются к новой сессии; settings перечитывает сразу.",
+	"Документация: README.md, docs/ui-settings.md, docs/omp-docs-map.md.",
 ].join("\n");
 
 /** Уровни спарклайна: 0–100% по возрастанию. */
@@ -1020,27 +1020,57 @@ export default function cacheMonitor(pi: ExtensionAPI, source: PluginSource = {}
 		}
 	});
 
-	/** Строка `/cache-monitor settings`: значения, источник и наличие цен модели. */
+	/** Строка `/cache-monitor settings`: группы, значения, источник и наличие цен модели. */
 	const settingsReport = (ctx: ExtensionContext): string => {
-		const rows: [string, string][] = [
-			["statusEnabled", String(config.statusEnabled)],
-			["statusShowMode", String(config.statusShowMode)],
-			["warningsEnabled", String(config.warningsEnabled)],
-			["lowHitPercent", String(config.lowHitPercent)],
-			["idleMinutes", String(config.idleMinutes)],
-			["minPromptTokens", String(config.minPromptTokens)],
-			["historySize", String(config.historySize)],
-			["showMoney", String(config.showMoney)],
+		const values: Record<string, string> = {
+			statusEnabled: String(config.statusEnabled),
+			statusShowMode: String(config.statusShowMode),
+			warningsEnabled: String(config.warningsEnabled),
+			lowHitPercent: String(config.lowHitPercent),
+			idleMinutes: String(config.idleMinutes),
+			minPromptTokens: String(config.minPromptTokens),
+			historySize: String(config.historySize),
+			showMoney: String(config.showMoney),
+		};
+		// OMP не умеет группы в схеме плагина: группы кодируются порядком ключей
+		// и префиксом в description, а команда повторяет их явными заголовками.
+		const groups: { title: string; rows: [key: string, label: string][] }[] = [
+			{
+				title: "⚙ Статус",
+				rows: [
+					["statusEnabled", "↺ N% в статус-строке"],
+					["statusShowMode", "префикс OMP_MODE"],
+				],
+			},
+			{
+				title: "⚠️ Предупреждения",
+				rows: [
+					["warningsEnabled", "toast о промахах"],
+					["lowHitPercent", "порог низкого hit"],
+					["idleMinutes", "«простой N мин», не TTL"],
+					["minPromptTokens", "не шуметь на мелких промптах"],
+				],
+			},
+			{
+				title: "📊 Отчёты",
+				rows: [
+					["historySize", "окно /cache-monitor history"],
+					["showMoney", "$ в saved/miss premium"],
+				],
+			},
 		];
 		const prices = cacheDeltaCost(ctx.model, 0) !== null ? "да" : "нет";
-		return [
-			"настройки cache-monitor:",
-			...rows.map(
-				([key, value]) => `${key}: ${value} (${configuredKeys.has(key) ? "changed" : "default"})`,
-			),
-			`цены модели: ${prices}`,
-			"изменить: omp plugin config set omp-cache-monitor <key> <value>",
-		].join("\n");
+		const lines = ["⚙ настройки cache-monitor"];
+		for (const group of groups) {
+			lines.push(group.title);
+			for (const [key, label] of group.rows) {
+				const source = configuredKeys.has(key) ? "changed" : "default";
+				lines.push(`  ${key}: ${values[key]} (${source}) — ${label}`);
+			}
+		}
+		lines.push(`💵 цены модели: ${prices}`);
+		lines.push("Изменить: omp plugin config set omp-cache-monitor <key> <value>");
+		return lines.join("\n");
 	};
 
 	pi.registerCommand("cache-monitor", {

@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.8.1 — 2026-11-23
+
+- **Сгруппированные описания настроек.** Все 8 `description` в
+  `package.json#omp.settings` переписаны в формате
+  `Group · what. Default/range. Why.` (`Status · …`, `Warnings · …`,
+  `Reports · …`). Типы, defaults и границы не менялись; OMP показывает группу
+  прямо в подвале Settings → Plugins вместе с описанием выбранной строки.
+- **`/cache-monitor settings` с группами.** Вывод получил заголовки
+  `⚙ Статус`, `⚠️ Предупреждения`, `📊 Отчёты`, отступ у ключей и статичную
+  подпись после `—`; `(changed)`/`(default)`, `💵 цены модели` и команда
+  `Изменить:` сохранены. Алиас `setting` работает как раньше.
+- **`/cache-monitor help`.** Справка из 8 строк: «чем выше, тем дешевле»,
+  промах = `cacheRead 0`, подкоманды одной строкой и ссылки на `README.md`,
+  `docs/ui-settings.md`, `docs/omp-docs-map.md`.
+- **Карта документации OMP.** Новый `docs/omp-docs-map.md` (RU): как открыть
+  `omp://docs` (135 файлов), таблица «задача → файл», сайт и исходники;
+  зафиксировано, что `Thinkrail` в OMP SDK/доках не встречается.
+- **Роудмап фаз.** `docs/ui-settings.md` — раздел «Ограничения UI OMP»
+  (плоский список, footer-description, нет групп/иконок; upstream-предложение
+  `group`/`icon`) и чеклист Phase 1/1.5/2/3/4 с критериями готовности. README
+  (EN) и `docs/README.ru.md` — новый пример вывода `settings`, ссылки на
+  `docs/ui-settings.md` и `docs/omp-docs-map.md`.
+- Поведение и метрики не меняются, defaults прежние. Тестов 60, typecheck
+  зелёный, `npm pack --dry-run` — 4 файла.
+
 ## 0.8.0 — 2026-11-23
 
 - **Настройки плагина.** В `package.json` → `omp.settings` объявлены 8 ключей:

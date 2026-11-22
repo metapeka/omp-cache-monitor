@@ -1,6 +1,6 @@
 {
   "name": "omp-cache-monitor",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "type": "module",
   "scripts": {
     "test": "node --experimental-strip-types test/extension.test.mjs",
@@ -40,17 +40,17 @@
       "statusEnabled": {
         "type": "boolean",
         "default": true,
-        "description": "Show the cache hit rate in the status line. Applied to new sessions."
+        "description": "Status · Show ↺ hit rate in the status line. Default: true. Turn off if another segment already reports cache."
       },
       "statusShowMode": {
         "type": "boolean",
         "default": true,
-        "description": "Prefix the status with OMP_MODE. Applied to new sessions."
+        "description": "Status · Prefix the hit rate with OMP_MODE (cache-safe ↺ 98%). Default: true."
       },
       "warningsEnabled": {
         "type": "boolean",
         "default": true,
-        "description": "Enable cache miss warnings. Applied to new sessions."
+        "description": "Warnings · Toast on cache misses. Default: true. Off = status and reports only."
       },
       "lowHitPercent": {
         "type": "number",
@@ -58,7 +58,7 @@
         "min": 1,
         "max": 100,
         "step": 1,
-        "description": "Warn when a turn's cache hit is below this percent. Applied to new sessions."
+        "description": "Warnings · Warn when a turn's hit is below this percent. Default: 50; range 1–100."
       },
       "idleMinutes": {
         "type": "number",
@@ -66,7 +66,7 @@
         "min": 1,
         "max": 240,
         "step": 1,
-        "description": "Gaps of at least this many minutes are reported as idle. Empirical heuristic, not a provider TTL. Applied to new sessions."
+        "description": "Warnings · Gaps of at least N minutes are reported as \"простой\". Default: 5. Empirical heuristic, not a provider TTL."
       },
       "minPromptTokens": {
         "type": "number",
@@ -74,7 +74,7 @@
         "min": 0,
         "max": 1000000,
         "step": 500,
-        "description": "Do not warn on prompts smaller than this many tokens. Applied to new sessions."
+        "description": "Warnings · Skip warnings for prompts smaller than N tokens. Default: 4000."
       },
       "historySize": {
         "type": "number",
@@ -82,12 +82,12 @@
         "min": 1,
         "max": 50,
         "step": 1,
-        "description": "Number of turns kept by /cache-monitor history. Applied to new sessions."
+        "description": "Reports · Turns kept by /cache-monitor history. Default: 8; range 1–50."
       },
       "showMoney": {
         "type": "boolean",
         "default": true,
-        "description": "Show saved / miss premium dollar amounts in reports and history. /cache-monitor costs always shows money. Applied to new sessions."
+        "description": "Reports · Show saved / miss premium in dollars. Default: true. /cache-monitor costs always shows money."
       }
     }
   },

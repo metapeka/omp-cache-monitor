@@ -198,6 +198,14 @@ omp plugin config set omp-cache-monitor statusEnabled false
 omp plugin config set omp-cache-monitor showMoney false
 ```
 
+OMP рисует плагинные настройки **плоским списком**: `description` выбранной
+строки показывается в подвале, а групп, заголовков и иконок в схеме плагина
+нет (они есть только у core settings). Поэтому группы кодируются порядком
+ключей и префиксом `Status ·` / `Warnings ·` / `Reports ·` в описании, а
+`/cache-monitor settings` повторяет те же заголовки. Детали и
+upstream-предложение `group`/`icon` — [`ui-settings.md`](ui-settings.md).
+Карта документации OMP — [`omp-docs-map.md`](omp-docs-map.md).
+
 Настройки читаются на старте/переключении сессии и перед каждой командой,
 поэтому изменение из UI применяется со следующего хода после любой команды
 `/cache-monitor` (или в новой сессии).
@@ -205,17 +213,20 @@ omp plugin config set omp-cache-monitor showMoney false
 текущие значения, пометку `(changed)`/`(default)` и наличие цен модели:
 
 ```
-настройки cache-monitor:
-statusEnabled: true (default)
-statusShowMode: true (default)
-warningsEnabled: true (default)
-lowHitPercent: 50 (default)
-idleMinutes: 5 (default)
-minPromptTokens: 4000 (default)
-historySize: 8 (default)
-showMoney: true (default)
-цены модели: да
-изменить: omp plugin config set omp-cache-monitor <key> <value>
+⚙ настройки cache-monitor
+⚙ Статус
+  statusEnabled: true (default) — ↺ N% в статус-строке
+  statusShowMode: true (default) — префикс OMP_MODE
+⚠️ Предупреждения
+  warningsEnabled: true (default) — toast о промахах
+  lowHitPercent: 50 (default) — порог низкого hit
+  idleMinutes: 5 (default) — «простой N мин», не TTL
+  minPromptTokens: 4000 (default) — не шуметь на мелких промптах
+📊 Отчёты
+  historySize: 8 (default) — окно /cache-monitor history
+  showMoney: true (default) — $ в saved/miss premium
+💵 цены модели: да
+Изменить: omp plugin config set omp-cache-monitor <key> <value>
 ```
 
 | Ключ | Default | Диапазон | Что меняет |
@@ -234,9 +245,11 @@ showMoney: true (default)
 Defaults воспроизводят вывод до 0.8.0 побайтово. Подробности:
 [`ui-settings.md`](ui-settings.md).
 
-`/cache-monitor help` (алиас `?`) печатает короткую справку: что значит `↺`,
-список подкоманд (`отчёт`, `history`, `costs`, `settings`, `help`), где менять
-настройки, и ссылку на README. Обещаний TTL нет.
+`/cache-monitor help` (алиас `?`) печатает справку из 8 строк: что значит
+`↺` («чем выше, тем дешевле»), что промах — это `cacheRead 0`, список
+подкоманд (`отчёт`, `history`, `costs`, `settings`, `help`), где менять
+настройки, и ссылки на `README.md`, `docs/ui-settings.md`,
+`docs/omp-docs-map.md`. Обещаний TTL нет.
 
 ## Установка
 

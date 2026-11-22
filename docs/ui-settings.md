@@ -1,7 +1,7 @@
 # Настройки и справка (UI settings)
 
-Статус: **Phase 1 реализована в 0.8.0**. Phase 2 (`language`) и Phase 3
-(advanced-ключи) — запланированы ниже.
+Статус: **Phase 1 (0.8.0) и Phase 1.5 (0.8.1) реализованы**; Phase 2–4 —
+запланированы в разделе «Роудмап фаз».
 
 Настройки позволяют менять поведение `omp-cache-monitor` без правки кода:
 выключить статус или предупреждения, поменять пороги, окно истории и показ
@@ -16,10 +16,23 @@ omp plugin config set omp-cache-monitor lowHitPercent 30
 omp plugin config set omp-cache-monitor statusEnabled false
 ```
 
-Значения читаются на `session_start` (и при старте новой сессии через
-`/new`), поэтому применяются к **новой сессии**. Команда
+Значения читаются на `session_start`/`session_switch` и перед каждой
+командой, поэтому изменение из UI применяется со следующего хода после любой
+команды `/cache-monitor` (или в новой сессии). Команда
 `/cache-monitor settings` перечитывает их сразу и показывает, что реально
 пришло из настроек.
+
+## Ограничения UI OMP
+
+- Схема плагинных настроек — **плоский список** `omp.settings`: групп,
+  заголовков и иконок в ней нет (они есть только у core settings).
+- OMP показывает `description` только **выбранной строки**, в подвале
+  Settings → Plugins; длинный текст обрезается по ширине панели.
+- Поэтому группы кодируются порядком объявления ключей в `package.json` и
+  префиксом в `description` (`Status · …`, `Warnings · …`, `Reports · …`).
+  `/cache-monitor settings` повторяет те же группы явными заголовками.
+- Upstream-предложение: добавить в схему плагина необязательные `group` и
+  `icon`, чтобы OMP рисовал секции без хаков с порядком и текстом.
 
 ## Ключи
 
@@ -45,31 +58,38 @@ default. Числа округляются и зажимаются в диапа
 Печатает текущие значения одной notification:
 
 ```
-настройки cache-monitor:
-statusEnabled: true (default)
-statusShowMode: true (default)
-warningsEnabled: true (default)
-lowHitPercent: 50 (default)
-idleMinutes: 5 (default)
-minPromptTokens: 4000 (default)
-historySize: 8 (default)
-showMoney: true (default)
-цены модели: да
-изменить: omp plugin config set omp-cache-monitor <key> <value>
+⚙ настройки cache-monitor
+⚙ Статус
+  statusEnabled: true (default) — ↺ N% в статус-строке
+  statusShowMode: true (default) — префикс OMP_MODE
+⚠️ Предупреждения
+  warningsEnabled: true (default) — toast о промахах
+  lowHitPercent: 50 (default) — порог низкого hit
+  idleMinutes: 5 (default) — «простой N мин», не TTL
+  minPromptTokens: 4000 (default) — не шуметь на мелких промптах
+📊 Отчёты
+  historySize: 8 (default) — окно /cache-monitor history
+  showMoney: true (default) — $ в saved/miss premium
+💵 цены модели: да
+Изменить: omp plugin config set omp-cache-monitor <key> <value>
 ```
 
+- Заголовки `Статус`/`Предупреждения`/`Отчёты` — те же группы, что в
+  `description` схемы; подпись после `—` статична и не зависит от значения.
 - `(changed)` — ключ реально пришёл из настроек (даже если значение потом
   нормализовано); `(default)` — ключа нет, действует default.
-- `цены модели: да|нет` — есть ли у текущей модели числовые `cost.input` и
+- `💵 цены модели: да|нет` — есть ли у текущей модели числовые `cost.input` и
   `cost.cacheRead` (от них зависят `saved` и деньги `miss premium`).
 - Команда перечитывает настройки: следующие ходы текущей сессии используют
   новые значения для warnings и статуса.
 
 ### `/cache-monitor help` (алиас `?`)
 
-Короткая справка: что означает `↺`, список подкоманд (`отчёт`, `history`,
-`costs`, `settings`, `help`), пути к настройкам и ссылка на README. Без
-обещаний TTL: на `cline-pass` провайдер lifetime не декларирует.
+Короткая справка из 8 строк: что такое `↺` («чем выше, тем дешевле»),
+что промах — это `cacheRead 0`, список подкоманд (`отчёт`, `history`,
+`costs`, `settings`, `help`), пути к настройкам и ссылки на `README.md`,
+`docs/ui-settings.md`, `docs/omp-docs-map.md`. Без обещаний TTL: на
+`cline-pass` провайдер lifetime не декларирует.
 
 ## Чтение в runtime
 
@@ -83,14 +103,34 @@ showMoney: true (default)
 - `normalizeConfig(raw)` дополнительно защищает от чужих форм: только bool
   для bool, finite-числа с rounding/clamp, иначе default.
 
-## Phase 2: язык
+## Роудмап фаз
 
-Следующий ключ — `language` (`enum: ru | en`, default `ru`): язык отчёта,
-history, `settings` и `help`. Пока не реализовано; вывод остаётся русским.
+- [x] **Phase 1 — настройки (0.8.0).** 8 ключей в `omp.settings`,
+  runtime-чтение через `getPluginSettings`, defaults побайтово прежние.
+  Критерий: настройки видны в OMP, меняют поведение и не ломают вывод без
+  настроек.
+- [x] **Phase 1.5 — UI и справка (0.8.1).** Сгруппированные `description`
+  (`Group · what. Default/range. Why.`), группы в `/cache-monitor settings`,
+  переписанный `help` из 8 строк, карта `docs/omp-docs-map.md`.
+  Критерий: группа и смысл ключа читаются без открытия кода; help объясняет
+  `↺` и ведёт к документации.
+- [ ] **Phase 2 — язык (`language: ru | en`).** Все строки статуса, отчёта,
+  history, `settings` и `help`; тесты на оба языка; docs на двух языках.
+  Критерий: `language: en` даёт полностью английский вывод, ни одной русской
+  строки; `ru` (default) не меняет текущий вывод.
+- [ ] **Phase 3 — пресеты и advanced-ключи.** `preset`
+  (`balanced` / `quiet` / `verbose` / `custom`) задаёт набор значений;
+  advanced: `warnCanonicalMiss`, `minPrevPromptTokens`, `oncePerEpoch`,
+  `trendSize`, `statusShowCost`.
+  Критерий: пресет меняет только перечисленные ключи, `custom` оставляет
+  ручные значения, каждый advanced-ключ покрыт тестом и строкой в docs.
+- [ ] **Phase 4 — онбординг и upstream.** Подсказка при первом промахе (как
+  открыть `settings`), скриншоты Settings → Plugins, upstream-предложение
+  `group`/`icon` для плагинных настроек.
+  Критерий: новый пользователь находит настройки по подсказке; скриншоты в
+  README; предложение заведено в `can1357/oh-my-pi`.
 
-## Phase 3: advanced
-
-Кандидаты, которые не нужны для Phase 1 и добавляются только с тестами:
+### Advanced-ключи (Phase 3)
 
 | Ключ | Смысл |
 |---|---|

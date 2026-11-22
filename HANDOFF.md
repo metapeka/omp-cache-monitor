@@ -1,7 +1,7 @@
 # Передача: cache-monitor
 
-Дата: 2026-11-23. Репозиторий: `omp-cache-monitor`; 0.8.1 подготовлен в ветке
-`feat/ui-polish` от `main`, состояние — последний коммит ветки.
+Дата: 2026-11-23. Репозиторий: `omp-cache-monitor`; 0.9.0 подготовлен в ветке
+`feat/i18n` от `main`, состояние — последний коммит ветки.
 Это продолжение работы, начатой в docs-репозитории
 `docs-omp-debian-availability` (там же пресеты, `omp-mode` и публичная вики).
 
@@ -9,11 +9,11 @@
 
 | Что | Состояние |
 |---|---|
-| Расширение `index.ts` | v0.8.1, 1168 строк, контракт ниже |
-| Пакет | `package.json` (`omp.extensions` + `omp.settings` из 8 ключей, `pi.extensions`, repository/homepage/bugs/engines), MIT, README (EN) + `docs/README.ru.md`, CHANGELOG 0.8.1, `docs/ui-settings.md`, `docs/omp-docs-map.md` |
-| Установка на машине | `omp plugin list` — `omp-cache-monitor@0.8.1` и `omp-agent-workflow@0.5.4` |
-| Проверки | `npm test` 60/60, typecheck, `npm pack` — 4 файла; runtime 0.8.1: `omp plugin config list` показал описания `Status/Warnings/Reports`, TUI `/cache-monitor settings` — сгруппированный вывод с иконками, `help` — 8 строк со ссылкой на docs map; прежние проверки в силе: `lowHitPercent 70` → `(changed)`, TUI `/cache-monitor costs` на реальном журнале, чистый `HOME` (tarball и `git+ssh`), загрузка OMP, TUI `/cache-monitor history`, hit/saved совпадают с JSONL, non-TUI чист |
-| Ревью | v0.4/v0.5/v0.6/v0.7/v0.8/v0.8.1 — merge |
+| Расширение `index.ts` | v0.9.0, 1370 строк, контракт ниже |
+| Пакет | `package.json` (`omp.extensions` + `omp.settings` из 9 ключей, `pi.extensions`, repository/homepage/bugs/engines), MIT, README (EN) + `docs/README.ru.md`, CHANGELOG 0.9.0, `docs/ui-settings.md`, `docs/omp-docs-map.md` |
+| Установка на машине | `omp plugin list` — `omp-cache-monitor@0.8.1` (0.9.0 — после merge и re-link) и `omp-agent-workflow@0.5.4` |
+| Проверки | `npm test` 68/68, typecheck, `npm pack` — 4 файла; 0.9.0: EN-тесты всех подкоманд и warning-ов без кириллицы, смена языка перерисовывает сохранённые причины; runtime 0.8.1 в силе (`omp plugin config list`, TUI `/cache-monitor settings`/`help`) |
+| Ревью | v0.4/v0.5/v0.6/v0.7/v0.8/v0.8.1/v0.9 — merge |
 | Ревью v0.4 | фоновый usage отделён от hit/ходов; граница resume не даёт ложной пере-оплаты |
 | Ревью v0.5 | reviewer: merge; исправлены пробелы покрытия — граница 5 мин, `/clear`/tree, ход без timestamp разрывает цепочку простоя |
 | Ревью v0.6 | reviewer: merge; nits исправлены — убрано мёртвое поле, покрыты live-epoch gate и регистр/пробелы алиаса |
@@ -22,18 +22,21 @@
 | Ревью v0.8.1 | reviewer: merge; исправлены 404-ссылка docs, версия в ROADMAP и формулировка help про причину мисса |
 | Публикация | GitHub: `metapeka/omp-cache-monitor` (private, `main`); npm, marketplace — нет |
 
-## Контракт v0.8.1 (v0.8 + сгруппированный UI и карта docs; не менять без решения владельца)
+## Контракт v0.9.0 (v0.8.1 + `language: ru | en`; не менять без решения владельца)
 
 - `hit = cacheRead / (input + cacheRead + cacheWrite)`; знаменатель 0 → `n/a`.
-- Настройки: `package.json#omp.settings` — ровно 8 ключей (`statusEnabled`,
+- Настройки: `package.json#omp.settings` — ровно 9 ключей (`statusEnabled`,
   `statusShowMode`, `warningsEnabled`, `lowHitPercent`, `idleMinutes`,
-  `minPromptTokens`, `historySize`, `showMoney`) с `default`, границами и
-  английскими `description` в формате `Group · what. Default/range. Why.`
-  (`Status ·`, `Warnings ·`, `Reports ·`). Runtime читает их динамическим
+  `minPromptTokens`, `historySize`, `showMoney`, `language`) с `default`,
+  границами/enum и английскими `description` в формате
+  `Group · what. Default/range. Why.` (`Status ·`, `Warnings ·`,
+  `Reports ·`). Runtime читает их динамическим
   `getPluginSettings("omp-cache-monitor", ctx.cwd)` на `session_start` (до
   restore) и перед командами; любая ошибка/недоступность API → `{}` и defaults.
   `normalizeConfig` (named export) принимает только bool для bool, числа —
-  finite → round → clamp, иначе default. Defaults дают вывод 0.7.0 побайтово.
+  finite → round → clamp, `language` — только `ru`/`en`, иначе `ru`. Defaults
+  (`language: "ru"`) дают вывод 0.7.0 побайтово, кроме строки `language` в
+  `settings`.
 - `statusEnabled=false` — `setStatus` не вызывается (старый статус не
   чистится); `statusShowMode=false` — статус `↺ N%` без `OMP_MODE`.
   `warningsEnabled=false` — ни одного warning; `lowHitPercent`,
@@ -41,14 +44,23 @@
   `historySize` — live- и restore-окно и делитель `история (N/M):`.
   `showMoney=false` — в отчёте и history нет `saved` и денег `miss premium`
   (`miss premium: 3000 tok` / `miss premium 3000 tok`), `/cache-monitor costs`
-  деньги показывает.
+  деньги показывает. `language` — `ru` (default) или `en`: только
+  пользовательские строки, метрики/токены/формат денег не меняются;
+  невалидное значение → `ru`. Все строки живут в `TEXTS: Record<Language,
+  Texts>`; `registerCommand.description` — английский всегда.
+- Причина промаха хранится структурно: `TurnRecord.cause` —
+  `{ kind: "idle"; minutes: number } | { kind: "rewrite" } | null`;
+  `causeText(cause, language)` даёт `простой N мин`/`idle N min` и
+  `перезапись префикса`/`prefix rewrite`, поэтому смена языка перерисовывает
+  старые ходы, restore из журнала и текст warning-а.
 - `/cache-monitor settings` (алиас `setting`) перечитывает настройки и печатает
-  группы `⚙ Статус`/`⚠️ Предупреждения`/`📊 Отчёты`, 8 ключей с
-  `(changed)`/`(default)`, статичные подписи после `—`, `💵 цены модели:
-  да|нет` и команду изменения. `/cache-monitor help` (алиас `?`) — справка из
-  8 строк: `↺` («чем выше, тем дешевле»), промах = `cacheRead 0`,
-  подкоманды, Settings → Plugins, `omp plugin config`, ссылки на `README.md`,
-  `docs/ui-settings.md`, `docs/omp-docs-map.md`.
+  группы `⚙ Статус`/`⚠️ Предупреждения`/`📊 Отчёты` (EN `⚙ Status`/
+  `⚠️ Warnings`/`📊 Reports`), 9 ключей с `(changed)`/`(default)`, статичные
+  подписи после `—`, `💵 цены модели: да|нет` (EN `model prices: yes|no`) и
+  команду изменения (EN `Change:`). `/cache-monitor help` (алиас `?`) — справка
+  из 8 строк на текущем языке: `↺` («чем выше, тем дешевле»), промах =
+  `cacheRead 0`, подкоманды, Settings → Plugins, `omp plugin config`, ссылки на
+  `README.md`, `docs/ui-settings.md`, `docs/omp-docs-map.md`.
   Документация: `docs/ui-settings.md` (ограничения UI OMP, роудмап фаз),
   `docs/omp-docs-map.md` (135 файлов `omp://docs`).
 - Статус-ключ `cache-monitor`, текст `<OMP_MODE> ↺ N%` (без режима — `↺ N%`).
@@ -58,28 +70,30 @@
   `recomputeTotals` вызывается в ветке costs и в остальных ветках.
 - `/cache-monitor costs` — фактическая разбивка стоимости сессии, одна
   notification: заголовок `стоимость сессии: $X` (`≥$X`, если хоть один бакет
-  неполон) и строки `label: $X` / `label: ≥$X` / `label: ?`. Ключи: `dialog` →
-  `диалог`, `compaction` → `компакция`, `branch_summary` → `ветка`,
+  неполон; EN `session cost:`) и строки `label: $X` / `label: ≥$X` /
+  `label: ?`. Ключи: `dialog` → `диалог`/`dialog`, `compaction` →
+  `компакция`/`compaction`, `branch_summary` → `ветка`/`branch`,
   `usage:<kind>` и `model_usage:<purpose>` с префиксами срезанными (`?` →
-  `прочее`). `диалог` всегда первым, остальные — по убыванию известной
-  стоимости, затем по подписи. Стоимость — только `usage.cost.total`;
-  нечисловой total даёт `missing`, деньги не оцениваются. Карта пересобирается
-  из журнала (идемпотентно); пустой журнал оставляет live-карту, `/new`
-  очищает. Пустая карта — `стоимость: нет данных`. Дефолтный отчёт и
-  `history` этих строк не содержат.
+  `прочее`/`other`). `диалог` всегда первым, остальные — по убыванию известной
+  стоимости, затем по подписи текущего языка. Стоимость — только
+  `usage.cost.total`; нечисловой total даёт `missing`, деньги не оцениваются.
+  Карта пересобирается из журнала (идемпотентно); пустой журнал оставляет
+  live-карту, `/new` очищает. Пустая карта — `стоимость: нет данных`
+  (EN `cost: no data`). Дефолтный отчёт и `history` этих строк не содержат.
 - `/cache-monitor history` — последние 8 завершённых ходов, одна notification:
-  `история (N/8):` и строки `N. ↺ hit · prompt P [· saved …] [· miss premium …]
-  [· причина]`, от старого к новому. `saved` — только при `cacheRead > 0`
-  (`$X` или `?` без цены); `miss premium` — только при `reBilled > 0`
-  (`$X (N tok)` или `? (N tok)`); причина — только у канонического промаха
-  (`простой N мин` / `перезапись префикса`), первый ход эпохи её не получает.
-  Нет ходов — `история: нет данных`.
+  `история (N/8):` (EN `history (N/8):`) и строки `N. ↺ hit · prompt P
+  [· saved …] [· miss premium …] [· причина]`, от старого к новому. `saved` —
+  только при `cacheRead > 0` (`$X` или `?` без цены); `miss premium` — только
+  при `reBilled > 0` (`$X (N tok)` или `? (N tok)`); причина — только у
+  канонического промаха (`простой N мин`/`idle N min`,
+  `перезапись префикса`/`prefix rewrite`), первый ход эпохи её не получает.
+  Нет ходов — `история: нет данных` (EN `history: no data`).
 - История живёт в окне `historySize` (default 8): live-ходы добавляются в
   `turn_end` с известными ценами, восстановленные из журнала — с
   `savedCost`/`reBillCost = null`. Причина в live и в warning считается одним
-  `missCause(idleMs, idleMinutes)`, промах — одним
+  `missCause(idleMs, idleMinutes)` (возвращает `Cause`), промах — одним
   `isCanonicalMiss(prevPrompt, usage, prompt, minPromptTokens)` (порог
-  предыдущего хода — `MIN_PREV_PROMPT`).
+  предыдущего хода — `MIN_PREV_PROMPT`), текст причины — `causeText`.
 - Restore истории на resume/fork: последние `historySize` assistant-сообщений;
   границы `model_change`/`thinking_level_change`/`reset_boundary`/`compaction`/
   `branch_summary` начинают новую эпоху (причина `null`, база простоя
@@ -109,6 +123,9 @@
   `cacheRead > 0`), `miss premium: $X (N tok)` (или `N tok` без цен) отдельной
   частью перед трендом, `тренд:` — последние 12 хитов (`▁`…`█`, `·` — n/a) и
   итог сессии с `saved`/`miss premium` (`≥` — известна лишь часть суммы).
+  На `language: en`: `mode:`, `no preset`, `turn:`, `turn: no data`, `trend:`,
+  `session:`, `turns N`; `in`/`cacheRead`/`cacheWrite`/`saved`/`miss premium` —
+  без изменений.
 - На `/new` суммы и тренд обнуляются; resume/fork восстанавливают их из
   журнала. `/clear` и переходы по дереву суммы сохраняют.
 - На `session_start` (startup/reload/new/resume/fork) состояние читается из
@@ -206,7 +223,8 @@ omp --no-tools --session-dir /tmp/cm-check
 #   ↺ … на старте, затем ↺ N%; /cache-monitor печатает строку
 #   /cache-monitor history → «история (N/8):» и строки ходов
 #   /cache-monitor costs → «стоимость сессии: $…» и строки бакетов
-#   /cache-monitor settings → 8 ключей и «цены модели: да|нет»
+#   /cache-monitor settings → 9 ключей и «цены модели: да|нет»
+#   omp plugin config set omp-cache-monitor language en → весь вывод по-английски
 #   /cache-monitor help → справка с подкомандами и путями к настройкам
 #   /new → статус ↺ …, команда: ходов 0, ↺ n/a; history: «история: нет данных»,
 #          costs: «стоимость: нет данных»
@@ -218,15 +236,14 @@ omp --no-tools --session-dir /tmp/cm-check
 ## Возможные следующие шаги (по решению владельца)
 
 Полный план с этапами, критериями и назначением агентов — `ROADMAP.md`.
-Кратко: этапы 1–2, 2.5, 2.8, 2.11, 2.12 (Phase 1 + 1.5) и 4 (README, пакет,
-tarball, тег/release 0.6.0) готовы; 0.7.0 (`/cache-monitor costs`) и 0.8.0
-(настройки, `settings`, `help`) в `main`; 0.8.1 (группы в описаниях и
-`settings`, help из 8 строк, `docs/omp-docs-map.md`) — в ветке `feat/ui-polish`,
-проверен unit-тестами. Следующее — только по решению владельца: merge 0.8.1,
-тег/release `v0.8.1` (плюс, при желании, `v0.7.0`/`v0.8.0`), этап 5
-(npm/marketplace) или P2-бэклог (powerline, панель). Phase 2 настроек —
-`language: ru|en` (все строки, тесты и docs); Phase 3 — `preset`
-(`balanced`/`quiet`/`verbose`/`custom`) и advanced-ключи
+Кратко: этапы 1–2, 2.5, 2.8, 2.11, 2.12 (Phase 1 + 1.5 + 2) и 4 (README,
+пакет, tarball, тег/release 0.6.0) готовы; 0.7.0 (`/cache-monitor costs`),
+0.8.0 (настройки, `settings`, `help`) и 0.8.1 (группы, docs map) в `main`;
+0.9.0 (`language: ru|en`, 9 ключей, EN-вывод, 68 тестов) — в ветке
+`feat/i18n`, проверен unit-тестами. Следующее — только по решению владельца:
+merge 0.9.0, тег/release `v0.9.0` (плюс, при желании, `v0.7.0`/`v0.8.0`),
+этап 5 (npm/marketplace) или P2-бэклог (powerline, панель). Phase 3 —
+`preset` (`balanced`/`quiet`/`verbose`/`custom`) и advanced-ключи
 (`warnCanonicalMiss`, `minPrevPromptTokens`, `oncePerEpoch`, `trendSize`,
 `statusShowCost`); Phase 4 — подсказка при первом промахе, скриншоты
 Settings → Plugins, upstream `group`/`icon`. Критерии и чеклист —

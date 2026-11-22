@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.9.0 — 2026-11-23
+
+- **`language: ru | en`** — девятый ключ `package.json#omp.settings`
+  (`type: "enum"`, `values: ["ru","en"]`, default `ru`), группа `Reports`.
+  Меняет только пользовательский вывод: метрики, токены, формат денег и
+  `(changed)`/`(default)` не зависят от языка. Невалидное значение (включая
+  не-строку) `normalizeConfig` откатывает к `ru`. Описания `omp.settings` в
+  манифесте остаются английскими при любом языке.
+- **Единый словарь строк.** Все пользовательские тексты вынесены в
+  `TEXTS: Record<Language, Texts>`: отчёт (`mode:`/`turn:`/`trend:`/`session:`,
+  `turns N`), history (`history (N/M):`, `history: no data`), costs
+  (`session cost:`, `dialog`/`compaction`/`branch`/`other`), `settings`
+  (заголовки `⚙ Status`/`⚠️ Warnings`/`📊 Reports`, подписи, `model prices:
+  yes|no`, `Change:`), `help` (те же 8 строк по-английски) и оба warning-а.
+- **Структурная причина промаха.** `TurnRecord.cause` теперь
+  `{ kind: "idle"; minutes: number } | { kind: "rewrite" } | null`, а
+  `causeText(cause, language)` рендерит `простой N мин` / `idle N min` и
+  `перезапись префикса` / `prefix rewrite`. Смена языка перерисовывает уже
+  записанные ходы и restore из журнала; warning использует тот же
+  `causeText`.
+- **`ru` (default) не меняет вывод** байт-в-байт, кроме новой строки
+  `language: ru (default) — язык вывода` в `/cache-monitor settings`.
+  `registerCommand.description` теперь английский:
+  `Cache prefix hit rate: report, history, costs, settings, help`.
+- **Тесты.** 68 тестов: новые EN-проверки отчёта, history (заголовок, пустое
+  состояние, причины), costs, `settings`, `help` и warning-ов, каждая с
+  `doesNotMatch(/[А-Яа-яЁё]/)`; перерисовка сохранённых причин при смене
+  языка; `normalizeConfig` для `en`/`ru`/невалидных значений.
+- **Документация.** README (EN) и `docs/README.ru.md` — ключ `language`,
+  пример EN-вывода, пометка про английские описания манифеста;
+  `docs/ui-settings.md` — 9 ключей, Phase 2 отмечена done (0.9.0);
+  `ROADMAP.md`, `HANDOFF.md`, `AGENTS.md` — версия, контракт и счётчики.
+
 ## 0.8.1 — 2026-11-23
 
 - **Сгруппированные описания настроек.** Все 8 `description` в

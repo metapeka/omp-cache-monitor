@@ -58,6 +58,15 @@ type LastTurn = TurnUsage & {
 	savedCost: number | null;
 };
 
+/** Язык пользовательских строк; метрики и формат чисел от него не зависят. */
+type Language = "ru" | "en";
+
+/**
+ * Причина канонического промаха в структурном виде: хранится в записи, поэтому
+ * смена `language` перерисовывает и старые ходы.
+ */
+type Cause = { kind: "idle"; minutes: number } | { kind: "rewrite" };
+
 /** Один ход в истории `/cache-monitor history`; деньги `null` — цен нет. */
 type TurnRecord = {
 	hit: number | null;
@@ -69,7 +78,7 @@ type TurnRecord = {
 	reBilled: number | null;
 	reBillCost: number | null;
 	/** Причина канонического промаха; `null` — промаха нет или первая эпоха. */
-	cause: string | null;
+	cause: Cause | null;
 };
 
 /** Стоимость одного типа записи; `missing` — часть цены неизвестна. */
@@ -112,6 +121,7 @@ type Config = {
 	minPromptTokens: number;
 	historySize: number;
 	showMoney: boolean;
+	language: Language;
 };
 
 /** Параметры восстановления из журнала; подмножество настроек. */
@@ -127,6 +137,7 @@ const DEFAULT_CONFIG: Config = {
 	minPromptTokens: 4000,
 	historySize: 8,
 	showMoney: true,
+	language: "ru",
 };
 
 /** Настройки из OMP; `settings` задают тесты вместо чтения loader'а. */
@@ -166,20 +177,189 @@ export function normalizeConfig(raw: unknown): Config {
 		historySize: configNumber(settings.historySize, DEFAULT_CONFIG.historySize, 1, 50),
 		showMoney:
 			typeof settings.showMoney === "boolean" ? settings.showMoney : DEFAULT_CONFIG.showMoney,
+		language: settings.language === "en" ? "en" : "ru",
 	};
 }
 
-/** Статическая справка `/cache-monitor help`; без обещаний TTL. */
-const HELP_TEXT = [
-	"cache-monitor — hit rate кэша префикса.",
-	"↺ N% — доля prompt, прочитанная из кэша; чем выше, тем дешевле ход. ↺ … до первого хода, n/a без знаменателя.",
-	"Промах — cacheRead 0; причина — в warning и history, переплата — в отчёте и history.",
-	"/cache-monitor — отчёт; history — последние ходы; costs — разбивка денег.",
-	"settings — настройки; help — эта справка.",
-	"Настройки: Settings → Plugins → omp-cache-monitor или omp plugin config set omp-cache-monitor <key> <value>.",
-	"Применяются к новой сессии; settings перечитывает сразу.",
-	"Документация: README.md, docs/ui-settings.md, docs/omp-docs-map.md.",
-].join("\n");
+/** Подпись, формат и справка одного языка: единственное место пользовательских строк. */
+type Texts = {
+	report: {
+		mode: string;
+		noPreset: string;
+		turn: string;
+		noData: string;
+		trend: string;
+		session: string;
+		/** Слово перед числом ходов: `ходов 3` / `turns 3`. */
+		turns: string;
+	};
+	history: { title: string; empty: string };
+	cost: {
+		title: string;
+		empty: string;
+		dialog: string;
+		compaction: string;
+		branch: string;
+		other: string;
+	};
+	settings: {
+		title: string;
+		status: string;
+		warnings: string;
+		reports: string;
+		/** Статичная подпись строки `settings` по ключу настройки. */
+		labels: Record<string, string>;
+		prices: string;
+		yes: string;
+		no: string;
+		change: string;
+	};
+	help: string;
+	cause: { idle: (minutes: number) => string; rewrite: string };
+	warning: {
+		miss: (cacheWrite: number, prompt: number, cause: string) => string;
+		reBilled: (tokens: number, cost: number | null) => string;
+		lowHit: (
+			hit: string,
+			input: number,
+			cacheRead: number,
+			cacheWrite: number,
+			prompt: number,
+		) => string;
+	};
+};
+
+/** Тексты обоих языков; `ru` — прежний вывод байт-в-байт. */
+const TEXTS: Record<Language, Texts> = {
+	ru: {
+		report: {
+			mode: "режим:",
+			noPreset: "без пресета",
+			turn: "ход:",
+			noData: "ход: нет данных",
+			trend: "тренд:",
+			session: "сессия:",
+			turns: "ходов",
+		},
+		history: { title: "история", empty: "история: нет данных" },
+		cost: {
+			title: "стоимость сессии:",
+			empty: "стоимость: нет данных",
+			dialog: "диалог",
+			compaction: "компакция",
+			branch: "ветка",
+			other: "прочее",
+		},
+		settings: {
+			title: "⚙ настройки cache-monitor",
+			status: "⚙ Статус",
+			warnings: "⚠️ Предупреждения",
+			reports: "📊 Отчёты",
+			labels: {
+				statusEnabled: "↺ N% в статус-строке",
+				statusShowMode: "префикс OMP_MODE",
+				warningsEnabled: "toast о промахах",
+				lowHitPercent: "порог низкого hit",
+				idleMinutes: "«простой N мин», не TTL",
+				minPromptTokens: "не шуметь на мелких промптах",
+				historySize: "окно /cache-monitor history",
+				showMoney: "$ в saved/miss premium",
+				language: "язык вывода",
+			},
+			prices: "💵 цены модели:",
+			yes: "да",
+			no: "нет",
+			change: "Изменить:",
+		},
+		help: [
+			"cache-monitor — hit rate кэша префикса.",
+			"↺ N% — доля prompt, прочитанная из кэша; чем выше, тем дешевле ход. ↺ … до первого хода, n/a без знаменателя.",
+			"Промах — cacheRead 0; причина — в warning и history, переплата — в отчёте и history.",
+			"/cache-monitor — отчёт; history — последние ходы; costs — разбивка денег.",
+			"settings — настройки; help — эта справка.",
+			"Настройки: Settings → Plugins → omp-cache-monitor или omp plugin config set omp-cache-monitor <key> <value>.",
+			"Применяются к новой сессии; settings перечитывает сразу.",
+			"Документация: README.md, docs/ui-settings.md, docs/omp-docs-map.md.",
+		].join("\n"),
+		cause: {
+			idle: (minutes) => `простой ${minutes} мин`,
+			rewrite: "перезапись префикса",
+		},
+		warning: {
+			miss: (cacheWrite, prompt, cause) =>
+				`Кэш префикса: промах (cacheRead 0, cacheWrite ${cacheWrite}, prompt ${prompt}) — причина: ${cause}.`,
+			reBilled: (tokens, cost) =>
+				` Пере-оплачено ≈ ${tokens} tok${cost === null ? "" : ` ($${cost.toFixed(4)})`}.`,
+			lowHit: (hit, input, cacheRead, cacheWrite, prompt) =>
+				`Кэш префикса: hit ${hit} (input ${input}, cacheRead ${cacheRead}, cacheWrite ${cacheWrite}, prompt ${prompt}). ` +
+				"Префикс изменился или кэш не читается — проверьте модель, thinking, режим и MCP.",
+		},
+	},
+	en: {
+		report: {
+			mode: "mode:",
+			noPreset: "no preset",
+			turn: "turn:",
+			noData: "turn: no data",
+			trend: "trend:",
+			session: "session:",
+			turns: "turns",
+		},
+		history: { title: "history", empty: "history: no data" },
+		cost: {
+			title: "session cost:",
+			empty: "cost: no data",
+			dialog: "dialog",
+			compaction: "compaction",
+			branch: "branch",
+			other: "other",
+		},
+		settings: {
+			title: "⚙ cache-monitor settings",
+			status: "⚙ Status",
+			warnings: "⚠️ Warnings",
+			reports: "📊 Reports",
+			labels: {
+				statusEnabled: "↺ N% in the status line",
+				statusShowMode: "OMP_MODE prefix",
+				warningsEnabled: "miss warning toasts",
+				lowHitPercent: "low-hit threshold",
+				idleMinutes: '"idle N min", not TTL',
+				minPromptTokens: "skip small prompts",
+				historySize: "/cache-monitor history window",
+				showMoney: "$ in saved/miss premium",
+				language: "output language",
+			},
+			prices: "💵 model prices:",
+			yes: "yes",
+			no: "no",
+			change: "Change:",
+		},
+		help: [
+			"cache-monitor — prefix-cache hit rate.",
+			"↺ N% — share of the prompt read from cache; higher is cheaper. ↺ … before the first turn, n/a with no denominator.",
+			"Miss — cacheRead 0; cause is in warnings and history, re-billing in the report and history.",
+			"/cache-monitor — report; history — recent turns; costs — cost breakdown.",
+			"settings — current settings; help — this help.",
+			"Settings: Settings → Plugins → omp-cache-monitor or omp plugin config set omp-cache-monitor <key> <value>.",
+			"Applied to new sessions; settings re-reads immediately.",
+			"Docs: README.md, docs/ui-settings.md, docs/omp-docs-map.md.",
+		].join("\n"),
+		cause: {
+			idle: (minutes) => `idle ${minutes} min`,
+			rewrite: "prefix rewrite",
+		},
+		warning: {
+			miss: (cacheWrite, prompt, cause) =>
+				`Prefix cache: miss (cacheRead 0, cacheWrite ${cacheWrite}, prompt ${prompt}) — cause: ${cause}.`,
+			reBilled: (tokens, cost) =>
+				` Re-billed ≈ ${tokens} tok${cost === null ? "" : ` ($${cost.toFixed(4)})`}.`,
+			lowHit: (hit, input, cacheRead, cacheWrite, prompt) =>
+				`Prefix cache: hit ${hit} (input ${input}, cacheRead ${cacheRead}, cacheWrite ${cacheWrite}, prompt ${prompt}). ` +
+				"Prefix changed or cache is not being read — check model, thinking, mode and MCP.",
+		},
+	},
+};
 
 /** Уровни спарклайна: 0–100% по возрастанию. */
 const SPARK_LEVELS = "▁▂▃▄▅▆▇█";
@@ -317,33 +497,37 @@ function modelUsageCostKey(purpose: unknown): string {
 	return prefixedKey("model_usage:", purpose);
 }
 
-/** Подпись бакета для отчёта: русские имена и срезанные префиксы. */
-function costLabel(key: string): string {
-	if (key === "dialog") return "диалог";
-	if (key === "compaction") return "компакция";
-	if (key === "branch_summary") return "ветка";
+/** Подпись бакета для отчёта: имена языка и срезанные префиксы. */
+function costLabel(key: string, texts: Texts): string {
+	if (key === "dialog") return texts.cost.dialog;
+	if (key === "compaction") return texts.cost.compaction;
+	if (key === "branch_summary") return texts.cost.branch;
 	const trimmed = key.startsWith("usage:")
 		? key.slice("usage:".length)
 		: key.startsWith("model_usage:")
 			? key.slice("model_usage:".length)
 			: key;
-	return trimmed === "?" || trimmed === "" ? "прочее" : trimmed;
+	return trimmed === "?" || trimmed === "" ? texts.cost.other : trimmed;
 }
 
 /** `диалог` всегда первым; дальше по убыванию известной стоимости и подписи. */
-function compareCostBuckets(a: [string, CostBucket], b: [string, CostBucket]): number {
+function compareCostBuckets(
+	a: [string, CostBucket],
+	b: [string, CostBucket],
+	texts: Texts,
+): number {
 	if (a[0] === "dialog") return -1;
 	if (b[0] === "dialog") return 1;
 	if (b[1].cost !== a[1].cost) return b[1].cost - a[1].cost;
-	const left = costLabel(a[0]);
-	const right = costLabel(b[0]);
+	const left = costLabel(a[0], texts);
+	const right = costLabel(b[0], texts);
 	if (left !== right) return left < right ? -1 : 1;
 	return a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0;
 }
 
 /** Одна строка бакета: известная цена `$X`, иначе `?` или нижняя граница `≥$X`. */
-function costLine(key: string, bucket: CostBucket): string {
-	const label = costLabel(key);
+function costLine(key: string, bucket: CostBucket, texts: Texts): string {
+	const label = costLabel(key, texts);
 	if (!bucket.missing) return `${label}: $${bucket.cost.toFixed(4)}`;
 	if (bucket.cost > 0) return `${label}: ≥$${bucket.cost.toFixed(4)}`;
 	return `${label}: ?`;
@@ -353,17 +537,18 @@ function costLine(key: string, bucket: CostBucket): string {
  * Отчёт `/cache-monitor costs`: заголовок и строки бакетов. Сумма — только
  * известные `cost.total`; если хоть один бакет неполон, заголовок `≥$X`.
  */
-function costReport(costs: Map<string, CostBucket>): string {
-	if (costs.size === 0) return "стоимость: нет данных";
+function costReport(costs: Map<string, CostBucket>, language: Language): string {
+	const texts = TEXTS[language];
+	if (costs.size === 0) return texts.cost.empty;
 	let total = 0;
 	let missing = false;
 	for (const bucket of costs.values()) {
 		total += bucket.cost;
 		if (bucket.missing) missing = true;
 	}
-	const lines = [`стоимость сессии: ${missing ? "≥" : ""}$${total.toFixed(4)}`];
-	const sorted = [...costs].sort(compareCostBuckets);
-	for (const [key, bucket] of sorted) lines.push(costLine(key, bucket));
+	const lines = [`${texts.cost.title} ${missing ? "≥" : ""}$${total.toFixed(4)}`];
+	const sorted = [...costs].sort((a, b) => compareCostBuckets(a, b, texts));
+	for (const [key, bucket] of sorted) lines.push(costLine(key, bucket, texts));
 	return lines.join("\n");
 }
 
@@ -384,14 +569,25 @@ function isCanonicalMiss(
 }
 
 /** Причина канонического промаха: простой или перезапись префикса. */
-function missCause(idleMs: number | null, idleMinutes: number): string {
+function missCause(idleMs: number | null, idleMinutes: number): Cause {
 	return idleMs !== null && idleMs >= idleMinutes * 60_000
-		? `простой ${Math.round(idleMs / 60000)} мин`
-		: "перезапись префикса";
+		? { kind: "idle", minutes: Math.round(idleMs / 60000) }
+		: { kind: "rewrite" };
+}
+
+/** Текст причины на языке вывода; старые записи перерисовываются при смене. */
+function causeText(cause: Cause, language: Language): string {
+	const texts = TEXTS[language];
+	return cause.kind === "idle" ? texts.cause.idle(cause.minutes) : texts.cause.rewrite;
 }
 
 /** Одна строка `/cache-monitor history`: деньги только по известным ценам. */
-function historyLine(record: TurnRecord, index: number, showMoney: boolean): string {
+function historyLine(
+	record: TurnRecord,
+	index: number,
+	showMoney: boolean,
+	language: Language,
+): string {
 	const parts = [
 		`${index + 1}. ↺ ${hitPercentText(record.hit)} · prompt ${record.prompt}`,
 	];
@@ -412,7 +608,7 @@ function historyLine(record: TurnRecord, index: number, showMoney: boolean): str
 			);
 		}
 	}
-	if (record.cause !== null) parts.push(record.cause);
+	if (record.cause !== null) parts.push(causeText(record.cause, language));
 	return parts.join(" · ");
 }
 
@@ -988,6 +1184,7 @@ export default function cacheMonitor(pi: ExtensionAPI, source: PluginSource = {}
 			turnIndex >= 1 &&
 			prompt >= config.minPromptTokens;
 		if (!canWarn) return;
+		const texts = TEXTS[config.language];
 
 		// Канонический промах: префикс переписан целиком, кэш не прочитан.
 		if (
@@ -995,16 +1192,12 @@ export default function cacheMonitor(pi: ExtensionAPI, source: PluginSource = {}
 			!epochWarned.has("canonical-miss")
 		) {
 			epochWarned.add("canonical-miss");
-			const reason = missCause(idleMs, config.idleMinutes);
+			const reason = causeText(missCause(idleMs, config.idleMinutes), config.language);
 			const costText =
 				reBilled !== null && reBilled > 0
-					? ` Пере-оплачено ≈ ${reBilled} tok${reBillCost === null ? "" : ` ($${reBillCost.toFixed(4)})`}.`
+					? texts.warning.reBilled(reBilled, reBillCost)
 					: "";
-			notify(
-				ctx,
-				`Кэш префикса: промах (cacheRead 0, cacheWrite ${usage.cacheWrite}, prompt ${prompt}) — причина: ${reason}.${costText}`,
-				"warning",
-			);
+			notify(ctx, texts.warning.miss(usage.cacheWrite, prompt, reason) + costText, "warning");
 		}
 
 		// Низкий hit — не обязательно промах, но признак смены префикса.
@@ -1012,9 +1205,13 @@ export default function cacheMonitor(pi: ExtensionAPI, source: PluginSource = {}
 			epochWarned.add("low-hit");
 			notify(
 				ctx,
-				`Кэш префикса: hit ${hitPercentText(hit)} (input ${usage.input}, cacheRead ${usage.cacheRead}, ` +
-					`cacheWrite ${usage.cacheWrite}, prompt ${prompt}). ` +
-					"Префикс изменился или кэш не читается — проверьте модель, thinking, режим и MCP.",
+				texts.warning.lowHit(
+					hitPercentText(hit),
+					usage.input,
+					usage.cacheRead,
+					usage.cacheWrite,
+					prompt,
+				),
 				"warning",
 			);
 		}
@@ -1022,6 +1219,7 @@ export default function cacheMonitor(pi: ExtensionAPI, source: PluginSource = {}
 
 	/** Строка `/cache-monitor settings`: группы, значения, источник и наличие цен модели. */
 	const settingsReport = (ctx: ExtensionContext): string => {
+		const texts = TEXTS[config.language];
 		const values: Record<string, string> = {
 			statusEnabled: String(config.statusEnabled),
 			statusShowMode: String(config.statusShowMode),
@@ -1031,61 +1229,58 @@ export default function cacheMonitor(pi: ExtensionAPI, source: PluginSource = {}
 			minPromptTokens: String(config.minPromptTokens),
 			historySize: String(config.historySize),
 			showMoney: String(config.showMoney),
+			language: config.language,
 		};
 		// OMP не умеет группы в схеме плагина: группы кодируются порядком ключей
 		// и префиксом в description, а команда повторяет их явными заголовками.
-		const groups: { title: string; rows: [key: string, label: string][] }[] = [
+		const groups: { title: string; rows: string[] }[] = [
 			{
-				title: "⚙ Статус",
+				title: texts.settings.status,
+				rows: ["statusEnabled", "statusShowMode"],
+			},
+			{
+				title: texts.settings.warnings,
 				rows: [
-					["statusEnabled", "↺ N% в статус-строке"],
-					["statusShowMode", "префикс OMP_MODE"],
+					"warningsEnabled",
+					"lowHitPercent",
+					"idleMinutes",
+					"minPromptTokens",
 				],
 			},
 			{
-				title: "⚠️ Предупреждения",
-				rows: [
-					["warningsEnabled", "toast о промахах"],
-					["lowHitPercent", "порог низкого hit"],
-					["idleMinutes", "«простой N мин», не TTL"],
-					["minPromptTokens", "не шуметь на мелких промптах"],
-				],
-			},
-			{
-				title: "📊 Отчёты",
-				rows: [
-					["historySize", "окно /cache-monitor history"],
-					["showMoney", "$ в saved/miss premium"],
-				],
+				title: texts.settings.reports,
+				rows: ["historySize", "showMoney", "language"],
 			},
 		];
-		const prices = cacheDeltaCost(ctx.model, 0) !== null ? "да" : "нет";
-		const lines = ["⚙ настройки cache-monitor"];
+		const prices = cacheDeltaCost(ctx.model, 0) !== null ? texts.settings.yes : texts.settings.no;
+		const lines = [texts.settings.title];
 		for (const group of groups) {
 			lines.push(group.title);
-			for (const [key, label] of group.rows) {
+			for (const key of group.rows) {
 				const source = configuredKeys.has(key) ? "changed" : "default";
-				lines.push(`  ${key}: ${values[key]} (${source}) — ${label}`);
+				lines.push(
+					`  ${key}: ${values[key]} (${source}) — ${texts.settings.labels[key]}`,
+				);
 			}
 		}
-		lines.push(`💵 цены модели: ${prices}`);
-		lines.push("Изменить: omp plugin config set omp-cache-monitor <key> <value>");
+		lines.push(`${texts.settings.prices} ${prices}`);
+		lines.push(`${texts.settings.change} omp plugin config set omp-cache-monitor <key> <value>`);
 		return lines.join("\n");
 	};
 
 	pi.registerCommand("cache-monitor", {
-		description:
-			"Показать режим, модель, hit rate и тренд кэша; history — история, costs — стоимость, settings — настройки, help — справка",
+		description: "Cache prefix hit rate: report, history, costs, settings, help",
 		handler: async (args, ctx) => {
 			const subcommand = args.trim().toLowerCase();
 			// Команда видит свежие настройки; новый сеанс читает их сам.
 			await refreshConfig(ctx);
+			const texts = TEXTS[config.language];
 			if (subcommand === "settings" || subcommand === "setting") {
 				notify(ctx, settingsReport(ctx), "info");
 				return;
 			}
 			if (subcommand === "help" || subcommand === "?") {
-				notify(ctx, HELP_TEXT, "info");
+				notify(ctx, texts.help, "info");
 				return;
 			}
 			if (subcommand === "costs" || subcommand === "cost") {
@@ -1094,7 +1289,7 @@ export default function cacheMonitor(pi: ExtensionAPI, source: PluginSource = {}
 				// Журнал пуст (тесты/первый ход) — остаётся live-карта; иначе
 				// карта заменяется снимком журнала, так что повтор идемпотентен.
 				if (aggregate) costs = new Map(aggregate.costs);
-				notify(ctx, costReport(costs), "info");
+				notify(ctx, costReport(costs, config.language), "info");
 				return;
 			}
 			// Cache warming и компакция могли не прийти событиями хода.
@@ -1102,9 +1297,11 @@ export default function cacheMonitor(pi: ExtensionAPI, source: PluginSource = {}
 			if (subcommand === "history" || subcommand === "hist") {
 				const text =
 					history.length === 0
-						? "история: нет данных"
-						: `история (${history.length}/${config.historySize}):\n${history
-								.map((record, index) => historyLine(record, index, config.showMoney))
+						? texts.history.empty
+						: `${texts.history.title} (${history.length}/${config.historySize}):\n${history
+								.map((record, index) =>
+									historyLine(record, index, config.showMoney, config.language),
+								)
 								.join("\n")}`;
 				notify(ctx, text, "info");
 				return;
@@ -1114,15 +1311,20 @@ export default function cacheMonitor(pi: ExtensionAPI, source: PluginSource = {}
 				: "?";
 			const thinking = await thinkingLevel();
 
-			const parts = [`режим: ${mode || "без пресета"}`, modelLabel, `thinking ${thinking}`];
+			const parts = [
+				`${texts.report.mode} ${mode || texts.report.noPreset}`,
+				modelLabel,
+				`thinking ${thinking}`,
+			];
 			if (last) {
 				const savedTurn =
 					config.showMoney && last.savedCost !== null && last.savedCost > 0
 						? ` · saved $${last.savedCost.toFixed(4)}`
 						: "";
 				parts.push(
-					`ход: ↺ ${hitPercentText(last.hit)} · in ${last.input} · cacheRead ${last.cacheRead} · ` +
-						`cacheWrite ${last.cacheWrite} · $${last.cost.toFixed(4)}${savedTurn}`,
+					`${texts.report.turn} ↺ ${hitPercentText(last.hit)} · in ${last.input} · ` +
+						`cacheRead ${last.cacheRead} · cacheWrite ${last.cacheWrite} · ` +
+						`$${last.cost.toFixed(4)}${savedTurn}`,
 				);
 				if (last.reBilled !== null && last.reBilled > 0) {
 					if (!config.showMoney) {
@@ -1137,10 +1339,10 @@ export default function cacheMonitor(pi: ExtensionAPI, source: PluginSource = {}
 					}
 				}
 			} else {
-				parts.push("ход: нет данных");
+				parts.push(texts.report.noData);
 			}
 			if (trendHits.length > 0) {
-				parts.push(`тренд: ${trendHits.map(sparkLevel).join("")}`);
+				parts.push(`${texts.report.trend} ${trendHits.map(sparkLevel).join("")}`);
 			}
 			const sessionHit = hitPercent(sessionInput, sessionCached, sessionWrite);
 			const sessionSavedPart =
@@ -1158,7 +1360,7 @@ export default function cacheMonitor(pi: ExtensionAPI, source: PluginSource = {}
 							: `, miss premium $${sessionReBillCost.toFixed(4)} (${sessionReBilled} tok)`
 					: "";
 			parts.push(
-				`сессия: $${sessionCost.toFixed(4)}, ходов ${turns}, ↺ ${hitPercentText(sessionHit)}` +
+				`${texts.report.session} $${sessionCost.toFixed(4)}, ${texts.report.turns} ${turns}, ↺ ${hitPercentText(sessionHit)}` +
 					`${sessionSavedPart}${sessionMissPart}`,
 			);
 

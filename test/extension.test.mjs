@@ -1050,6 +1050,7 @@ describe("plugin settings", () => {
 		minPromptTokens: 4000,
 		historySize: 8,
 		showMoney: true,
+		language: "ru",
 	};
 
 	it("normalizes numbers by rounding, clamping and falling back", () => {
@@ -1072,7 +1073,15 @@ describe("plugin settings", () => {
 			minPromptTokens: 499,
 			historySize: 4,
 			showMoney: true,
+			language: "ru",
 		});
+	});
+
+	it("accepts only ru and en for language", () => {
+		assert.equal(normalizeConfig({ language: "en" }).language, "en");
+		assert.equal(normalizeConfig({ language: "ru" }).language, "ru");
+		assert.equal(normalizeConfig({ language: "de" }).language, "ru");
+		assert.equal(normalizeConfig({ language: 1 }).language, "ru");
 	});
 
 	it("falls back to defaults for invalid values and shapes", () => {
@@ -1231,6 +1240,7 @@ describe("plugin settings", () => {
 				"📊 Отчёты\n" +
 				"  historySize: 8 (default) — окно /cache-monitor history\n" +
 				"  showMoney: true (default) — $ в saved/miss premium\n" +
+				"  language: ru (default) — язык вывода\n" +
 				"💵 цены модели: да\n" +
 				"Изменить: omp plugin config set omp-cache-monitor <key> <value>",
 		);
@@ -1290,5 +1300,180 @@ describe("plugin settings", () => {
 
 		await turn(extension, ctx, usage(3800, 200, 0), 3);
 		assert.match(notifications.at(-1).text, /hit 5%/);
+	});
+});
+
+describe("english output", () => {
+	const START = 4_000_000;
+	const CYRILLIC = /[А-Яа-яЁё]/;
+
+	it("renders the default report in English", async () => {
+		const { extension, ctx, notifications } = await started({
+			settings: { language: "en" },
+		});
+
+		await command(extension, ctx);
+		let out = notifications.at(-1).text;
+		assert.equal(
+			out,
+			"mode: no preset · test/model-a · thinking high · turn: no data · " +
+				"session: $0.0000, turns 0, ↺ n/a",
+		);
+		assert.doesNotMatch(out, CYRILLIC);
+
+		await turn(extension, ctx, usage(1000, 3000, 0, 0.01));
+		await command(extension, ctx);
+		out = notifications.at(-1).text;
+		assert.match(
+			out,
+			/turn: ↺ 75% · in 1000 · cacheRead 3000 · cacheWrite 0 · \$0\.0100 · saved \$0\.0081/,
+		);
+		assert.match(out, /trend: ▇/);
+		assert.match(out, /session: \$0\.0100, turns 1, ↺ 75%, saved \$0\.0081$/);
+		assert.doesNotMatch(out, CYRILLIC);
+	});
+
+	it("renders history headers, causes and the empty state in English", async () => {
+		const { extension, ctx, notifications } = await started({
+			settings: { language: "en" },
+		});
+		await turn(extension, ctx, usage(0, 0, 5000), 1, START);
+		await turn(extension, ctx, usage(0, 0, 5000), 2, START + 6 * 60_000);
+		await turn(extension, ctx, usage(0, 0, 5000), 3, START + 7 * 60_000);
+
+		await command(extension, ctx, "history");
+		const out = notifications.at(-1).text;
+		assert.equal(
+			out,
+			"history (3/8):\n" +
+				"1. ↺ 0% · prompt 5000\n" +
+				"2. ↺ 0% · prompt 5000 · miss premium $0.0135 (5000 tok) · idle 6 min\n" +
+				"3. ↺ 0% · prompt 5000 · miss premium $0.0135 (5000 tok) · prefix rewrite",
+		);
+		assert.doesNotMatch(out, CYRILLIC);
+
+		await fire(extension, "session_switch", ctx, { reason: "new" });
+		await command(extension, ctx, "history");
+		assert.equal(notifications.at(-1).text, "history: no data");
+		assert.doesNotMatch(notifications.at(-1).text, CYRILLIC);
+	});
+
+	it("redraws stored miss causes when the language changes", async () => {
+		const settings = { language: "ru" };
+		const { extension, ctx, notifications } = await started({ settings });
+		await turn(extension, ctx, usage(0, 0, 5000), 1, START);
+		await turn(extension, ctx, usage(0, 0, 5000), 2, START + 6 * 60_000);
+
+		await command(extension, ctx, "history");
+		assert.match(notifications.at(-1).text, /· простой 6 мин/);
+
+		settings.language = "en";
+		await command(extension, ctx, "history");
+		const out = notifications.at(-1).text;
+		assert.match(out, /· idle 6 min/);
+		assert.doesNotMatch(out, CYRILLIC);
+	});
+
+	it("renders costs labels and the empty state in English", async () => {
+		const entries = [
+			assistantEntry(usage(0, 0, 5000, 0.05)),
+			{ type: "compaction", usage: usage(0, 0, 0, 0.03) },
+			{ type: "branch_summary", usage: usage(0, 0, 0, 0.01) },
+			usageEntry(usage(0, 0, 0, 0.001), ""),
+		];
+		const { extension, ctx, notifications } = await started({
+			settings: { language: "en" },
+			entries,
+			reason: "resume",
+		});
+
+		await command(extension, ctx, "costs");
+		const out = notifications.at(-1).text;
+		assert.equal(
+			out,
+			"session cost: $0.0910\n" +
+				"dialog: $0.0500\n" +
+				"compaction: $0.0300\n" +
+				"branch: $0.0100\n" +
+				"other: $0.0010",
+		);
+		assert.doesNotMatch(out, CYRILLIC);
+
+		const empty = await started({ settings: { language: "en" } });
+		await command(empty.extension, empty.ctx, "costs");
+		assert.equal(empty.notifications.at(-1).text, "cost: no data");
+		assert.doesNotMatch(empty.notifications.at(-1).text, CYRILLIC);
+	});
+
+	it("prints settings in English", async () => {
+		const { extension, ctx, notifications } = await started({
+			settings: { language: "en" },
+		});
+		await command(extension, ctx, "settings");
+		const out = notifications.at(-1).text;
+		assert.equal(
+			out,
+			"⚙ cache-monitor settings\n" +
+				"⚙ Status\n" +
+				"  statusEnabled: true (default) — ↺ N% in the status line\n" +
+				"  statusShowMode: true (default) — OMP_MODE prefix\n" +
+				"⚠️ Warnings\n" +
+				"  warningsEnabled: true (default) — miss warning toasts\n" +
+				"  lowHitPercent: 50 (default) — low-hit threshold\n" +
+				'  idleMinutes: 5 (default) — "idle N min", not TTL\n' +
+				"  minPromptTokens: 4000 (default) — skip small prompts\n" +
+				"📊 Reports\n" +
+				"  historySize: 8 (default) — /cache-monitor history window\n" +
+				"  showMoney: true (default) — $ in saved/miss premium\n" +
+				"  language: en (changed) — output language\n" +
+				"💵 model prices: yes\n" +
+				"Change: omp plugin config set omp-cache-monitor <key> <value>",
+		);
+		assert.doesNotMatch(out, CYRILLIC);
+	});
+
+	it("prints help in English", async () => {
+		const { extension, ctx, notifications } = await started({
+			settings: { language: "en" },
+		});
+		await command(extension, ctx, "help");
+		const out = notifications.at(-1).text;
+		assert.equal(
+			out,
+			"cache-monitor — prefix-cache hit rate.\n" +
+				"↺ N% — share of the prompt read from cache; higher is cheaper. ↺ … before the first turn, n/a with no denominator.\n" +
+				"Miss — cacheRead 0; cause is in warnings and history, re-billing in the report and history.\n" +
+				"/cache-monitor — report; history — recent turns; costs — cost breakdown.\n" +
+				"settings — current settings; help — this help.\n" +
+				"Settings: Settings → Plugins → omp-cache-monitor or omp plugin config set omp-cache-monitor <key> <value>.\n" +
+				"Applied to new sessions; settings re-reads immediately.\n" +
+				"Docs: README.md, docs/ui-settings.md, docs/omp-docs-map.md.",
+		);
+		assert.doesNotMatch(out, CYRILLIC);
+
+		await command(extension, ctx, "?");
+		assert.equal(notifications.at(-1).text, out);
+	});
+
+	it("prints both warnings in English", async () => {
+		const { extension, ctx, notifications } = await started({
+			settings: { language: "en" },
+		});
+		await turn(extension, ctx, usage(0, 0, 5000), 1, START);
+		await turn(extension, ctx, usage(0, 0, 5000), 2, START + 6 * 60_000);
+
+		const texts = notifications.map((n) => n.text);
+		assert.equal(
+			texts[0],
+			"Prefix cache: miss (cacheRead 0, cacheWrite 5000, prompt 5000) — " +
+				"cause: idle 6 min. Re-billed ≈ 5000 tok ($0.0135).",
+		);
+		assert.equal(
+			texts[1],
+			"Prefix cache: hit 0% (input 0, cacheRead 0, cacheWrite 5000, prompt 5000). " +
+				"Prefix changed or cache is not being read — check model, thinking, mode and MCP.",
+		);
+		assert.equal(texts.length, 2);
+		for (const text of texts) assert.doesNotMatch(text, CYRILLIC);
 	});
 });

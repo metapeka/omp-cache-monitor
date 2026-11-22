@@ -1,6 +1,6 @@
 {
   "name": "omp-cache-monitor",
-  "version": "0.8.1",
+  "version": "0.9.0",
   "type": "module",
   "scripts": {
     "test": "node --experimental-strip-types test/extension.test.mjs",
@@ -88,6 +88,12 @@
         "type": "boolean",
         "default": true,
         "description": "Reports · Show saved / miss premium in dollars. Default: true. /cache-monitor costs always shows money."
+      },
+      "language": {
+        "type": "enum",
+        "values": ["ru", "en"],
+        "default": "ru",
+        "description": "Reports · Output language for command labels and warnings. Default: ru. Manifest descriptions stay English."
       }
     }
   },

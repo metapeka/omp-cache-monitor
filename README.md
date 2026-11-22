@@ -177,13 +177,15 @@ event is not treated as a mid-session miss.
 1. **Canonical miss** — the previous turn's prompt was ≥ 2048 tokens, while the
    current turn has `cacheRead = 0` and `cacheWrite > 0`: the prefix was fully
    rewritten or the cache expired. The cause is computed per turn:
-   `простой N мин` when consecutive completed turns are ≥ 5 minutes apart by
-   `message.timestamp`, otherwise `перезапись префикса`. The 5-minute threshold
+   `простой N мин` (`idle N min` with `language: en`) when consecutive
+   completed turns are ≥ 5 minutes apart by `message.timestamp`, otherwise
+   `перезапись префикса` (`prefix rewrite`). The 5-minute threshold
    is an empirical heuristic, **not** a provider-declared TTL: `cline-pass`
    does not declare a lifetime. Idle time across an epoch boundary (model,
    thinking, or tool-set change, compaction, resume) is not attributed to the
-   new prefix; without a timestamp the cause is `перезапись префикса`, and a
-   turn without a timestamp breaks the idle chain for the next turn.
+   new prefix; without a timestamp the cause is `перезапись префикса`
+   (`prefix rewrite`), and a turn without a timestamp breaks the idle chain for
+   the next turn.
 2. **Low hit** — below 50% on a turn other than the first (the first turn is
    cold by definition).
 
@@ -231,6 +233,7 @@ the model has numeric prices:
 📊 Отчёты
   historySize: 8 (default) — окно /cache-monitor history
   showMoney: true (default) — $ в saved/miss premium
+  language: ru (default) — язык вывода
 💵 цены модели: да
 Изменить: omp plugin config set omp-cache-monitor <key> <value>
 ```
@@ -241,15 +244,37 @@ the model has numeric prices:
 | `statusShowMode` | `true` | boolean | Prefix the status with `OMP_MODE` (`cache-safe ↺ 75%`). `false` prints just `↺ 75%`. |
 | `warningsEnabled` | `true` | boolean | Canonical-miss and low-hit warnings. `false` emits none. |
 | `lowHitPercent` | `50` | 1–100 | Warn when a turn's hit is below this percent. |
-| `idleMinutes` | `5` | 1–240 | Gap named as idle in a miss cause (`простой N мин`). Empirical heuristic, **not** a provider TTL. |
+| `idleMinutes` | `5` | 1–240 | Gap named as idle in a miss cause (`простой N мин` / `idle N min`). Empirical heuristic, **not** a provider TTL. |
 | `minPromptTokens` | `4000` | 0–1 000 000 | Do not warn on smaller prompts; the same floor is used by the miss cause and restore. |
-| `historySize` | `8` | 1–50 | `/cache-monitor history` window (live and after resume) and the `история (N/M):` denominator. |
+| `historySize` | `8` | 1–50 | `/cache-monitor history` window (live and after resume) and the `история (N/M):` / `history (N/M):` denominator. |
 | `showMoney` | `true` | boolean | `saved` and `miss premium` dollar amounts in the report and history. With `false` the tokens stay (`miss premium: 3000 tok` / `miss premium 3000 tok`) and `/cache-monitor costs` still shows money. |
+| `language` | `ru` | `ru` / `en` | Language of user-facing output: report labels, history headers and causes, cost labels, `settings`, `help` and warnings. `ru` keeps the original byte-for-byte output. Manifest `omp.settings` descriptions stay English in both languages. |
 
 Invalid values fall back to the default; numbers are rounded and clamped
 (`lowHitPercent: 500` → `100`, `idleMinutes: 0` → `1`, `historySize: 3.6` → `4`).
-The default values reproduce the pre-0.8.0 output byte for byte. More detail:
-[`docs/ui-settings.md`](docs/ui-settings.md).
+An invalid `language` falls back to `ru`. The default values reproduce the
+pre-0.8.0 output byte for byte, except the new `language` row in `settings`.
+More detail: [`docs/ui-settings.md`](docs/ui-settings.md).
+
+`language: en` translates every user-facing string — report and history labels,
+miss causes, cost labels, `settings`, `help` and warnings — while metrics,
+tokens and money keep the same format. The manifest `omp.settings`
+descriptions stay English regardless of `language`.
+
+```
+omp plugin config set omp-cache-monitor language en
+```
+
+```
+cache-monitor — prefix-cache hit rate.
+↺ N% — share of the prompt read from cache; higher is cheaper. ↺ … before the first turn, n/a with no denominator.
+Miss — cacheRead 0; cause is in warnings and history, re-billing in the report and history.
+/cache-monitor — report; history — recent turns; costs — cost breakdown.
+settings — current settings; help — this help.
+Settings: Settings → Plugins → omp-cache-monitor or omp plugin config set omp-cache-monitor <key> <value>.
+Applied to new sessions; settings re-reads immediately.
+Docs: README.md, docs/ui-settings.md, docs/omp-docs-map.md.
+```
 
 `/cache-monitor help` (alias `?`) prints an eight-line reference: what `↺`
 means (higher is cheaper), that a miss is `cacheRead 0`, the subcommands

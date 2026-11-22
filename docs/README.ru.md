@@ -173,13 +173,16 @@ live-часть и показывает `≥`.
 
 1. **Канонический промах** — на предыдущем ходе промпт был ≥ 2048 токенов, а на
    текущем `cacheRead = 0` и `cacheWrite > 0`: префикс перезаписан целиком или
-   кэш истёк. Причина считается per-turn: `простой N мин`, если между
+   кэш истёк. Причина считается per-turn: `простой N мин`
+   (`idle N min` при `language: en`), если между
    завершёнными ходами прошло ≥ 5 минут по `message.timestamp`, иначе
-   `перезапись префикса`. Порог 5 минут — эмпирическая эвристика, **не**
+   `перезапись префикса` (`prefix rewrite`). Порог 5 минут — эмпирическая
+   эвристика, **не**
    объявленный TTL провайдера: `cline-pass` lifetime не декларирует. Простой
    через границу эпохи (смена модели/thinking/tools, компакция, resume) новому
-   префиксу не приписывается; без timestamp причина — `перезапись префикса`,
-   а ход без timestamp разрывает цепочку простоя для следующего хода.
+   префиксу не приписывается; без timestamp причина — `перезапись префикса`
+   (`prefix rewrite`), а ход без timestamp разрывает цепочку простоя для
+   следующего хода.
 2. **Низкий hit** — меньше 50% на ходе не первом (первый ход холодный по
    определению).
 
@@ -225,6 +228,7 @@ upstream-предложение `group`/`icon` — [`ui-settings.md`](ui-setting
 📊 Отчёты
   historySize: 8 (default) — окно /cache-monitor history
   showMoney: true (default) — $ в saved/miss premium
+  language: ru (default) — язык вывода
 💵 цены модели: да
 Изменить: omp plugin config set omp-cache-monitor <key> <value>
 ```
@@ -235,15 +239,37 @@ upstream-предложение `group`/`icon` — [`ui-settings.md`](ui-setting
 | `statusShowMode` | `true` | boolean | Префикс `OMP_MODE` у статуса (`cache-safe ↺ 75%`). `false` — только `↺ 75%`. |
 | `warningsEnabled` | `true` | boolean | Предупреждения о каноническом промахе и низком hit. `false` — ни одного warning. |
 | `lowHitPercent` | `50` | 1–100 | Warning, когда hit ниже этого процента. |
-| `idleMinutes` | `5` | 1–240 | Разрыв, который причина промаха называет простоем (`простой N мин`). Эмпирика, **не** TTL провайдера. |
+| `idleMinutes` | `5` | 1–240 | Разрыв, который причина промаха называет простоем (`простой N мин` / `idle N min`). Эмпирика, **не** TTL провайдера. |
 | `minPromptTokens` | `4000` | 0–1 000 000 | Не предупреждать на меньших промптах; тот же порог в причине и restore. |
-| `historySize` | `8` | 1–50 | Окно `/cache-monitor history` (live и после resume) и делитель `история (N/M):`. |
+| `historySize` | `8` | 1–50 | Окно `/cache-monitor history` (live и после resume) и делитель `история (N/M):` / `history (N/M):`. |
 | `showMoney` | `true` | boolean | `saved` и деньги `miss premium` в отчёте и history. При `false` остаются токены (`miss premium: 3000 tok` / `miss premium 3000 tok`), а `/cache-monitor costs` деньги показывает. |
+| `language` | `ru` | `ru` / `en` | Язык пользовательского вывода: подписи отчёта, заголовки и причины history, подписи costs, `settings`, `help` и warning-и. `ru` сохраняет прежний вывод байт-в-байт. Описания `omp.settings` в манифесте остаются английскими при любом языке. |
 
 Невалидные значения откатываются к default; числа округляются и зажимаются
 (`lowHitPercent: 500` → `100`, `idleMinutes: 0` → `1`, `historySize: 3.6` → `4`).
-Defaults воспроизводят вывод до 0.8.0 побайтово. Подробности:
+Невалидный `language` откатывается к `ru`. Defaults воспроизводят вывод до
+0.8.0 побайтово, кроме новой строки `language` в `settings`. Подробности:
 [`ui-settings.md`](ui-settings.md).
+
+`language: en` переводит все пользовательские строки — подписи отчёта и
+history, причины промахов, подписи costs, `settings`, `help` и warning-и —
+при том же формате метрик, токенов и денег. Описания `omp.settings` в
+манифесте остаются английскими независимо от `language`.
+
+```
+omp plugin config set omp-cache-monitor language en
+```
+
+```
+cache-monitor — prefix-cache hit rate.
+↺ N% — share of the prompt read from cache; higher is cheaper. ↺ … before the first turn, n/a with no denominator.
+Miss — cacheRead 0; cause is in warnings and history, re-billing in the report and history.
+/cache-monitor — report; history — recent turns; costs — cost breakdown.
+settings — current settings; help — this help.
+Settings: Settings → Plugins → omp-cache-monitor or omp plugin config set omp-cache-monitor <key> <value>.
+Applied to new sessions; settings re-reads immediately.
+Docs: README.md, docs/ui-settings.md, docs/omp-docs-map.md.
+```
 
 `/cache-monitor help` (алиас `?`) печатает справку из 8 строк: что значит
 `↺` («чем выше, тем дешевле»), что промах — это `cacheRead 0`, список

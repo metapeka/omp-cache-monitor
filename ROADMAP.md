@@ -1,6 +1,6 @@
 # Roadmap: omp-cache-monitor
 
-Дата: 2026-11-23. Версия: 0.8.1. GitHub: private.
+Дата: 2026-11-23. Версия: 0.9.0. GitHub: private.
 Цель: довести расширение до релиза, которому можно доверять по цифрам,
 установке и поведению на всех переходах сессии.
 
@@ -18,11 +18,11 @@
 
 | Что | Состояние |
 |---|---|
-| Версия | 0.8.1: Phase 1.5 — группы настроек, `settings`/`help`, карта docs |
+| Версия | 0.9.0: Phase 2 — `language: ru \| en` для всех пользовательских строк |
 | GitHub | `metapeka/omp-cache-monitor`, private, `main` |
-| Установка | `omp plugin link` на боевой чекаут; `omp plugin list` — `omp-cache-monitor@0.8.1` |
-| Проверки | `npm test` 60/60, typecheck, `npm pack` — 4 файла; runtime: `omp plugin config list` с описаниями групп, TUI `/cache-monitor settings` (группы/иконки) и `help` |
-| Постоянные тесты | `test/extension.test.mjs`, 60 тестов, `npm test` |
+| Установка | `omp plugin link` на боевой чекаут; `omp plugin list` — `omp-cache-monitor@0.9.0` |
+| Проверки | `npm test` 68/68, typecheck, `npm pack` — 4 файла; runtime: `omp plugin config list` с 9 ключами, TUI `/cache-monitor settings`/`help` на `ru` и `en` |
+| Постоянные тесты | `test/extension.test.mjs`, 68 тестов, `npm test` |
 | CI | GitHub Actions, зелёный (`npm ci`, `npm test`, `typecheck`) |
 | Рынок/конкуренты | `docs/research/cache-extensions.md` (2026-11-22) |
 | Инструкции агенту | `AGENTS.md` + глобальный `~/.omp/agent/AGENTS.md` |
@@ -55,7 +55,7 @@
 | P2 | `/compact` payback | `omp-cache-meter` | **Не делаем**: с кэшем допущение «removed-токены платились бы каждый ход» ложно → цифра будет врать. |
 | P2 | История последних N запросов | `omp-cache-meter`, `pi-cache-hit-monitor` | Готово в 0.6.0: `/cache-monitor history`, окно 8, без панели. |
 | P2 | Разбивка стоимости по типам записей | `omp-cache-meter` | Готово в 0.7.0: `/cache-monitor costs`, только `cost.total`, `?`/`≥` без оценок. |
-| P2 | UI/настройки и справка | `omp-cache-meter`, OMP plugin settings | Готово в 0.8.0: 8 ключей в `omp.settings`, runtime-чтение, `/cache-monitor settings` и `help`; defaults сохраняют прежний вывод. Phase 1.5 в 0.8.1: группы в описаниях и `settings`, help из 8 строк, `docs/omp-docs-map.md`. |
+| P2 | UI/настройки и справка | `omp-cache-meter`, OMP plugin settings | Готово в 0.8.0: 8 ключей в `omp.settings`, runtime-чтение, `/cache-monitor settings` и `help`; defaults сохраняют прежний вывод. Phase 1.5 в 0.8.1: группы в описаниях и `settings`, help из 8 строк, `docs/omp-docs-map.md`. Phase 2 в 0.9.0: `language: ru\|en`, 9 ключей, единый словарь строк, EN-тесты без кириллицы. |
 | P2 | Powerline-интеграция | `pi-powerline-footer` | Пример/доки через `customItems`. |
 | P3 | Cold-cache budget | `pi-cache-guard` | Отдельный слой, рядом с warming. |
 | P3 | Warming/optimizer/multi-session | `ubranch`, optimizers, Tern | Не наша read-only ниша сейчас. |
@@ -313,14 +313,15 @@ auto-compaction fallback 70%, `manual` выключает оба, `assisted` —
 Реализовано в 0.7.0: `CostBucket`/`SessionAggregate.costs`, live-бакет
 `диалог` в `turn_end`, `costBucket`/`addCost`/`costReport`. Тестов 46.
 
-## Этап 2.12. Настройки плагина и справка — Phase 1.5 готово (P2)
+## Этап 2.12. Настройки плагина и справка — Phase 2 готово (P2)
 
-- Схема `package.json` → `omp.settings`: 8 ключей (`statusEnabled`,
+- Схема `package.json` → `omp.settings`: 9 ключей (`statusEnabled`,
   `statusShowMode`, `warningsEnabled`, `lowHitPercent`, `idleMinutes`,
-  `minPromptTokens`, `historySize`, `showMoney`) с `default`, границами и
-  английскими `description` в формате `Group · what. Default/range. Why.`
-  (`Status ·`, `Warnings ·`, `Reports ·`). OMP показывает их в
-  Settings → Plugins и в `omp plugin config list/set`.
+  `minPromptTokens`, `historySize`, `showMoney`, `language`) с `default`,
+  границами/enum и английскими `description` в формате
+  `Group · what. Default/range. Why.` (`Status ·`, `Warnings ·`,
+  `Reports ·`). OMP показывает их в Settings → Plugins и в
+  `omp plugin config list/set`.
 - Runtime читает настройки через `getPluginSettings(pluginName, cwd)` на
   `session_start`/`session_switch` (до restore) и перед командами; любая
   ошибка внутреннего API — defaults, без падения расширения.
@@ -329,13 +330,15 @@ auto-compaction fallback 70%, `manual` выключает оба, `assisted` —
   `idleMinutes` — причина простоя в warning и restore;
   `historySize` — live/restore-окно и делитель `история (N/M):`;
   `showMoney` — `saved` и деньги `miss premium` (токены остаются),
-  `/cache-monitor costs` деньги не скрывает.
+  `/cache-monitor costs` деньги не скрывает; `language` — язык всех
+  пользовательских строк (метрики и формат не меняются).
 - `/cache-monitor settings` (алиас `setting`) — группы `⚙ Статус`,
-  `⚠️ Предупреждения`, `📊 Отчёты`, значения, `(changed)`/`(default)`,
-  статичные подписи и наличие цен модели; `/cache-monitor help` (алиас `?`) —
-  справка из 8 строк: `↺` («чем выше, тем дешевле»), промах = `cacheRead 0`,
-  подкоманды, настройки и ссылки на `README.md`, `docs/ui-settings.md`,
-  `docs/omp-docs-map.md`.
+  `⚠️ Предупреждения`, `📊 Отчёты` (EN `⚙ Status`/`⚠️ Warnings`/
+  `📊 Reports`), 9 значений, `(changed)`/`(default)`, статичные подписи и
+  наличие цен модели; `/cache-monitor help` (алиас `?`) — справка из 8 строк:
+  `↺` («чем выше, тем дешевле»), промах = `cacheRead 0`, подкоманды,
+  настройки и ссылки на `README.md`, `docs/ui-settings.md`,
+  `docs/omp-docs-map.md`. Обе команды печатаются на языке `language`.
 - Defaults сохраняют вывод 0.7.0 побайтово; старые тесты не переписаны, кроме
   точных ожиданий `settings`/`help`.
 - Документация: `docs/ui-settings.md` (RU) с ограничениями UI OMP и роудмапом
@@ -343,7 +346,7 @@ auto-compaction fallback 70%, `manual` выключает оба, `assisted` —
   разделы Settings в README (EN) и `docs/README.ru.md`.
 - Критерий: настройки видны OMP, меняют поведение, не ломают прежний вывод и
   переживают недоступность внутреннего API; группа и смысл ключа читаются без
-  открытия кода.
+  открытия кода; `language: en` не оставляет кириллицы в выводе.
 
 Реализовано в 0.8.0: `Config`/`DEFAULT_CONFIG`/`normalizeConfig` (named
 export), `readSettings`, `AggregateOptions`; тестов 60 (46 старых + 14 новых),
@@ -352,7 +355,15 @@ typecheck зелёный, `npm pack` — 4 файла.
 Phase 1.5 — в 0.8.1: сгруппированные `description`, группы и подписи в
 `/cache-monitor settings`, `help` из 8 строк, `docs/omp-docs-map.md` и
 чеклист фаз. Тестов 60, typecheck, `npm pack` — 4 файла; поведение и метрики
-не менялись. Фазы 2–4 (`language`, `preset`+advanced, онбординг/upstream) — в
+не менялись.
+
+Phase 2 — в 0.9.0: девятый ключ `language` (`enum ["ru","en"]`, default
+`ru`), `TEXTS: Record<Language, Texts>` как единственное место строк,
+структурная причина `{ kind: "idle"; minutes: number } | { kind: "rewrite" }` и
+`causeText(cause, language)`, английские `description` остались прежними.
+Тестов 68 (60 + 8 EN/нормализация), каждая EN-проверка запрещает кириллицу;
+`ru` (default) сохраняет прежний вывод, кроме строки `language` в `settings`.
+Фазы 3–4 (`preset`+advanced, онбординг/upstream) — в
 `docs/ui-settings.md`.
 
 ## Этап 3. TTL: data-gated (P2)
@@ -452,7 +463,7 @@ Phase 1.5 — в 0.8.1: сгруппированные `description`, групп
 7. Этап 2.9 — готово (e2e в Orca): supervisor.
 8. Этап 2.10 — режимы готовы; оркестратор — дизайн в `omp-agent-workflow`.
 9. Этап 2.11 — готово: разбивка стоимости в `/cache-monitor costs`.
-10. Этап 2.12 — готово: настройки Phase 1 и Phase 1.5 (группы, `settings`/`help`, `docs/omp-docs-map.md`).
+10. Этап 2.12 — готово: настройки Phase 1/1.5 и Phase 2 (девтый ключ `language`, EN-вывод; `settings`/`help`, `docs/omp-docs-map.md`).
 11. Этап 3 — TTL, только data-gated, без реализации на догадках.
 12. Этап 4 — готово (0.6.0): английский README, пакет, tarball, тег/release.
 13. Этап 5 — публикация, только после явного разрешения.
@@ -469,7 +480,7 @@ Phase 1.5 — в 0.8.1: сгруппированные `description`, групп
 | `ContextGuard` | 2.6: готово в `omp-agent-workflow` 0.3.0, 19 тестов | task |
 | `HandoffNew` | 2.7: готово в `omp-agent-workflow` 0.3.0 | task |
 | `TurnHistory` | 2.8: готово, история 8 ходов в `/cache-monitor` | task |
-| `UiSettings` | 2.12: готово, `omp.settings`, группы, `settings`/`help`, docs/ui-settings.md, docs/omp-docs-map.md | task |
+| `UiSettings` | 2.12: готово, `omp.settings` (9 ключей), группы, `settings`/`help`, `language: ru\|en`, docs/ui-settings.md, docs/omp-docs-map.md | task |
 | `Supervisor` | 2.9: готово, e2e в Orca пройден | task, опция |
 | `YodaOrchestrator` | 2.10: режимы, план/state, оркестрация | task |
 | `Reviewer` | ревью каждого поведенческого PR | reviewer |

@@ -26,8 +26,8 @@
 | CI | GitHub Actions, зелёный (`npm ci`, `npm test`, `typecheck`) |
 | Рынок/конкуренты | `docs/research/cache-extensions.md` (2026-11-22) |
 | Инструкции агенту | `AGENTS.md` + глобальный `~/.omp/agent/AGENTS.md` |
-| Context guard | `omp-agent-workflow` 0.2.0, linked; warning 35/50, auto 60, `/handoff` |
-| Automatic handoff | `/handoff-new`, marker, supervisor; 15 тестов, e2e пройден в Orca |
+| Context guard | `omp-agent-workflow` 0.3.0, linked; warning 35/50, auto 60, `/handoff` |
+| Automatic handoff | `/handoff-new`, marker, supervisor; 19 тестов, e2e пройден в Orca |
 | Yoda workflow | `~/projects/omp-agent-workflow/docs/yoda-workflow.md` — отдельный продукт |
 | npm / marketplace | не публиковались |
 | Английский README | нет |
@@ -186,9 +186,9 @@ resume её нельзя восстановить как границу эпох
   в безопасной точке; `/handoff` сохраняет решения и следующие шаги; тесты
   на `getContextUsage()`.
 
-Реализовано в `omp-agent-workflow` 0.2.0: warning 35/50, авто-компакция на 60%
+Реализовано в `omp-agent-workflow` 0.3.0: warning 35/50, авто-компакция на 60%
 после `turn_end`/`agent_end` при `ctx.isIdle()` и без очереди, команда
-`/handoff`; 15 тестов и typecheck. Пороги переопределяются через
+`/handoff`; 19 тестов и typecheck. Пороги переопределяются через
 `OMP_CONTEXT_WARN`, `OMP_CONTEXT_SUGGEST`, `OMP_CONTEXT_AUTO` (число или
 `off`). Расширение установлено через `omp plugin link`.
 
@@ -212,7 +212,7 @@ resume её нельзя восстановить как границу эпох
 - Критерий: `/handoff-new` создаёт новую сессию, старая остаётся в истории,
   state читается, дублирующей активной сессии нет.
 
-Реализовано в `omp-agent-workflow` 0.2.0: `/handoff-new` ждёт idle, проверяет
+Реализовано в `omp-agent-workflow` 0.3.0: `/handoff-new` ждёт idle, проверяет
 `HANDOFF.md`, вызывает `ctx.newSession` и добавляет custom message
 «прочитай HANDOFF.md и продолжай». В реальном TUI новая сессия открылась.
 
@@ -234,7 +234,7 @@ resume её нельзя восстановить как границу эпох
 - Критерий: при отсутствии владельца агент доходит до границы задачи,
   делает handoff и продолжает; при ошибке — останавливается и пишет причину.
 
-Реализовано в `omp-agent-workflow` 0.2.0: `bin/omp-handoff-supervisor.mjs`
+Реализовано в `omp-agent-workflow` 0.3.0: `bin/omp-handoff-supervisor.mjs`
 читает session info и marker, отправляет `/handoff-new` через
 `orca terminal send`, затем continuation prompt. Есть `--dry-run`.
 
@@ -242,7 +242,7 @@ E2E в реальном Orca-терминале пройден: supervisor от�
 новая сессия стартовала и прочитала `HANDOFF.md`. Cooldown 300 с и
 stale-marker guard (`sessionFile`) не дают уйти в цикл повторных handoff.
 
-## Этап 2.9. Yoda workflow mode (P1/P2, дизайн)
+## Этап 2.9. Yoda workflow mode — режимы готовы, оркестратор дизайн
 
 - Режимы: `manual`, `assisted`, `yoda`, `yoda-supervised`.
 - Оркестратор — main; implementer/verifier/reviewer/scout — subagent'ы;
@@ -253,6 +253,11 @@ stale-marker guard (`sessionFile`) не дают уйти в цикл повто
 - Полный дизайн: `~/projects/omp-agent-workflow/docs/yoda-workflow.md`.
 - Критерий: режим переключается конфигом, цикл проходит N задач с тестами,
   handoff на границе, stop-gate останавливает работу.
+
+Реализовано в `omp-agent-workflow` 0.3.0: `OMP_WORKFLOW_MODE` =
+`manual`/`assisted`/`yoda`/`yoda-supervised`; `yoda` даёт handoff на 55% и
+auto-compaction fallback 70%, `manual` выключает оба, `assisted` — прежнее
+поведение (auto 60, без handoff). Оркестратор/subagent-петля ещё дизайн.
 
 ## Этап 3. TTL: data-gated (P2)
 
@@ -308,7 +313,7 @@ warm/cold и причину инвалидации, поэтому TTL не до
 4. Этап 2.6 — готово: context guard и `/handoff` в `omp-agent-workflow`.
 5. Этап 2.7 — готово: `/handoff-new`, state, `newSession`.
 6. Этап 2.8 — готово (e2e в Orca): supervisor.
-7. Этап 2.9 — Yoda workflow mode; дизайн в `omp-agent-workflow`.
+7. Этап 2.9 — режимы готовы; оркестратор — дизайн в `omp-agent-workflow`.
 8. Этап 3 — TTL, только data-gated, без реализации на догадках.
 9. Этап 4 — английский README, пакет, установка, тег.
 10. Этап 5 — публикация, только после явного разрешения.
@@ -322,8 +327,8 @@ warm/cold и причину инвалидации, поэтому TTL не до
 | `CI` | 1.3: GitHub Actions и защита `main` | task |
 | `ResumeImplementer` | 2.1–2.2: восстановление и полный учёт usage | task |
 | `CacheEconomics` | 2.5: причина мисса, saved/miss premium | task |
-| `ContextGuard` | 2.6: готово в `omp-agent-workflow` 0.2.0, 15 тестов | task |
-| `HandoffNew` | 2.7: готово в `omp-agent-workflow` 0.2.0 | task |
+| `ContextGuard` | 2.6: готово в `omp-agent-workflow` 0.3.0, 19 тестов | task |
+| `HandoffNew` | 2.7: готово в `omp-agent-workflow` 0.3.0 | task |
 | `Supervisor` | 2.8: готово, e2e в Orca пройден | task, опция |
 | `YodaOrchestrator` | 2.9: режимы, план/state, оркестрация | task |
 | `Reviewer` | ревью каждого поведенческого PR | reviewer |

@@ -11,7 +11,7 @@
 |---|---|
 | Расширение `index.ts` | v0.4.0, 633 строки, контракт ниже |
 | Пакет | `package.json` (`omp.extensions` + `pi.extensions`), MIT, README |
-| Установка на машине | `omp plugin list` — `omp-cache-monitor@0.4.0` и `omp-agent-workflow@0.2.0` |
+| Установка на машине | `omp plugin list` — `omp-cache-monitor@0.4.0` и `omp-agent-workflow@0.3.0` |
 | Проверки | `npm test` 22/22, typecheck, TUI hit совпал с JSONL (9.9% → 98.1%), `/new` сбрасывает суммы, resume восстанавливает суммы/тренд, фоновые вызовы добавляют только стоимость, предупреждение молчит на первом ходе эпохи, non-TUI чистый, загрузка в OMP exit 0; `/handoff` и warning 35/50 проверены в TUI; `/handoff-new` открыл новую сессию; supervisor e2e в Orca: новая сессия прочитала HANDOFF.md; cooldown и stale-marker guard без цикла |
 | Ревью | 2 major (сброс после `/new`, ложный warning после компакции) исправлены, ре-ревью «ок» |
 | Ревью v0.4 | фоновый usage отделён от hit/ходов; граница resume не даёт ложной пере-оплаты |

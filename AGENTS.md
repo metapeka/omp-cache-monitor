@@ -18,7 +18,7 @@ read-only: не греет кэш, не меняет промпты, не тра
 
 - Версия `0.4.0`, private GitHub `metapeka/omp-cache-monitor`, `main`.
 - `omp plugin link` → боевой чекаут; `omp plugin list` — 0.4.0 и
-  `omp-agent-workflow` 0.2.0 (context guard, handoff, supervisor).
+  `omp-agent-workflow` 0.3.0 (context guard, handoff, supervisor, modes).
 - `npm test` — 22 теста; `npm run typecheck`; CI зелёный.
 - Установка одна: `omp plugin link` **или** копия файла, не оба.
 
@@ -75,7 +75,8 @@ orca worktree rm --worktree path:/home/db1/orca/workspaces/omp-cache-monitor/<sl
   изменённые файлы, проверки, следующие шаги), затем сожми контекст.
 - `/handoff` — компакция; `/handoff-new` — новая сессия после `HANDOFF.md`.
   Supervisor запускается из `omp-agent-workflow` и реагирует на marker.
-  Пороги: `OMP_CONTEXT_WARN`, `OMP_CONTEXT_SUGGEST`, `OMP_CONTEXT_AUTO`,
+  Режим: `OMP_WORKFLOW_MODE=manual|assisted|yoda|yoda-supervised`;
+  пороги: `OMP_CONTEXT_WARN`, `OMP_CONTEXT_SUGGEST`, `OMP_CONTEXT_AUTO`,
   `OMP_HANDOFF_AT`.
 - Не сжимать посреди tool-loop или незавершённого edit; ждать `turn_end` и
   `ctx.isIdle()`.

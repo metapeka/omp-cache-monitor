@@ -25,6 +25,7 @@
 | Постоянные тесты | `test/extension.test.mjs`, 22 теста, `npm test` |
 | CI | GitHub Actions, зелёный (`npm ci`, `npm test`, `typecheck`) |
 | Рынок/конкуренты | `docs/research/cache-extensions.md` (2026-11-22) |
+| Инструкции агенту | `AGENTS.md` + глобальный `~/.omp/agent/AGENTS.md` |
 | npm / marketplace | не публиковались |
 | Английский README | нет |
 
@@ -60,6 +61,7 @@
 |---|---|
 | Сделать GitHub-репозиторий private | готово |
 | Добавить `ROADMAP.md` и ссылку из HANDOFF | готово |
+| Добавить `AGENTS.md` и глобальные правила | готово |
 | Защитить `main` | не включаем при прямом ff-merge; включить при переходе на PR-поток |
 | Завести метки/милстоуны GitHub | опционально |
 

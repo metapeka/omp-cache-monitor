@@ -58,6 +58,7 @@
 | Продукт (код, пакет) | этот репозиторий; GitHub — https://github.com/metapeka/omp-cache-monitor |
 | План развития | `ROADMAP.md` |
 | Исследование конкурентов | `docs/research/cache-extensions.md` |
+| Инструкции агенту | `AGENTS.md`; глобальные — `~/.omp/agent/AGENTS.md` |
 | Пресеты, `omp-mode`, план, вики | `metapeka/docs-omp-debian-availability` |
 | Публичная инструкция | https://metapeka.github.io/docs-omp-debian-availability/wiki/guide.html |
 | Установленная копия | `omp plugin link` → `/home/db1/projects/omp-cache-monitor`; файла в `~/.omp/agent/extensions/` нет (одно из двух, не оба) |

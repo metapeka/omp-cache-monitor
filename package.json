@@ -1,0 +1,28 @@
+{
+  "name": "omp-cache-monitor",
+  "version": "0.2.0",
+  "type": "module",
+  "description": "Cache hit-rate monitor and /cache-monitor command for OMP",
+  "keywords": [
+    "omp-plugin",
+    "oh-my-pi",
+    "pi-package",
+    "cache"
+  ],
+  "license": "MIT",
+  "files": [
+    "index.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "omp": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}

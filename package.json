@@ -3,7 +3,8 @@
   "version": "0.3.0",
   "type": "module",
   "scripts": {
-    "test": "node --experimental-strip-types test/extension.test.mjs"
+    "test": "node --experimental-strip-types test/extension.test.mjs",
+    "typecheck": "tsc --noEmit"
   },
   "description": "Cache hit-rate monitor and /cache-monitor command for OMP",
   "keywords": [
@@ -27,5 +28,10 @@
     "extensions": [
       "./index.ts"
     ]
+  },
+  "devDependencies": {
+    "@oh-my-pi/pi-coding-agent": "19.1.0",
+    "@types/node": "22.20.5",
+    "typescript": "7.0.2"
   }
 }

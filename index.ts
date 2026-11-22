@@ -11,6 +11,12 @@
  * сбрасывают сравнение с предыдущим ходом, поэтому старые числа не приписываются
  * новому префиксу.
  *
+ * При resume/reload/fork суммы, тренд и последний ход восстанавливаются из
+ * журнала (`ctx.sessionManager.getEntries()`). Записи cache warming и
+ * компакции/ветвления учитываются в суммах, но не в ходах и тренде. Цены
+ * прошлых моделей в журнале не хранятся, поэтому деньги за восстановленную
+ * пере-оплату не выдумываются.
+ *
  * Установка: `omp plugin link <каталог>` либо копия в `~/.omp/agent/extensions/`
  * (одно из двух). Сегмент `status` ставит статус в общий ряд; без него при
  * `statusLine.showHookStatus` (дефолт) он показывается отдельным элементом.
@@ -31,6 +37,20 @@ type LastTurn = TurnUsage & {
 	reBilled: number | null;
 	/** Стоимость пере-оплаты по цене модели этого хода; `null` — цен нет. */
 	reBillCost: number | null;
+};
+
+/** Итог по журналу сессии: то, что можно восстановить после resume/reload. */
+type SessionAggregate = {
+	last: LastTurn | null;
+	turns: number;
+	input: number;
+	cached: number;
+	write: number;
+	cost: number;
+	reBilled: number;
+	/** Хотя бы у одной восстановленной пере-оплаты нет цены модели. */
+	reBillCostMissing: boolean;
+	trend: (number | null)[];
 };
 
 /** Хендл настроечного реестра: `get(scope)` без зависимости от его типа. */
@@ -96,6 +116,138 @@ function rebillCost(model: unknown, tokens: number): number | null {
 	if (typeof inputPrice !== "number" || !Number.isFinite(inputPrice)) return null;
 	if (typeof cacheReadPrice !== "number" || !Number.isFinite(cacheReadPrice)) return null;
 	return (tokens / 1e6) * (inputPrice - cacheReadPrice);
+}
+
+/** Usage-объект записи; `null` — запись не несёт числового usage. */
+function entryUsage(source: unknown): TurnUsage | null {
+	if (source === null || typeof source !== "object") return null;
+	const input = field(source, "input");
+	const cacheRead = field(source, "cacheRead");
+	const cacheWrite = field(source, "cacheWrite");
+	const total = field(field(source, "cost"), "total");
+	const numeric =
+		typeof input === "number" ||
+		typeof cacheRead === "number" ||
+		typeof cacheWrite === "number" ||
+		typeof total === "number";
+	if (!numeric) return null;
+	return {
+		input: num(input),
+		cacheRead: num(cacheRead),
+		cacheWrite: num(cacheWrite),
+		cost: num(total),
+	};
+}
+
+/** Добавить usage записи в суммы; ходы и тренд не трогает. */
+function addUsageTotals(target: SessionAggregate, usage: TurnUsage): void {
+	target.input += usage.input;
+	target.cached += usage.cacheRead;
+	target.write += usage.cacheWrite;
+	target.cost += usage.cost;
+}
+
+/** Запись журнала, меняющая префикс: сравнение с прошлым ходом начинается заново. */
+function isEpochBoundary(type: unknown): boolean {
+	return (
+		type === "model_change" ||
+		type === "thinking_level_change" ||
+		type === "reset_boundary"
+	);
+}
+
+/**
+ * Свести журнал сессии к тем же метрикам, что копятся live-событиями.
+ *
+ * Assistant-сообщения дают суммы, ходы, тренд и последний ход. Записи usage
+ * (cache warming), compaction и branch_summary дают только суммы. Границы
+ * эпохи сбрасывают сравнение пере-оплаты. Цены прошлых моделей в журнале не
+ * хранятся, поэтому `reBillCost` восстановленных ходов остаётся `null`.
+ */
+function aggregateEntries(entries: readonly unknown[]): SessionAggregate {
+	const result: SessionAggregate = {
+		last: null,
+		turns: 0,
+		input: 0,
+		cached: 0,
+		write: 0,
+		cost: 0,
+		reBilled: 0,
+		reBillCostMissing: false,
+		trend: [],
+	};
+	/** Prompt предыдущего assistant-сообщения внутри текущей эпохи. */
+	let prevPrompt: number | null = null;
+
+	for (const entry of entries) {
+		const type = field(entry, "type");
+
+		if (type === "message") {
+			const message = field(entry, "message");
+			if (field(message, "role") !== "assistant") continue;
+			const usage = entryUsage(field(message, "usage"));
+			if (!usage) continue;
+
+			const hit = hitPercent(usage.input, usage.cacheRead, usage.cacheWrite);
+			const prompt = usage.input + usage.cacheRead + usage.cacheWrite;
+			const reBilled =
+				prevPrompt !== null && prevPrompt > 0
+					? Math.max(0, Math.min(prevPrompt, prompt) - usage.cacheRead)
+					: null;
+
+			result.turns += 1;
+			addUsageTotals(result, usage);
+			result.last = { ...usage, hit, reBilled, reBillCost: null };
+			result.trend.push(hit);
+			if (result.trend.length > TREND_POINTS) result.trend.shift();
+
+			if (reBilled !== null && reBilled > 0) {
+				result.reBilled += reBilled;
+				// Историческая цена модели неизвестна: деньги не придумываем.
+				result.reBillCostMissing = true;
+			}
+			prevPrompt = prompt;
+			continue;
+		}
+
+		if (type === "usage") {
+			if (field(entry, "kind") === "cache_warm") {
+				const usage = entryUsage(field(entry, "usage"));
+				if (usage) addUsageTotals(result, usage);
+			}
+			continue;
+		}
+
+		// В OMP 19.1 cache warming и другие off-transcript вызовы пишутся как
+		// `model_usage`; их usage входит в нативные суммы сессии.
+		if (type === "model_usage") {
+			const usage = entryUsage(field(entry, "usage"));
+			if (usage) addUsageTotals(result, usage);
+			continue;
+		}
+
+		if (type === "compaction" || type === "branch_summary") {
+			const usage = entryUsage(field(entry, "usage"));
+			if (usage) addUsageTotals(result, usage);
+			prevPrompt = null;
+			continue;
+		}
+
+		if (isEpochBoundary(type)) prevPrompt = null;
+	}
+
+	return result;
+}
+
+/** Записи журнала; пустой массив, если менеджер сессии недоступен. */
+function sessionEntries(ctx: ExtensionContext): unknown[] {
+	try {
+		const entries: unknown = ctx.sessionManager.getEntries();
+		return Array.isArray(entries) ? entries : [];
+	} catch {
+		// Контекст без sessionManager (старый OMP, нестандартный runner)
+		return [];
+	}
 }
 
 /** `setStatus` не должен ронять обработчик в режимах без UI. */
@@ -222,6 +374,46 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 		trendHits.length = 0;
 	};
 
+	/** Заменить всё восстановленное состояние снимком журнала. */
+	const applyAggregate = (aggregate: SessionAggregate): void => {
+		last = aggregate.last;
+		turns = aggregate.turns;
+		sessionInput = aggregate.input;
+		sessionCached = aggregate.cached;
+		sessionWrite = aggregate.write;
+		sessionCost = aggregate.cost;
+		sessionReBilled = aggregate.reBilled;
+		// Цен прошлых моделей в журнале нет: сумма известных денег остаётся 0,
+		// а флаг заставляет `/cache-monitor` показать `≥`, когда деньги появятся.
+		sessionReBillCost = 0;
+		sessionReBillCostMissing = aggregate.reBillCostMissing;
+		trendHits.length = 0;
+		trendHits.push(...aggregate.trend);
+	};
+
+	/**
+	 * Пересчитать только суммы по журналу: cache warming и компакция не
+	 * приходят событиями хода. Ходы, тренд и live-учёт пере-оплаты уже полны,
+	 * поэтому их не трогаем — иначе повторный вызов команды потерял бы
+	 * известные цены ходов и не добавил бы ничего нового.
+	 */
+	const recomputeTotals = (ctx: ExtensionContext): void => {
+		const entries = sessionEntries(ctx);
+		if (entries.length === 0) return;
+		const aggregate = aggregateEntries(entries);
+		sessionInput = aggregate.input;
+		sessionCached = aggregate.cached;
+		sessionWrite = aggregate.write;
+		sessionCost = aggregate.cost;
+	};
+
+	/** Восстановить суммы/тренд/последний ход из непустого журнала. */
+	const restoreFromEntries = (ctx: ExtensionContext): void => {
+		const entries = sessionEntries(ctx);
+		if (entries.length === 0) return;
+		applyAggregate(aggregateEntries(entries));
+	};
+
 	/**
 	 * Определить, сменилась ли эпоха с прошлого хода, и обновить базовую линию.
 	 * Возвращает причину смены или `null`.
@@ -255,19 +447,25 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 		if (ctx.mode === "tui" && ctx.agent.kind === "main") {
 			setStatus(ctx, mode ? `${mode} ↺ …` : "↺ …");
 		}
+		resetTranscriptTotals();
 		await resetEpoch(ctx, null);
+		// Все причины старта: у новой сессии журнал пуст, у resume/reload/fork —
+		// содержит восстановимые суммы и тренд.
+		restoreFromEntries(ctx);
 	});
 
 	pi.on("session_compact", async (_event, ctx) => {
 		await resetEpoch(ctx, "компакция");
 	});
 
-	// Смена транскрипта в том же runner: `/new`, `/fork`, `/switch`.
-	pi.on("session_switch", async (_event, ctx) => {
+	// Смена транскрипта в том же runner: `/new`, `/fork`, `/switch`/resume.
+	pi.on("session_switch", async (event, ctx) => {
 		resetTranscriptTotals();
 		if (ctx.mode === "tui" && ctx.agent.kind === "main") {
 			setStatus(ctx, mode ? `${mode} ↺ …` : "↺ …");
 		}
+		const reason = field(event, "reason");
+		if (reason === "resume" || reason === "fork") restoreFromEntries(ctx);
 		await resetEpoch(ctx, null);
 	});
 
@@ -373,6 +571,8 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 	pi.registerCommand("cache-monitor", {
 		description: "Показать режим, модель, hit rate и тренд кэша префикса",
 		handler: async (_args, ctx) => {
+			// Cache warming и компакция могли не прийти событиями хода.
+			recomputeTotals(ctx);
 			const modelLabel = ctx.model
 				? `${String(field(ctx.model, "provider") ?? "?")}/${String(field(ctx.model, "id") ?? "?")}`
 				: "?";

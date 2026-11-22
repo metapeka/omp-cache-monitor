@@ -1,6 +1,6 @@
 {
   "name": "omp-cache-monitor",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "type": "module",
   "scripts": {
     "test": "node --experimental-strip-types test/extension.test.mjs",

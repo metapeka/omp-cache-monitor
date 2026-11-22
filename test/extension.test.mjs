@@ -39,13 +39,18 @@ function install() {
 }
 
 /** Faked `ctx`: UI calls are recorded instead of rendered. */
-function context({ mode = "tui", agentKind = "main", model = MODEL, ui } = {}) {
+function context({ mode = "tui", agentKind = "main", model = MODEL, ui, entries = [] } = {}) {
 	const statuses = [];
 	const notifications = [];
 	const ctx = {
 		mode,
 		agent: { kind: agentKind },
 		model,
+		sessionManager: {
+			getEntries() {
+				return entries;
+			},
+		},
 		ui: ui ?? {
 			setStatus(key, text) {
 				statuses.push({ key, text });
@@ -83,10 +88,23 @@ function spark(text) {
 	return match ? match[1] : null;
 }
 
-async function started({ mode, agentKind, model, ui } = {}) {
+/** Journal entry for an assistant turn (the fixture shape `getEntries()` returns). */
+function assistantEntry(turnUsage) {
+	return {
+		type: "message",
+		message: { role: "assistant", provider: "test", model: "model-a", usage: turnUsage },
+	};
+}
+
+/** Journal entry for off-transcript usage, e.g. cache warming. */
+function usageEntry(turnUsage, kind = "cache_warm") {
+	return { type: "usage", kind, usage: turnUsage };
+}
+
+async function started({ mode, agentKind, model, ui, entries = [], reason = "startup" } = {}) {
 	const extension = install();
-	const view = context({ mode, agentKind, model, ui });
-	await fire(extension, "session_start", view.ctx, { reason: "startup" });
+	const view = context({ mode, agentKind, model, ui, entries });
+	await fire(extension, "session_start", view.ctx, { reason });
 	return { extension, ...view };
 }
 
@@ -294,6 +312,118 @@ describe("session lifecycle", () => {
 		// Inside the new epoch the warnings come back.
 		await turn(extension, ctx, usage(0, 0, 5000), 9);
 		assert.equal(notifications.length, 4);
+	});
+});
+
+describe("resume restoration", () => {
+	it("restores totals, trend, last turn and re-billed tokens from the journal", async () => {
+		const entries = [
+			assistantEntry(usage(0, 0, 5000, 0.05)),
+			assistantEntry(usage(3000, 1000, 0, 0.02)),
+			usageEntry(usage(100, 200, 0, 0.001)),
+			{ type: "compaction", usage: usage(0, 300, 0, 0.002) },
+		];
+		const { extension, ctx, notifications } = await started({ entries, reason: "resume" });
+
+		await command(extension, ctx);
+		const out = notifications.at(-1).text;
+		assert.match(
+			out,
+			/ход: ↺ 25% · in 3000 · cacheRead 1000 · cacheWrite 0 · \$0\.0200/,
+		);
+		// The journal has no historical prices: tokens restore, money is omitted.
+		assert.match(out, /пере-оплата: 3000 tok/);
+		assert.doesNotMatch(out, /\$0\.0081/);
+		assert.equal(spark(out), "▁▃");
+		assert.match(
+			out,
+			/сессия: \$0\.0730, ходов 2, ↺ 15\.6%, мисс 3000 tok$/,
+		);
+	});
+
+	it("counts cache warming and compaction usage in totals but not turns or trend", async () => {
+		const entries = [
+			assistantEntry(usage(0, 100, 0, 0.01)),
+			usageEntry(usage(500, 500, 0, 0.02)),
+			{ type: "branch_summary", usage: usage(0, 0, 200, 0.03) },
+			{ type: "compaction", usage: usage(100, 0, 0, 0.04) },
+		];
+		const { extension, ctx, notifications } = await started({ entries, reason: "resume" });
+
+		await command(extension, ctx);
+		const out = notifications.at(-1).text;
+		assert.match(out, /сессия: \$0\.1000, ходов 1, ↺ 42\.9%/);
+		assert.equal(spark(out), "█");
+	});
+
+	it("does not double count a turn that is both live and already in the journal", async () => {
+		const entries = [assistantEntry(usage(0, 0, 5000, 0.05))];
+		const { extension, ctx, notifications } = await started({ entries, reason: "resume" });
+
+		const live = usage(1000, 3000, 0, 0.01);
+		entries.push(assistantEntry(live));
+		await turn(extension, ctx, live, 2);
+		// Cache warming lands after the turn, without a turn event of its own.
+		entries.push(usageEntry(usage(0, 0, 0, 0.001)));
+
+		await command(extension, ctx);
+		const first = notifications.at(-1).text;
+		assert.match(first, /сессия: \$0\.0610, ходов 2, ↺ 33\.3%/);
+
+		// A second recompute replaces the same journal totals instead of adding them.
+		await command(extension, ctx);
+		assert.equal(notifications.at(-1).text, first);
+	});
+
+	it("does not warn on the first turn after resume", async () => {
+		const entries = [assistantEntry(usage(0, 0, 5000, 0.05))];
+		const { extension, ctx, notifications } = await started({ entries, reason: "resume" });
+
+		// A full prefix rewrite right after resume is a new epoch: no warning.
+		await turn(extension, ctx, usage(0, 0, 5000), 2);
+		assert.equal(notifications.length, 0);
+
+		// The next turn in the same epoch is a real canonical miss plus low hit.
+		await turn(extension, ctx, usage(0, 0, 5000), 3);
+		assert.equal(notifications.length, 2);
+		assert.match(notifications[0].text, /промах \(cacheRead 0/);
+		assert.match(notifications[1].text, /hit 0%/);
+	});
+
+	it("uses model and thinking changes in the journal as epoch boundaries", async () => {
+		const entries = [
+			assistantEntry(usage(0, 0, 5000, 0.05)),
+			{ type: "model_change", provider: "test", modelId: "model-b" },
+			assistantEntry(usage(0, 0, 5000, 0.05)),
+			assistantEntry(usage(0, 0, 5000, 0.05)),
+			{ type: "thinking_level_change", thinkingLevel: "low" },
+			assistantEntry(usage(0, 0, 5000, 0.05)),
+		];
+		const { extension, ctx, notifications } = await started({ entries, reason: "resume" });
+
+		await command(extension, ctx);
+		const out = notifications.at(-1).text;
+		// Only the pair inside the model-change epoch contributes re-billed tokens.
+		assert.match(out, /сессия: \$0\.2000, ходов 4, ↺ 0%, мисс 5000 tok/);
+		assert.doesNotMatch(out, /пере-оплата/);
+	});
+
+	it("still zeroes totals on /new even if the previous journal is visible", async () => {
+		const entries = [
+			assistantEntry(usage(0, 0, 5000, 0.05)),
+			usageEntry(usage(100, 0, 0, 0.001)),
+		];
+		const { extension, ctx, notifications } = await started({ entries, reason: "resume" });
+
+		// OMP starts the new session with a fresh journal.
+		entries.length = 0;
+		await fire(extension, "session_switch", ctx, { reason: "new" });
+		await command(extension, ctx);
+		assert.equal(
+			notifications.at(-1).text,
+			"режим: без пресета · test/model-a · thinking high · ход: нет данных · " +
+				"сессия: $0.0000, ходов 0, ↺ n/a",
+		);
 	});
 });
 

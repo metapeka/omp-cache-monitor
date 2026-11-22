@@ -1,6 +1,6 @@
 # Roadmap: omp-cache-monitor
 
-Дата: 2026-11-22. Версия: 0.3.0. GitHub: private.
+Дата: 2026-11-22. Версия: 0.4.0. GitHub: private.
 Цель: довести расширение до релиза, которому можно доверять по цифрам,
 установке и поведению на всех переходах сессии.
 
@@ -18,11 +18,11 @@
 
 | Что | Состояние |
 |---|---|
-| Версия | 0.3.0: hit, trend, стоимость мисса за сессию, warnings, `/cache-monitor` |
+| Версия | 0.4.0: resume-восстановление, полный учёт cache warming/компакции |
 | GitHub | `metapeka/omp-cache-monitor`, private, `main` |
-| Установка | `omp plugin link` на боевой чекаут; `omp plugin list` — 0.3.0 |
-| Проверки | `npm test` 16/16, загрузка OMP, TUI и `/new` |
-| Постоянные тесты | `test/extension.test.mjs`, 16 тестов, `npm test` |
+| Установка | `omp plugin link` на боевой чекаут; в `feat/resume` — 0.4.0, на боевом — 0.3.0 до merge |
+| Проверки | `npm test` 22/22, typecheck, загрузка OMP, TUI, `/new` и resume |
+| Постоянные тесты | `test/extension.test.mjs`, 22 теста, `npm test` |
 | CI | GitHub Actions, зелёный (`npm ci`, `npm test`, `typecheck`) |
 | npm / marketplace | не публиковались |
 | Английский README | нет |
@@ -43,9 +43,10 @@
 - `test/extension.test.mjs` импортирует реальный `index.ts` через Node 22
   `--experimental-strip-types` и подменяет `pi`/`ctx`.
 - Покрыто: формула hit, спарклайн и усечение до 12, накопление `мисс`,
-  включая ходы без цен, сброс на `/new`/`/fork`/`/switch`, смена эпохи,
-  пороги warnings, non-TUI no-op.
-- `npm test` — 16/16, детерминированно, без сети и модели.
+  включая ходы без цен, сброс на `/new`, смена эпохи, пороги warnings,
+  non-TUI no-op, restore после resume, границы эпохи в журнале,
+  cache warming/компакция в суммах без ходов, отсутствие двойного счёта.
+- `npm test` — 22/22, детерминированно, без сети и модели.
 
 ### 1.2. Типы — готово
 
@@ -67,7 +68,7 @@
 
 ## Этап 2. Корректность lifecycle
 
-### 2.1. Восстановление после resume
+### 2.1. Восстановление после resume — готово
 
 API подтверждён: `session_start` содержит
 `reason: "startup" | "reload" | "new" | "resume" | "fork"` и
@@ -84,7 +85,14 @@ API подтверждён: `session_start` содержит
 - Критерий: после перезапуска/resume `/cache-monitor` показывает те же суммы,
   что OMP `/session` и JSONL; `/new` по-прежнему обнуляет.
 
-### 2.2. Compaction и cache warming
+Реализовано в 0.4.0: `aggregateEntries()` читает журнал на `session_start`
+(все причины; пустой журнал у новой сессии) и восстанавливает суммы, ходы,
+тренд, последний ход и пере-оплату. `/cache-monitor` пересчитывает суммы по
+журналу, ходы/тренд/live-цены не пересобирает — поэтому повторная команда
+заменяет, а не удваивает. Цены прошлых моделей в журнале отсутствуют:
+восстановленная пере-оплата остаётся в токенах, `last.reBillCost` — `null`.
+
+### 2.2. Compaction и cache warming — готово
 
 - Учитывать `session_compact.compactionEntry.usage` в стоимости сессии.
 - Учитывать `UsageEntry` (`kind: "cache_warm"`) в токенах и стоимости.
@@ -92,6 +100,11 @@ API подтверждён: `session_start` содержит
   `getEntries()` при вызове `/cache-monitor`.
 - Критерий: стоимость сессии совпадает с native `/session` после компакции
   и cache warming.
+
+Реализовано в 0.4.0: `usage`/`model_usage` (в OMP 19.1 cache warming пишется
+как `model_usage`), `compaction.usage` и `branch_summary.usage` входят только
+в суммы. Ограничение: смена набора инструментов не журналируется,
+поэтому после resume её нельзя восстановить как границу эпохи.
 
 ## Этап 3. TTL: решение, а не фича
 

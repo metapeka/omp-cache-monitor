@@ -41,6 +41,12 @@ const STATUS_KEY = "cache-monitor";
 const MIN_PROMPT = 4000;
 /** Префикс предыдущего хода должен быть достаточно большим для сравнения. */
 const MIN_PREV_PROMPT = 2048;
+/** Сколько последних ходов держим в спарклайне. */
+const TREND_POINTS = 12;
+/** Уровни спарклайна: 0–100% по возрастанию. */
+const SPARK_LEVELS = "▁▂▃▄▅▆▇█";
+/** Нет знаменателя — hit не определён. */
+const SPARK_UNKNOWN = "·";
 
 /** Поле внешнего объекта без `any`: guard проверяет форму, индекс — один общий случай. */
 function field(source: unknown, key: string): unknown {
@@ -66,6 +72,17 @@ function hitPercent(input: number, cacheRead: number, cacheWrite: number): numbe
 function hitPercentText(hit: number | null): string {
 	if (hit === null) return "n/a";
 	return `${Number.isInteger(hit) ? String(hit) : hit.toFixed(1)}%`;
+}
+
+/** Один столбик тренда: 0–100% → ▁…█; `·` — hit не определён. */
+function sparkLevel(hit: number | null): string {
+	if (hit === null) return SPARK_UNKNOWN;
+	const clamped = Math.min(100, Math.max(0, hit));
+	const index = Math.min(
+		SPARK_LEVELS.length - 1,
+		Math.floor((clamped / 100) * SPARK_LEVELS.length),
+	);
+	return SPARK_LEVELS.charAt(index);
 }
 
 /**
@@ -127,6 +144,11 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 	let sessionCached = 0;
 	let sessionWrite = 0;
 	let sessionCost = 0;
+	let sessionReBilled = 0;
+	let sessionReBillCost = 0;
+	/** Хотя бы у одного пере-оплаченного хода не было цен модели. */
+	let sessionReBillCostMissing = false;
+	const trendHits: (number | null)[] = [];
 
 	// Состояние «эпохи» префикса: сравнение с prev действительно только внутри неё.
 	let epochReady = false;
@@ -194,6 +216,10 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 		sessionCached = 0;
 		sessionWrite = 0;
 		sessionCost = 0;
+		sessionReBilled = 0;
+		sessionReBillCost = 0;
+		sessionReBillCostMissing = false;
+		trendHits.length = 0;
 	};
 
 	/**
@@ -298,6 +324,14 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 		last = { ...usage, hit, reBilled, reBillCost };
 		prevPrompt = prompt;
 
+		if (reBilled !== null && reBilled > 0) {
+			sessionReBilled += reBilled;
+			if (reBillCost === null) sessionReBillCostMissing = true;
+			else sessionReBillCost += reBillCost;
+		}
+		trendHits.push(hit);
+		if (trendHits.length > TREND_POINTS) trendHits.shift();
+
 		const turnIndex = num(field(event, "turnIndex"));
 		const canWarn = mainTui && !freshEpoch && turnIndex >= 1 && prompt >= MIN_PROMPT;
 		if (!canWarn) return;
@@ -337,7 +371,7 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 	});
 
 	pi.registerCommand("cache-monitor", {
-		description: "Показать режим, модель и hit rate кэша префикса",
+		description: "Показать режим, модель, hit rate и тренд кэша префикса",
 		handler: async (_args, ctx) => {
 			const modelLabel = ctx.model
 				? `${String(field(ctx.model, "provider") ?? "?")}/${String(field(ctx.model, "id") ?? "?")}`
@@ -359,9 +393,18 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 			} else {
 				parts.push("ход: нет данных");
 			}
+			if (trendHits.length > 0) {
+				parts.push(`тренд: ${trendHits.map(sparkLevel).join("")}`);
+			}
 			const sessionHit = hitPercent(sessionInput, sessionCached, sessionWrite);
+			const sessionMissCost =
+				sessionReBillCost > 0
+					? ` (${sessionReBillCostMissing ? "≥" : ""}$${sessionReBillCost.toFixed(4)})`
+					: "";
+			const sessionMiss =
+				sessionReBilled > 0 ? `, мисс ${sessionReBilled} tok${sessionMissCost}` : "";
 			parts.push(
-				`сессия: $${sessionCost.toFixed(4)}, ходов ${turns}, ↺ ${hitPercentText(sessionHit)}`,
+				`сессия: $${sessionCost.toFixed(4)}, ходов ${turns}, ↺ ${hitPercentText(sessionHit)}${sessionMiss}`,
 			);
 
 			notify(ctx, parts.join(" · "), "info");

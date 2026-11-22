@@ -9,14 +9,14 @@
 
 | Что | Состояние |
 |---|---|
-| Расширение `index.ts` | v0.2.0, 370 строк, контракт ниже |
+| Расширение `index.ts` | v0.3.0, 413 строк, контракт ниже |
 | Пакет | `package.json` (`omp.extensions` + `pi.extensions`), MIT, README |
-| Установка на машине | `omp plugin link /home/db1/projects/omp-cache-monitor`, в `omp plugin list` — `omp-cache-monitor@0.2.0` |
-| Проверки | TUI hit совпал с JSONL (9.9% → 98.1%), `/new` сбрасывает суммы, предупреждение молчит на первом ходе эпохи, non-TUI чистый |
+| Установка на машине | `omp plugin link /home/db1/projects/omp-cache-monitor`, в `omp plugin list` — `omp-cache-monitor@0.3.0` |
+| Проверки | TUI hit совпал с JSONL (9.9% → 98.1%), `/new` сбрасывает суммы, предупреждение молчит на первом ходе эпохи, non-TUI чистый; метрики — harness 8/8, загрузка в OMP exit 0 |
 | Ревью | 2 major (сброс после `/new`, ложный warning после компакции) исправлены, ре-ревью «ок» |
 | Публикация | GitHub: `metapeka/omp-cache-monitor` (public, `main`); npm, marketplace — нет |
 
-## Контракт v0.2 (не менять без решения владельца)
+## Контракт v0.3 (v0.2 + аддитивные метрики; не менять без решения владельца)
 
 - `hit = cacheRead / (input + cacheRead + cacheWrite)`; знаменатель 0 → `n/a`.
 - Статус-ключ `cache-monitor`, текст `<OMP_MODE> ↺ N%` (без режима — `↺ N%`).
@@ -29,6 +29,10 @@
   и низкий hit (< 50%), по одному на эпоху.
 - Пере-оплата: `reBilled = max(0, min(prevPrompt, curPrompt) - cacheRead)`;
   деньги считаются в момент хода и сохраняются в `last`.
+- `/cache-monitor` дополнительно печатает `тренд:` — последние 12 хитов
+  (`▁`…`█`, `·` — n/a) и `мисс N tok ($X)` за сессию (`≥$X` — часть ходов без цен).
+- Тренд и `мисс` сбрасываются вместе с суммами на `/new`/`/fork`/`/switch`;
+  `/clear` и переходы по дереву их сохраняют.
 - Без `any`, без новых зависимостей, UI-вызовы в try/catch, реестр настроек — ленивым импортом.
 
 ## Где что лежит
@@ -93,8 +97,8 @@ omp --no-tools --session-dir /tmp/cm-check
 
 1. npm: `npm publish` → `omp plugin install omp-cache-monitor`.
 2. Marketplace: каталог-репозиторий с `.omp-plugin/marketplace.json`.
-3. Метрики: trend/sparkline, TTL-countdown (не дублировать native-сегмент `cache`),
-   стоимость мисса в отчёте, восстановление сумм после resume.
+3. Метрики (осталось): TTL-countdown (не дублировать native-сегмент `cache`),
+   восстановление сумм после resume.
 4. Локализация README на английский перед публикацией.
 
 ## Ограничения

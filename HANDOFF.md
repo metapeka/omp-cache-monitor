@@ -11,8 +11,8 @@
 |---|---|
 | Расширение `index.ts` | v0.6.0, 824 строки, контракт ниже |
 | Пакет | `package.json` (`omp.extensions` + `pi.extensions`), MIT, README, CHANGELOG |
-| Установка на машине | `omp plugin list` — `omp-cache-monitor@0.5.0` (0.6.0 после merge `feat/cache-history`) и `omp-agent-workflow@0.3.0` |
-| Проверки | `npm test` 37/37 (включая историю 8 ходов), typecheck; загрузка OMP, TUI, `/new` и resume проверены в 0.5.0; там же `/cache-monitor` напечатал `saved $0.0008`, статус hit 56.5% совпал с командой, TUI hit совпал с JSONL, фоновые вызовы добавляют только стоимость, non-TUI чистый |
+| Установка на машине | `omp plugin list` — `omp-cache-monitor@0.6.0` и `omp-agent-workflow@0.5.0` |
+| Проверки | `npm test` 37/37 (включая историю 8 ходов), typecheck; загрузка OMP, TUI: `/cache-monitor history` напечатал `история (1/8): 1. ↺ 12.2% · prompt 5267 · saved $0.0002`, дефолтный отчёт совпал по hit/saved; ранее (0.5.0) — `saved $0.0008`, статус hit 56.5% совпал с командой, TUI hit совпал с JSONL, фоновые вызовы добавляют только стоимость, non-TUI чистый |
 | Ревью | v0.4/v0.5 — merge |
 | Ревью v0.4 | фоновый usage отделён от hit/ходов; граница resume не даёт ложной пере-оплаты |
 | Ревью v0.5 | reviewer: merge; исправлены пробелы покрытия — граница 5 мин, `/clear`/tree, ход без timestamp разрывает цепочку простоя |

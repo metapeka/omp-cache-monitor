@@ -29,7 +29,7 @@
 | Context guard | `omp-agent-workflow` 0.3.0, linked; warning 35/50, auto 60, `/handoff` |
 | Automatic handoff | `/handoff-new`, marker, supervisor; 19 тестов, e2e пройден в Orca |
 | Yoda workflow | `~/projects/omp-agent-workflow/docs/yoda-workflow.md` — отдельный продукт |
-| npm / marketplace | не публиковались |
+| npm / marketplace | не публиковались; публикация отложена владельцем 2026-11-22 — фокус на продукт |
 | Английский README | нет |
 
 ## Конкурентные приоритеты (2026-11-22)

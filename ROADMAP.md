@@ -239,7 +239,8 @@ resume её нельзя восстановить как границу эпох
 `orca terminal send`, затем continuation prompt. Есть `--dry-run`.
 
 E2E в реальном Orca-терминале пройден: supervisor отправил `/handoff-new`,
-новая сессия стартовала, прочитала `HANDOFF.md` и ответила `OK`.
+новая сессия стартовала и прочитала `HANDOFF.md`. Cooldown 300 с и
+stale-marker guard (`sessionFile`) не дают уйти в цикл повторных handoff.
 
 ## Этап 2.9. Yoda workflow mode (P1/P2, дизайн)
 

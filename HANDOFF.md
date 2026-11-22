@@ -10,9 +10,9 @@
 | Что | Состояние |
 |---|---|
 | Расширение `index.ts` | v0.6.0, 824 строки, контракт ниже |
-| Пакет | `package.json` (`omp.extensions` + `pi.extensions`), MIT, README, CHANGELOG |
+| Пакет | `package.json` (`omp.extensions` + `pi.extensions`, repository/homepage/bugs/engines), MIT, README (EN) + `docs/README.ru.md`, CHANGELOG |
 | Установка на машине | `omp plugin list` — `omp-cache-monitor@0.6.0` и `omp-agent-workflow@0.5.0` |
-| Проверки | `npm test` 37/37 (включая историю 8 ходов), typecheck; загрузка OMP, TUI: `/cache-monitor history` напечатал `история (1/8): 1. ↺ 12.2% · prompt 5267 · saved $0.0002`, дефолтный отчёт совпал по hit/saved; ранее (0.5.0) — `saved $0.0008`, статус hit 56.5% совпал с командой, TUI hit совпал с JSONL, фоновые вызовы добавляют только стоимость, non-TUI чистый |
+| Проверки | `npm test` 37/37 (включая историю 8 ходов), typecheck; `npm pack` — 4 файла; чистый `HOME`: tarball через `npm install --prefix` → `/cache-monitor` и `history` работают; загрузка OMP, TUI: `/cache-monitor history` напечатал `история (1/8): 1. ↺ 12.2% · prompt 5267 · saved $0.0002`, дефолтный отчёт совпал по hit/saved; ранее (0.5.0) — `saved $0.0008`, статус hit 56.5% совпал с командой, TUI hit совпал с JSONL, фоновые вызовы добавляют только стоимость, non-TUI чистый |
 | Ревью | v0.4/v0.5 — merge |
 | Ревью v0.4 | фоновый usage отделён от hit/ходов; граница resume не даёт ложной пере-оплаты |
 | Ревью v0.5 | reviewer: merge; исправлены пробелы покрытия — граница 5 мин, `/clear`/tree, ход без timestamp разрывает цепочку простоя |
@@ -93,6 +93,7 @@
 | Часть | Репозиторий/путь |
 |---|---|
 | Продукт (код, пакет) | этот репозиторий; GitHub — https://github.com/metapeka/omp-cache-monitor |
+| Документация | `README.md` (EN), `docs/README.ru.md` (RU), `CHANGELOG.md`; в tarball входит только `README.md` |
 | План развития | `ROADMAP.md` |
 | Исследование конкурентов | `docs/research/cache-extensions.md` |
 | Инструкции агенту | `AGENTS.md`; глобальные — `~/.omp/agent/AGENTS.md` |
@@ -170,8 +171,9 @@ omp --no-tools --session-dir /tmp/cm-check
 
 Полный план с этапами, критериями и назначением агентов — `ROADMAP.md`.
 Кратко: этапы 1–2 (тесты/CI и resume/compaction accounting), 2.5 (причина
-мисса, `saved`/`miss premium`) и 2.8 (история 8 ходов) готовы; следующий —
-английский README и установка из tarball (этап 4); npm/marketplace/public —
+мисса, `saved`/`miss premium`), 2.8 (история 8 ходов), 4.1 (английский README)
+и 4.2 (пакет и tarball) готовы; следующий — 4.3: тег `v0.6.0`, private GitHub
+release и установка `github:` в чистом профиле. npm/marketplace/public —
 только после отдельного решения. TTL на `cline-pass` не делаем: провайдер не
 декларирует lifetime; TTL — data-gated P2.
 
@@ -182,6 +184,10 @@ omp --no-tools --session-dir /tmp/cm-check
 - Номер upstream-бага: can1357/oh-my-pi#20128 (`getThinkingLevel` → `undefined`
   на моделях `off|auto`); не «чинить» его в обход — используется fallback.
 - OMP 19.1.0, проверено на маршруте `cline-pass`.
+- OMP 19.1 не принимает `.tgz` в `omp plugin install`: tar-путь трактуется как
+  каталог (`ENOTDIR`), `file:` — «Invalid package name». Пакет проверяется
+  через `npm install --prefix <home>/.omp/plugins <tgz>` или распакованный
+  каталог; `github:`-установка — отдельный путь (4.3).
 - В журнале нет цен прошлых моделей, поэтому деньги за восстановленную
   пере-оплату и `saved` не считаются: только токены и `≥` для частично
   известной суммы; `saved` после resume растёт только по live-ходам.

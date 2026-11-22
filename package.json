@@ -8,6 +8,17 @@
     "yoda": "./scripts/yoda"
   },
   "description": "Cache hit-rate monitor and /cache-monitor command for OMP",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/metapeka/omp-cache-monitor.git"
+  },
+  "homepage": "https://github.com/metapeka/omp-cache-monitor#readme",
+  "bugs": {
+    "url": "https://github.com/metapeka/omp-cache-monitor/issues"
+  },
+  "engines": {
+    "node": ">=22"
+  },
   "keywords": [
     "omp-plugin",
     "oh-my-pi",

@@ -1,48 +1,53 @@
 # omp-cache-monitor
 
-Расширение OMP: hit rate кэша префикса в статус-строке, предупреждения о промахах
-и команда `/cache-monitor` (`history` — последние 8 ходов).
+English | [Русский](docs/README.ru.md)
 
-Ничего не меняет в настройках и запросах: читает usage завершённого хода
-(`turn_end.message.usage`) и журнал сессии (`sessionManager.getEntries()`),
-публикует статус. Ошибка в обработчике не ломает ход.
+OMP extension: prefix-cache hit rate in the status line, miss warnings, and the
+`/cache-monitor` command (`history` shows the last 8 turns).
 
-## Что показывает
+It changes nothing in settings or requests: it reads the completed turn usage
+(`turn_end.message.usage`) and the session journal
+(`sessionManager.getEntries()`), then publishes a status. An error inside the
+handler never breaks the turn.
 
-Статус-строка (только в TUI), ключ `cache-monitor`:
+## What it shows
+
+Status line (TUI only), key `cache-monitor`:
 
 ```
 cache-safe ↺ 98%
 ```
 
-Режим берётся из `OMP_MODE` (его выставляет `omp-mode`); без режима остаётся
-`↺ 98%`, до первого хода — `↺ …`, при нулевом знаменателе — `↺ n/a` (без `%`).
+The mode comes from `OMP_MODE` (set by `omp-mode`); without a mode it is
+`↺ 98%`, before the first turn `↺ …`, and with a zero denominator `↺ n/a`
+(no `%`).
 
-Команда `/cache-monitor` печатает одной строкой режим, модель, thinking,
-последний ход с `saved`, `miss premium`, тренд и итог сессии:
+`/cache-monitor` prints one line with the mode, model, thinking level, last
+turn with `saved` and `miss premium`, the trend, and session totals:
 
 ```
 режим: cache-safe · test/model-a · thinking high · ход: ↺ 25% · in 3000 · cacheRead 1000 · cacheWrite 0 · $0.0200 · saved $0.0027 · miss premium: $0.0081 (3000 tok) · тренд: ▁▃ · сессия: $0.0700, ходов 2, ↺ 11.1%, saved $0.0027, miss premium $0.0081 (3000 tok)
 ```
 
-| Поле | Что значит |
+| Field | Meaning |
 |---|---|
-| `режим` | `OMP_MODE`; `без пресета` — запуск голым `omp` |
-| модель, `thinking` | активная модель и live-уровень (`/effort`), при `undefined` — сконфигурированный из настроек; `?` — неизвестно |
-| `ход: ↺ / in / cacheRead / cacheWrite / $ / saved` | последний запрос: hit, новый input, из кэша, записано в кэш, стоимость и `saved $X` — экономия на чтении кэша против полной цены input; `saved` печатается, только когда он больше нуля (нужны `cacheRead > 0`, известные цены и положительная разница `input − cacheRead`) |
-| `miss premium: $X (N tok)` | пере-оплаченные токены после промаха: `N` заново оплачены по полной цене; деньги — только если у модели числовые `cost.input` и `cost.cacheRead`, иначе `miss premium: N tok`; печатается только когда `N > 0` |
-| `тренд: ▁…█` | последние 12 хитов: `▁` — 0%, `█` — 100%, `·` — hit не определён (нулевой знаменатель) |
-| `сессия: $ / ходов / ↺ / saved / miss premium` | накопленная стоимость, число ходов, hit, экономия и пере-оплата за сессию; `saved $X` — когда сумма > 0 и известна полностью, `saved ≥$X` — известна лишь часть (например, после resume); `miss premium $X (N tok)` печатается только при N > 0, `≥$X` — часть ходов без цен модели |
+| _(labels)_ | Command output stays Russian (`режим`, `ход`, `сессия`, `тренд`); the table explains each field |
+| `режим` | `OMP_MODE`; `без пресета` means a bare `omp` launch |
+| model, `thinking` | active model and live level (`/effort`); when `undefined`, the configured value; `?` means unknown |
+| `ход: ↺ / in / cacheRead / cacheWrite / $ / saved` | last request: hit, new input, cache read, cache write, cost, and `saved $X` — cache-read savings versus the full input price; printed only when positive (`cacheRead > 0`, known prices, positive `input − cacheRead` delta) |
+| `miss premium: $X (N tok)` | re-billed tokens after a miss: `N` tokens paid at the full price; money only when the model has numeric `cost.input` and `cost.cacheRead`, otherwise `miss premium: N tok`; printed only when `N > 0` |
+| `тренд: ▁…█` | last 12 hits: `▁` = 0%, `█` = 100%, `·` = hit undefined (zero denominator) |
+| `сессия: $ / ходов / ↺ / saved / miss premium` | session cost, turn count, hit, savings, and re-billed tokens; `saved $X` when the sum is known in full, `saved ≥$X` when it is only a lower bound (e.g. after resume); `miss premium $X (N tok)` only when `N > 0`, `≥$X` when some turns have no model prices |
 
-Если ходов ещё не было — `ход: нет данных`. При нулевом знаменателе hit
-печатается как `↺ n/a`, без знака `%`. На `/new` тренд и суммы обнуляются; при
-resume/reload/fork на `session_start` они восстанавливаются из журнала.
-`/clear` и переходы по дереву сохраняют суммы.
+Before the first turn the field reads `ход: нет данных`. With a zero
+denominator hit is `↺ n/a`, without `%`. `/new` resets the trend and totals;
+resume/reload/fork restore them from the journal on `session_start`. `/clear`
+and tree navigation keep the totals.
 
-## История последних ходов
+## Turn history
 
-`/cache-monitor history` (алиас `/cache-monitor hist`) печатает последние 8
-завершённых ходов отдельным уведомлением, от старого к новому:
+`/cache-monitor history` (alias `/cache-monitor hist`) prints the last 8
+completed turns as a separate notification, oldest first:
 
 ```
 история (3/8):
@@ -51,64 +56,65 @@ resume/reload/fork на `session_start` они восстанавливаютс�
 3. ↺ 50% · prompt 4200 · saved $0.0057 · miss premium $0.0057 (2100 tok)
 ```
 
-- `hit` и `prompt` — как в остальном отчёте; `saved` печатается только при
-  `cacheRead > 0`: `saved $X` при известной цене и `saved ?`, когда после
-  resume цена модели неизвестна.
-- `miss premium` печатается только при `reBilled > 0`: `$X (N tok)` либо
-  `? (N tok)` без цены.
-- Причина (`простой N мин` / `перезапись префикса`) — только у канонического
-  промаха; первый ход эпохи её не получает.
-- Окно — 8 ходов; более старые вытесняются. Нет данных — `история: нет данных`.
+- `hit` and `prompt` as in the rest of the report; `saved` is printed only when
+  `cacheRead > 0`: `saved $X` with known prices, `saved ?` when the model price
+  is unknown after resume.
+- `miss premium` is printed only when `reBilled > 0`: `$X (N tok)`, or
+  `? (N tok)` without a price.
+- The cause (`простой N мин` / `перезапись префикса`) is attached only to a
+  canonical miss; the first turn of an epoch never gets one.
+- The window is 8 turns; older ones fall off. No data prints
+  `история: нет данных`.
 
-`/new` очищает историю; resume/fork восстанавливают её из журнала (последние 8
-assistant-сообщений), `/clear` и переходы по дереву сохраняют. У последней
-восстановленной записи `miss premium` не показывается: граница resume в журнал
-не пишется, поэтому сравнение с прошлым префиксом не доказано.
+`/new` clears the history; resume/fork restores it from the journal (last 8
+assistant messages); `/clear` and tree navigation keep it. The last restored
+record never shows `miss premium`: the resume boundary is not journaled, so the
+comparison with the previous prefix is not proven.
 
-`/cache-monitor` без аргумента печатает прежний отчёт — история в него не
-добавляется.
+`/cache-monitor` without an argument prints the previous report; history is not
+added to it.
 
-## Resume, компакция и cache warming
+## Resume, compaction, and cache warming
 
-На `session_start` (startup, resume, reload, fork) расширение читает
-`ctx.sessionManager.getEntries()` и восстанавливает суммы по
-assistant-сообщениям, последние 12 хитов тренда, историю последних 8 ходов,
-последний ход и пере-оплаченные токены. Границы эпохи из журнала
-(`model_change`, `thinking_level_change`, `compaction`, `branch_summary`) не
-дают сравнивать ходы через смену префикса.
+On `session_start` (startup, resume, reload, fork) the extension reads
+`ctx.sessionManager.getEntries()` and restores totals from assistant messages,
+the last 12 trend hits, the last 8 turns of history, the last turn, and
+re-billed tokens. Journaled epoch boundaries (`model_change`,
+`thinking_level_change`, `compaction`, `branch_summary`) prevent comparing
+turns across a prefix change.
 
-Записи `usage` (любой `kind`) и `model_usage` (в OMP 19.1: cache warming,
-title/composer и другие off-transcript вызовы), а также `compaction.usage` и
-`branch_summary.usage` входят в стоимость сессии, но не в токены hit, ходы или
-тренд: это фоновая работа, а не запросы диалога. Перед печатью
-`/cache-monitor` стоимость пересчитывается по журналу, поэтому cache warming и
-компакция учитываются, даже если для них не было live-события.
+`usage` entries (any `kind`) and `model_usage` (OMP 19.1: cache warming,
+title/composer and other off-transcript calls), plus `compaction.usage` and
+`branch_summary.usage`, add to session cost but not to hit tokens, turns, or
+trend: that is background work, not dialog requests. Before printing,
+`/cache-monitor` recomputes cost from the journal, so cache warming and
+compaction are counted even without a live event.
 
-Первый ход после resume — новая эпоха: он не сравнивается с прошлым префиксом
-и не предупреждает. `/new` по-прежнему обнуляет суммы.
+The first turn after resume is a new epoch: it is not compared with the previous
+prefix and does not warn. `/new` still resets the totals.
 
-Цены моделей в журнале не хранятся. `saved` восстановленных токенов кэша не
-оценивается: в сессии он растёт только по live-ходам, а если в журнале был
-`cacheRead > 0`, сумма помечается `≥` (`saved ≥$X`). Пере-оплаченные токены
-после resume восстанавливаются, но деньги за них тоже не выдумываются:
-`miss premium` печатается в токенах, а при частично известной сумме остаётся
-маркер `≥`. Пере-оплата самого последнего хода перед resume консервативно не
-восстанавливается: граница resume в журнал не пишется, поэтому сравнение с
-прошлым префиксом не доказано. Более ранние границы resume тоже не отмечены,
-поэтому пере-оплата между такими ходами может остаться приблизительной.
+Model prices are not stored in the journal. `saved` for restored cache tokens is
+not estimated: it grows only from live turns, and if the journal had
+`cacheRead > 0` the session sum is marked `≥` (`saved ≥$X`). Re-billed tokens
+are restored after resume, but their money is not invented either: `miss
+premium` is printed in tokens, and a partially known sum keeps the `≥` marker.
+The last turn's re-bill before resume is conservatively not restored: the resume
+boundary is not journaled, so the comparison with the previous prefix is not
+proven. Earlier resume boundaries are not marked either, so re-billing between
+such turns can remain approximate.
 
-## Формула
+## Formula
 
 ```
 hit = cacheRead / (input + cacheRead + cacheWrite)
 ```
 
-`cacheWrite` входит в знаменатель: запись в кэш тоже оплачивается. Если
-знаменатель равен нулю, hit не определён — `n/a`.
+`cacheWrite` is in the denominator: writing to the cache is billed too. A zero
+denominator means hit is undefined — `n/a`.
 
-## Saved и miss premium
+## Saved and miss premium
 
-Обе метрики считаются на токен, цены — `$/1M` из `model.cost`:
+Both metrics are per token; prices are `$/1M` from `model.cost`:
 
 ```
 saved        = cacheRead × (inputPrice − cacheReadPrice)
@@ -116,64 +122,65 @@ miss premium = reBilled  × (inputPrice − cacheReadPrice)
 reBilled     = max(0, min(prevPrompt, prompt) − cacheRead)
 ```
 
-`inputPrice − cacheReadPrice` — разница между полной ценой нового input и ценой
-чтения кэша, не меньше нуля. `saved` — сколько сэкономлено на чтении кэша
-против полной цены; `miss premium` — сколько токенов после промаха заново
-оплачено по полной цене. Если у модели нет числовых `cost.input` и
-`cost.cacheRead`, `saved` не печатается, а `miss premium` остаётся в токенах.
-После resume цены прошлых ходов неизвестны, поэтому `saved` считает только
-live-часть и показывает `≥`.
+`inputPrice − cacheReadPrice` is the difference between the full new-input
+price and the cache-read price, clamped at zero. `saved` is what cache reads
+saved versus the full price; `miss premium` is what re-billed tokens cost at the
+full price after a miss. If the model has no numeric `cost.input` and
+`cost.cacheRead`, `saved` is omitted and `miss premium` stays in tokens. After
+resume historical prices are unknown, so `saved` counts only the live part and
+shows `≥`.
 
-## Предупреждения
+## Warnings
 
-Сравнение epoch-aware: база для сравнения сбрасывается на компакции, смене
-модели, thinking или набора инструментов, поэтому законно холодный ход после
-такого события не считается промахом посреди сессии.
+Comparison is epoch-aware: the baseline resets on compaction, model change,
+thinking change, or tool-set change, so a legitimately cold turn after such an
+event is not treated as a mid-session miss.
 
-1. **Канонический промах** — на предыдущем ходе промпт был ≥ 2048 токенов, а на
-   текущем `cacheRead = 0` и `cacheWrite > 0`: префикс перезаписан целиком или
-   кэш истёк. Причина считается per-turn: `простой N мин`, если между
-   завершёнными ходами прошло ≥ 5 минут по `message.timestamp`, иначе
-   `перезапись префикса`. Порог 5 минут — эмпирическая эвристика, **не**
-   объявленный TTL провайдера: `cline-pass` lifetime не декларирует. Простой
-   через границу эпохи (смена модели/thinking/tools, компакция, resume) новому
-   префиксу не приписывается; без timestamp причина — `перезапись префикса`,
-   а ход без timestamp разрывает цепочку простоя для следующего хода.
-2. **Низкий hit** — меньше 50% на ходе не первом (первый ход холодный по
-   определению).
+1. **Canonical miss** — the previous turn's prompt was ≥ 2048 tokens, while the
+   current turn has `cacheRead = 0` and `cacheWrite > 0`: the prefix was fully
+   rewritten or the cache expired. The cause is computed per turn:
+   `простой N мин` when consecutive completed turns are ≥ 5 minutes apart by
+   `message.timestamp`, otherwise `перезапись префикса`. The 5-minute threshold
+   is an empirical heuristic, **not** a provider-declared TTL: `cline-pass`
+   does not declare a lifetime. Idle time across an epoch boundary (model,
+   thinking, or tool-set change, compaction, resume) is not attributed to the
+   new prefix; without a timestamp the cause is `перезапись префикса`, and a
+   turn without a timestamp breaks the idle chain for the next turn.
+2. **Low hit** — below 50% on a turn other than the first (the first turn is
+   cold by definition).
 
-Предупреждение — сигнал проверить, что менялось за 1–2 хода до него, а не ошибка
-само по себе.
+A warning is a signal to check what changed 1–2 turns before it, not an error
+by itself.
 
-## Установка
+## Installation
 
-npm-пакет не опубликован. OMP 19.1.0:
+The npm package is not published. OMP 19.1.0:
 
 ```bash
-# из GitHub
+# from GitHub (private repository: authentication required)
 omp plugin install github:metapeka/omp-cache-monitor
 
-# локальный чекаут: загружается из каталога без копирования
+# local checkout: loaded from the directory, no copying
 omp plugin link /path/to/omp-cache-monitor
 
-# эквивалент (алиас plugin link)
+# equivalent (alias of plugin link)
 omp install /path/to/omp-cache-monitor
 ```
 
-Альтернатива — скопировать единственный файл расширения:
+Alternative — copy the single extension file:
 
 ```bash
 cp /path/to/omp-cache-monitor/index.ts ~/.omp/agent/extensions/cache-monitor.ts
 ```
 
-Ставить нужно одним способом: `omp plugin link` **или** копия файла. Одновременно
-не надо — расширение загрузится дважды. После установки перезапустить `omp`.
+Install in exactly one way: `omp plugin link` **or** a copied file. Doing both
+loads the extension twice. Restart `omp` after installation.
 
-### Сегмент статус-строки
+### Status-line segment
 
-Сегмент `status` ставит hook-статус в общий ряд статус-строки. Без него при
-`statusLine.showHookStatus: true` (дефолт) статус всё равно показывается, но
-отдельным элементом. В `~/.omp/agent/config.yml`:
+The `status` segment places the hook status into the shared status line.
+Without it, with `statusLine.showHookStatus: true` (the default) the status is
+still shown, but as a separate element. In `~/.omp/agent/config.yml`:
 
 ```yaml
 statusLine:
@@ -182,23 +189,23 @@ statusLine:
   rightSegments: ["session_name", "token_total", "cost", "context_pct", "status"]
 ```
 
-## Совместимость и конфликты имён
+## Compatibility and name conflicts
 
-- OMP 19.1.0; проверено на маршруте `cline-pass`.
-- Команда называется `/cache-monitor`, потому что `/cache` уже занимает
-  `ubranch/omp-cache-control`. Оба расширения можно держать включёнными: они
-  регистрируют разные команды и разные ключи статуса.
-- Статус публикуется только в TUI; в `--mode json`/`--print` вызовы UI
-  безвредны и ничего не показывают.
+- OMP 19.1.0; verified on the `cline-pass` route.
+- The command is `/cache-monitor` because `/cache` is already taken by
+  `ubranch/omp-cache-control`. Both extensions can stay enabled: they register
+  different commands and different status keys.
+- The status is published only in the TUI; in `--mode json`/`--print` UI calls
+  are harmless and display nothing.
 
-## Связанные документы
+## Related documents
 
-- Шпаргалка по режимам, `/cache-monitor` и диагностике:
+- Cheat sheet for modes, `/cache-monitor`, and diagnostics:
   https://metapeka.github.io/docs-omp-debian-availability/wiki/guide.html
-- Пресеты `cache-safe`/`quality`/`throughput`, wrapper `omp-mode` и история
-  решений — репозиторий https://github.com/metapeka/docs-omp-debian-availability
+- `cache-safe`/`quality`/`throughput` presets, the `omp-mode` wrapper, and the
+  decision history — https://github.com/metapeka/docs-omp-debian-availability
   (`presets/`, `docs/plan-cache-modes.md`).
 
-## Лицензия
+## License
 
-MIT, см. `LICENSE`.
+MIT, see `LICENSE`.

@@ -30,7 +30,7 @@
 | Automatic handoff | `/handoff-new`, marker, supervisor; 19 тестов, e2e пройден в Orca |
 | Yoda workflow | `~/projects/omp-agent-workflow/docs/yoda-workflow.md` — отдельный продукт |
 | npm / marketplace | не публиковались; публикация отложена владельцем 2026-11-22 — фокус на продукт |
-| Английский README | нет |
+| Английский README | `README.md` (EN) + `docs/README.ru.md` (RU) |
 
 ## Конкурентные приоритеты (2026-11-22)
 
@@ -310,19 +310,29 @@ warm/cold и причину инвалидации, поэтому TTL не до
 
 ## Этап 4. Релиз-кандидат
 
-### 4.1. Английский README
+### 4.1. Английский README — готово
 
-- Решить формат: `README.md` на английском + `README.ru.md`, либо двуязычный.
-- Обновить установку: private GitHub требует авторизации; npm — после публикации.
-- Критерий: команды проверены, текст без обещаний несуществующего TTL.
+- Формат: `README.md` на английском, русская версия — `docs/README.ru.md`,
+  переключатель в обоих файлах.
+- Установка: отмечено, что private GitHub требует авторизации; npm не
+  публиковался.
+- Критерий выполнен: команды сверены с кодом, TTL не обещается.
 
-### 4.2. Пакет и установка из tarball
+### 4.2. Пакет и установка из tarball — готово (с оговоркой)
 
-- Добавить `repository`, `homepage`, `bugs`, `engines` в `package.json`.
-- `npm pack --dry-run`: в tarball только `index.ts`, `README.md`, `LICENSE`,
-  `package.json`.
-- Установить tarball в чистый OMP-профиль и проверить `/cache-monitor`.
-- Критерий: установка из tarball работает без `plugin link`.
+- `package.json`: добавлены `repository`, `homepage`, `bugs`, `engines`
+  (`node >=22`).
+- `npm pack --dry-run`: ровно 4 файла — `index.ts`, `README.md`, `LICENSE`,
+  `package.json`; русский README лежит в `docs/` и в пакет не попадает.
+- OMP 19.1 **не принимает `.tgz`** в `omp plugin install` (tar-путь
+  трактуется как каталог: `ENOTDIR`; `file:` — «Invalid package name»).
+  Проверка сделана эквивалентно: tarball поставлен в чистый `HOME` через
+  `npm install --prefix <home>/.omp/plugins <tgz>`, OMP увидел
+  `omp-cache-monitor@0.6.0`, TUI напечатал `/cache-monitor` и
+  `/cache-monitor history` без `plugin link`; распакованный каталог также
+  ставится через `omp plugin install <dir>`.
+- Критерий уточнён: «пакет из tarball самодостаточен и грузится в чистом
+  профиле»; прямой `.tgz`-install в OMP 19.1 недоступен.
 
 ### 4.3. Тег и GitHub release
 

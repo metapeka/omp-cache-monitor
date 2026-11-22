@@ -26,6 +26,7 @@
 | CI | GitHub Actions, зелёный (`npm ci`, `npm test`, `typecheck`) |
 | Рынок/конкуренты | `docs/research/cache-extensions.md` (2026-11-22) |
 | Инструкции агенту | `AGENTS.md` + глобальный `~/.omp/agent/AGENTS.md` |
+| Context guard | `omp-agent-workflow` 0.1.0, linked; warning 35/50, auto 60, `/handoff` |
 | npm / marketplace | не публиковались |
 | Английский README | нет |
 
@@ -151,7 +152,7 @@ resume её нельзя восстановить как границу эпох
 - Критерий: warning объясняет причину, отчёт показывает saved/miss premium в
   деньгах и не врёт после resume.
 
-## Этап 2.6. Context guard / handoff (P1)
+## Этап 2.6. Context guard / handoff — готово (P1)
 
 Практическая политика для 1M-моделей (`deepseek-v4.1-flash-1017`,
 `glm-5.3`, `qwen3.8-max`, `kimi-k3`): 1M — технический максимум, не
@@ -174,15 +175,20 @@ resume её нельзя восстановить как границу эпох
   `reserveTokens: 500000` (триггер ~549k) или 600000 (триггер ~449k).
 - Слово-триггер: **`HANDOFF`**. Семантика: «сохрани цель, решения,
   изменённые файлы, проверки и следующие шаги, затем сожми». Команда
-  `/handoff` вызывает `ctx.compact({ customInstructions: ... })`; native
-  `/compact` остаётся.
+  `/handoff` вызывает `ctx.compact(instructions)`; native `/compact` остаётся.
 - `context_pct` уже есть в native status line; свой процент не дублируем.
   Наш guard — только warning/команда, не второй сегмент.
 - Авто-компакцию не делаем посреди tool-loop или незавершённого edit;
   только после `turn_end`, когда `ctx.isIdle()`.
 - Критерий: warning на 35%, предложение на 50%, авто-компакция на 60% только
   в безопасной точке; `/handoff` сохраняет решения и следующие шаги; тесты
-  на `getContextUsage()` (включая `null` после компакции).
+  на `getContextUsage()`.
+
+Реализовано в `omp-agent-workflow` 0.1.0: warning 35/50, авто-компакция на 60%
+после `turn_end`/`agent_end` при `ctx.isIdle()` и без очереди, команда
+`/handoff`; 9 тестов и typecheck. Пороги переопределяются через
+`OMP_CONTEXT_WARN`, `OMP_CONTEXT_SUGGEST`, `OMP_CONTEXT_AUTO` (число или
+`off`). Расширение установлено через `omp plugin link`.
 
 ## Этап 3. TTL: data-gated (P2)
 
@@ -235,7 +241,7 @@ warm/cold и причину инвалидации, поэтому TTL не до
 1. Этап 1 — тесты и CI. Без него не мержим поведенческие изменения.
 2. Этап 2 — resume и полный учёт usage. Это ядро корректности.
 3. Этап 2.5 — P1 cache economics: причина мисса и saved/miss premium.
-4. Этап 2.6 — context guard и `/handoff`; без дублирования `context_pct`.
+4. Этап 2.6 — готово: context guard и `/handoff` в `omp-agent-workflow`.
 5. Этап 3 — TTL, только data-gated, без реализации на догадках.
 6. Этап 4 — английский README, пакет, установка, тег.
 7. Этап 5 — публикация, только после явного разрешения.
@@ -249,7 +255,7 @@ warm/cold и причину инвалидации, поэтому TTL не до
 | `CI` | 1.3: GitHub Actions и защита `main` | task |
 | `ResumeImplementer` | 2.1–2.2: восстановление и полный учёт usage | task |
 | `CacheEconomics` | 2.5: причина мисса, saved/miss premium | task |
-| `ContextGuard` | 2.6: context warning и `/handoff` | task |
+| `ContextGuard` | 2.6: готово в `omp-agent-workflow` 0.1.0, 9 тестов | task |
 | `Reviewer` | ревью каждого поведенческого PR | reviewer |
 | `DocsEnglish` | 4.1: английский README | task |
 | `ReleaseCheck` | 4.2–4.3: tarball, тег, установка | task |

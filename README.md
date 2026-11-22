@@ -101,6 +101,14 @@ statusLine:
 - Статус публикуется только в TUI; в `--mode json`/`--print` вызовы UI
   безвредны и ничего не показывают.
 
+## Связанные документы
+
+- Шпаргалка по режимам, `/cache-monitor` и диагностике:
+  https://metapeka.github.io/docs-omp-debian-availability/wiki/guide.html
+- Пресеты `cache-safe`/`quality`/`throughput`, wrapper `omp-mode` и история
+  решений — репозиторий https://github.com/metapeka/docs-omp-debian-availability
+  (`presets/`, `docs/plan-cache-modes.md`).
+
 ## Лицензия
 
 MIT, см. `LICENSE`.

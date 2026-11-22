@@ -51,8 +51,8 @@
 |---|---|---|---|
 | P1 | Причина мисса: idle / model switch / rewrite | `catitw` | В warnings 0.5.0: idle/rewrite per-turn. |
 | P1 | `cache saved` и `miss premium` в `$` | `pi-cache-hit-monitor`, `omp-cache-meter` | В `/cache-monitor` 0.5.0; `≥` при неизвестных исторических ценах. |
-| P2 | TTL / expiry countdown | `omp-cache-meter`, `ubranch`, `pi-custom-footer` | Только data-gated; на `cline-pass` — скрывать. |
-| P2 | `/compact` payback | `omp-cache-meter` | После P1, когда есть цены и оценка summary. |
+| P2 | TTL / expiry countdown | `omp-cache-meter`, `ubranch`, `pi-custom-footer` | Data-gated: на `cline-pass` lifetime нет. Дизайн и чеклист для будущих провайдеров — этап 3. |
+| P2 | `/compact` payback | `omp-cache-meter` | **Не делаем**: с кэшем допущение «removed-токены платились бы каждый ход» ложно → цифра будет врать. |
 | P2 | История последних N запросов | `omp-cache-meter`, `pi-cache-hit-monitor` | Готово в 0.6.0: `/cache-monitor history`, окно 8, без панели. |
 | P2 | Powerline-интеграция | `pi-powerline-footer` | Пример/доки через `customItems`. |
 | P3 | Cold-cache budget | `pi-cache-guard` | Отдельный слой, рядом с warming. |
@@ -303,10 +303,37 @@ auto-compaction fallback 70%, `manual` выключает оба, `assisted` —
 - Native-сегмент `cache` уже существует; в текущем `statusLine` он не включён.
 
 Решение: **P2, data-gated, не показывать countdown на `cline-pass`**. Это была
-бы догадка, а не метрика. Если добавляем: lifetime из `model.promptCache` или
-`cache_control.ttl`, время последнего запроса/записи, остаток `~mm:ss`;
-данных нет — скрыть или `n/a`. Native OMP `cache`-сегмент уже показывает
-warm/cold и причину инвалидации, поэтому TTL не должен дублировать его.
+бы догадка, а не метрика. Native OMP `cache`-сегмент уже показывает warm/cold и
+причину инвалидации, поэтому TTL не должен дублировать его.
+
+### Если появится провайдер с lifetime
+
+Чеклист на будущее, чтобы фичу сделали без догадок:
+
+1. **Источник lifetime.** Только factual: `model.promptCache.ttl` из каталога
+   или `cache_control.ttl` из фактического запроса. Нет ни одного — TTL
+   скрывается, не показывается `n/a` вместо цифры.
+2. **Точка отсчёта.** Время последнего хода с `cacheWrite > 0`
+   (`message.timestamp`); на `/clear`/смене модели/компакции таймер сбрасывается
+   вместе с эпохой.
+3. **Остаток.** `remaining = lastWrite + ttl - now`; `≤ 0` → `cold`. Показывать
+   `~mm:ss` только при обоих известных значениях.
+4. **Resume.** Timestamp берётся из журнала; если запись cacheWrite не найдена
+   или TTL модели неизвестен — TTL не показывать. Остаток после рестарта не
+   выдумывать.
+5. **Тесты.** known lifetime; нет lifetime → скрыто; переход warm→cold; resume
+   без timestamp → скрыто; сброс на границе эпохи; отсутствие второго
+   статус-сегмента (native `cache` уже есть).
+6. **Критерий.** Ни одной цифры без factual lifetime и timestamp; на
+   `cline-pass` поведение не меняется (скрыто).
+
+### `/compact` payback
+
+Не делаем. Оценка «окупится за N ходов» требует допущения, что удалённые
+токены иначе оплачивались бы каждый ход. При живом кэше это неверно: после
+компакции платится только новый input, а старый префикс был бы cache-read.
+Корректная оценка возможна только вместе с TTL/вероятностью мисса, которых на
+`cline-pass` нет. Показывать такую цифру — врать.
 
 ## Этап 4. Релиз-кандидат
 

@@ -119,9 +119,10 @@ cache usage), `@caph42/pi-ccline` (делегирует в `ccline`).
   `pi-cache-guard`, native OMP `cache`-сегмент.
 - **Warming** — `ubranch` (paid idle), `omp-cache-warmer`, `pi-cache-optimizer`;
   native OMP тоже умеет.
-- **Экономика сверх saved/miss premium**: rebuild cost, `/compact` payback,
-  cold-send budget — `omp-cache-meter`, `pi-cache-guard`; `saved`/`miss premium`
-  уже сделаны в 0.5.0.
+- **Экономика сверх saved/miss premium**: rebuild cost, `/compact` payback
+  (сознательно не делаем — будет врать без TTL), cold-send budget —
+  `omp-cache-meter`, `pi-cache-guard`; `saved`/`miss premium` уже сделаны в
+  0.5.0.
 - **Панель/forensics/cross-session**: `omp-cache-meter` (last 8 + Tern),
   `supi-cache` (per-turn/cross-session), `getpipher` (ledger), optimizer
   (persisted shards). История 8 ходов уже есть в `/cache-monitor history`; нет
@@ -154,8 +155,10 @@ cache usage), `@caph42/pi-ccline` (делегирует в `ccline`).
   Идея `omp-cache-meter` с `cache_control.ttl` + `model.promptCache` применима
   только там, где провайдер/каталог реально дают tier.
 - `cache saved`/`miss premium` сделаны в 0.5.0 (цены `model.cost`, `≥` после
-  resume). `/compact` payback по-прежнему отдельный этап: нужны цены, оценка
-  summary и допущения о компакции.
+  resume). `/compact` payback **не делаем**: при живом кэше removed-токены не
+  оплачивались бы каждый ход, поэтому «окупится за N ходов» будет врать.
+  Корректная оценка возможна только с TTL/вероятностью мисса, которых на
+  `cline-pass` нет.
 - `pi-powerline-footer` умеет поднимать чужие `ctx.ui.setStatus` через
   `customItems` — потенциальная интеграция нашего статуса без нового кода.
 - `supi-cache` deprecated; не рассматривать как живой ориентир.
@@ -179,8 +182,8 @@ cache usage), `@caph42/pi-ccline` (делегирует в `ccline`).
 |---|---|---|---|---|
 | Причина мисса: idle / model switch / rewrite | `catitw` | Понятнее, почему кэш сломался; меньше ложных тревог. | Сделано в 0.5.0: `простой N мин` (эвристика 5 мин) / `перезапись префикса`; без TTL-обещания. | **Сделано** |
 | `cache saved` и `miss premium` в `$` | `pi-cache-hit-monitor`, `omp-cache-meter` | Показывает не только %, но и деньги. | Сделано в 0.5.0: `cacheRead`/`reBilled × (input − cacheRead)`, `≥` после resume. | **Сделано** |
-| TTL / expiry countdown | `omp-cache-meter`, `ubranch`, `pi-custom-footer`, `pi-cache-guard` | Видно, когда кэш остынет. | Нужен authoritative lifetime; на `cline-pass` его нет. | **P2, data-gated** |
-| `/compact` payback | `omp-cache-meter` | Показывает, окупается ли компакция на холодном кэше. | Нужны цены, оценка summary и допущения о компакции. | **P2** |
+| TTL / expiry countdown | `omp-cache-meter`, `ubranch`, `pi-custom-footer`, `pi-cache-guard` | Видно, когда кэш остынет. | На `cline-pass` lifetime нет; дизайн и чеклист для будущих провайдеров — `ROADMAP.md` этап 3. На текущем провайдере не показываем. | **P2, ждёт провайдера** |
+| `/compact` payback | `omp-cache-meter` | Показывает, окупается ли компакция на холодном кэше. | **Не делаем**: с живым кэшем допущение о повторной оплате removed-токенов ложно, цифра будет врать. | **Не делаем** |
 | История последних N запросов / панель | `omp-cache-meter`, `pi-cache-hit-monitor` | Разбор регрессий, а не только последний ход. | История 8 сделана в 0.6.0 без нового UI; панель/cross-session — отдельный слой. | **История 8 — сделано; панель — P2** |
 | Интеграция с powerline | `pi-powerline-footer` | Наш `ctx.ui.setStatus` можно поднять в чужой powerline через `customItems`. | Почти без кода; только документация/пример. | **P2** |
 | Cold-cache budget / подтверждение дорогой отправки | `pi-cache-guard` | Не даёт случайно переплатить за холодный префикс. | Нужна оценка до запроса и UI-подтверждение; рядом с warming. | **P3** |

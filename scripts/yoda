@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Yoda launcher for this repository.
+#
+# Always starts from the repository root (a worktree, if this copy lives in one)
+# and gives this project its own supervisor log, so two Yoda sessions in
+# different projects no longer truncate each other's /tmp/omp-yoda-supervisor.log.
+#
+# Usage:
+#   scripts/yoda                          # new interactive session
+#   scripts/yoda --resume=<session.jsonl> # resume
+#   npm run yoda -- --resume=<session.jsonl>
+#
+# Overrides: OMP_YODA_BIN, OMP_YODA_LOG, OMP_YODA_DIR (see omp-agent-workflow).
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+yoda="${OMP_YODA_BIN:-$HOME/projects/omp-agent-workflow/bin/omp-yoda}"
+log="${OMP_YODA_LOG:-${TMPDIR:-/tmp}/omp-yoda-$(basename "$root").log}"
+
+if [ ! -x "$yoda" ]; then
+	echo "yoda: launcher not found or not executable: $yoda" >&2
+	exit 127
+fi
+
+export OMP_YODA_LOG="$log"
+cd "$root"
+exec "$yoda" "$@"

@@ -50,6 +50,10 @@ git -C /home/db1/projects/omp-cache-monitor merge --ff-only feat/<slug>
 git -C /home/db1/projects/omp-cache-monitor push
 orca worktree rm --worktree path:/home/db1/orca/workspaces/omp-cache-monitor/<slug> \
   --delete-branch
+
+# Yoda (опционально): всегда из корня этого чекаута, свой лог supervisor'а
+npm run yoda -- --resume=<session.jsonl>
+#   лог: /tmp/omp-yoda-omp-cache-monitor.log (у worktree — своё имя)
 ```
 
 - Один агент — один worktree; не редактировать один файл параллельно.

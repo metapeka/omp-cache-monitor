@@ -132,6 +132,19 @@ worktree (даже чужого репозитория) и работа уезж
 `--branch` обязателен: дефолт Orca — `metapeka/<name>`, в публичной истории
 такой префикс ничего не значит.
 
+Yoda запускается только через проектный лаунчер — он всегда стартует из корня
+этого чекаута и пишет supervisor в отдельный лог:
+
+```bash
+npm run yoda -- --resume=<session.jsonl>
+# supervisor: /tmp/omp-yoda-omp-cache-monitor.log
+# worktree:   /tmp/omp-yoda-<slug>.log
+```
+
+Прямой `~/projects/omp-agent-workflow/bin/omp-yoda` из чужого каталога даёт
+supervisor на чужой `--dir` и общий `/tmp/omp-yoda-supervisor.log`; так не
+запускать.
+
 ## Проверка после изменений
 
 ```bash

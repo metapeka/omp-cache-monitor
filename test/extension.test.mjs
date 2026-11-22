@@ -807,3 +807,227 @@ describe("warning thresholds", () => {
 		assert.deepEqual(calls, { status: 0, notify: 1 });
 	});
 });
+
+describe("cost breakdown", () => {
+	/** Header value and the `≥` marker of a cost report. */
+	function reportTotal(text) {
+		const match = /^стоимость сессии: (≥)?\$([\d.]+)$/m.exec(text);
+		assert.ok(match, `expected a session cost header in:\n${text}`);
+		return { missing: match[1] === "≥", value: Number(match[2]) };
+	}
+
+	/** Sum of the known bucket values; `?` lines contribute nothing. */
+	function bucketTotal(text) {
+		let sum = 0;
+		for (const line of text.split("\n").slice(1)) {
+			const match = /: ≥?\$([\d.]+)$/.exec(line);
+			if (match) sum += Number(match[1]);
+		}
+		return sum;
+	}
+
+	it("breaks journal cost down by entry type and sums to the header", async () => {
+		const entries = [
+			assistantEntry(usage(0, 0, 5000, 0.5)),
+			usageEntry(usage(0, 0, 0, 0.1), "cache_warm"),
+			usageEntry(usage(0, 0, 0, 0.06), "recall"),
+			modelUsageEntry(usage(0, 0, 0, 0.02), "composer"),
+			modelUsageEntry(usage(0, 0, 0, 0.001), "title"),
+			modelUsageEntry(usage(0, 0, 0, 0.02), "compaction:auto"),
+			modelUsageEntry(usage(0, 0, 0, 0.01), "branch-summary"),
+			{ type: "compaction", usage: usage(0, 0, 0, 0.03) },
+			{ type: "branch_summary", usage: usage(0, 0, 0, 0.04) },
+		];
+		const { extension, ctx, notifications } = await started({ entries, reason: "resume" });
+
+		await command(extension, ctx, "costs");
+		const out = notifications.at(-1);
+		assert.equal(out.level, "info");
+		assert.equal(
+			out.text,
+			"стоимость сессии: $0.7810\n" +
+				"диалог: $0.5000\n" +
+				"cache_warm: $0.1000\n" +
+				"recall: $0.0600\n" +
+				"ветка: $0.0500\n" +
+				"компакция: $0.0500\n" +
+				"composer: $0.0200\n" +
+				"title: $0.0010",
+		);
+		const total = reportTotal(out.text);
+		assert.equal(total.missing, false);
+		assert.equal(bucketTotal(out.text).toFixed(4), total.value.toFixed(4));
+		// Journal keys are labels, not internal prefixes.
+		assert.doesNotMatch(out.text, /usage:/);
+	});
+
+	it("reports a live turn without a journal and accepts the cost alias", async () => {
+		const { extension, ctx, notifications } = await started();
+		await turn(extension, ctx, usage(1000, 3000, 0, 0.0123));
+
+		await command(extension, ctx, " costs ");
+		assert.equal(
+			notifications.at(-1).text,
+			"стоимость сессии: $0.0123\nдиалог: $0.0123",
+		);
+
+		// Alias, case and whitespace are normalized.
+		await command(extension, ctx, "COST");
+		assert.equal(
+			notifications.at(-1).text,
+			"стоимость сессии: $0.0123\nдиалог: $0.0123",
+		);
+	});
+
+	it("keeps costs across /clear and tree navigation", async () => {
+		const { extension, ctx, notifications } = await started();
+		await turn(extension, ctx, usage(1000, 3000, 0, 0.02));
+		await command(extension, ctx, "costs");
+		const before = notifications.at(-1).text;
+
+		await fire(extension, "session_clear", ctx);
+		await command(extension, ctx, "costs");
+		assert.equal(notifications.at(-1).text, before);
+
+		await fire(extension, "session_tree", ctx);
+		await command(extension, ctx, "costs");
+		assert.equal(notifications.at(-1).text, before);
+	});
+
+	it("shows an empty kind or purpose as прочее", async () => {
+		const entries = [usageEntry(usage(0, 0, 0, 0.05), "")];
+		const { extension, ctx, notifications } = await started({ entries, reason: "resume" });
+
+		await command(extension, ctx, "costs");
+		assert.equal(notifications.at(-1).text, "стоимость сессии: $0.0500\nпрочее: $0.0500");
+	});
+
+	it("is idempotent and clears on /new, even after a non-empty journal", async () => {
+		const entries = [
+			assistantEntry(usage(0, 0, 5000, 0.02)),
+			usageEntry(usage(0, 0, 0, 0.001)),
+		];
+		const { extension, ctx, notifications } = await started({ entries, reason: "resume" });
+
+		await command(extension, ctx, "costs");
+		const first = notifications.at(-1).text;
+		assert.equal(first, "стоимость сессии: $0.0210\nдиалог: $0.0200\ncache_warm: $0.0010");
+
+		// A second call replaces the journal snapshot instead of adding to it.
+		await command(extension, ctx, "costs");
+		assert.equal(notifications.at(-1).text, first);
+
+		// OMP starts the new session with a fresh journal.
+		entries.length = 0;
+		await fire(extension, "session_switch", ctx, { reason: "new" });
+		await command(extension, ctx, "costs");
+		assert.equal(notifications.at(-1).text, "стоимость: нет данных");
+
+		// The fresh transcript starts from a live dialog bucket only.
+		await turn(extension, ctx, usage(1000, 3000, 0, 0.03));
+		await command(extension, ctx, "costs");
+		assert.equal(
+			notifications.at(-1).text,
+			"стоимость сессии: $0.0300\nдиалог: $0.0300",
+		);
+	});
+
+	it("restores the map on resume and matches the default session total", async () => {
+		const entries = [
+			assistantEntry(usage(0, 0, 5000, 0.05)),
+			usageEntry(usage(0, 0, 0, 0.02), "cache_warm"),
+			modelUsageEntry(usage(0, 0, 0, 0.01), "title"),
+			{ type: "compaction", usage: usage(0, 0, 0, 0.03) },
+		];
+		const { extension, ctx, notifications } = await started({ entries, reason: "resume" });
+
+		await command(extension, ctx, "costs");
+		const breakdown = notifications.at(-1).text;
+		assert.equal(
+			breakdown,
+			"стоимость сессии: $0.1100\n" +
+				"диалог: $0.0500\n" +
+				"компакция: $0.0300\n" +
+				"cache_warm: $0.0200\n" +
+				"title: $0.0100",
+		);
+
+		await command(extension, ctx);
+		const report = notifications.at(-1).text;
+		const session = /\$([\d.]+), ходов/.exec(report);
+		assert.ok(session, `expected session totals in:\n${report}`);
+		assert.equal(reportTotal(breakdown).value.toFixed(4), Number(session[1]).toFixed(4));
+	});
+
+	it("marks a missing price with ? and a partial sum with ≥", async () => {
+		const unknown = await started({
+			entries: [
+				assistantEntry(usage(0, 0, 1000, 0.02)),
+				usageEntry({ input: 5 }, "warm"),
+			],
+			reason: "resume",
+		});
+		await command(unknown.extension, unknown.ctx, "costs");
+		assert.equal(
+			unknown.notifications.at(-1).text,
+			"стоимость сессии: ≥$0.0200\nдиалог: $0.0200\nwarm: ?",
+		);
+
+		const partial = await started({
+			entries: [
+				assistantEntry(usage(0, 0, 1000, 0.02)),
+				usageEntry(usage(0, 0, 0, 0.005), "warm"),
+				usageEntry({ input: 5 }, "warm"),
+			],
+			reason: "resume",
+		});
+		await command(partial.extension, partial.ctx, "costs");
+		assert.equal(
+			partial.notifications.at(-1).text,
+			"стоимость сессии: ≥$0.0250\nдиалог: $0.0200\nwarm: ≥$0.0050",
+		);
+		assert.equal(reportTotal(partial.notifications.at(-1).text).missing, true);
+
+		// An assistant message without cost.total makes the dialog bucket unknown.
+		const dialog = await started({
+			entries: [assistantEntry({ input: 100, cacheRead: 0, cacheWrite: 0, cost: {} })],
+			reason: "resume",
+		});
+		await command(dialog.extension, dialog.ctx, "costs");
+		assert.equal(
+			dialog.notifications.at(-1).text,
+			"стоимость сессии: ≥$0.0000\nдиалог: ?",
+		);
+	});
+
+	it("falls back to прочее and breaks cost ties by label", async () => {
+		const entries = [
+			usageEntry(usage(0, 0, 0, 0.001), "beta"),
+			modelUsageEntry(usage(0, 0, 0, 0.001), "alpha"),
+			{ type: "usage", usage: usage(0, 0, 0, 0.001) },
+		];
+		const { extension, ctx, notifications } = await started({ entries, reason: "resume" });
+
+		await command(extension, ctx, "costs");
+		assert.equal(
+			notifications.at(-1).text,
+			"стоимость сессии: $0.0030\n" +
+				"alpha: $0.0010\n" +
+				"beta: $0.0010\n" +
+				"прочее: $0.0010",
+		);
+	});
+
+	it("keeps the default report and history free of the breakdown", async () => {
+		const { extension, ctx, notifications } = await started();
+		await turn(extension, ctx, usage(1000, 3000, 0, 0.01));
+
+		await command(extension, ctx);
+		assert.match(notifications.at(-1).text, /^режим: /);
+		assert.doesNotMatch(notifications.at(-1).text, /стоимость сессии:/);
+
+		await command(extension, ctx, "history");
+		assert.match(notifications.at(-1).text, /^история \(1\/8\):/);
+		assert.doesNotMatch(notifications.at(-1).text, /стоимость сессии:/);
+	});
+});

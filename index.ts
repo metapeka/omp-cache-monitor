@@ -24,7 +24,9 @@
  * `/cache-monitor history` (алиас `hist`) печатает последние 8 завершённых
  * ходов с той же причиной, `saved` и `miss premium`; при resume история
  * восстанавливается из журнала, а неизвестные цены показываются как `?`.
- * Отчёт без аргумента не меняется.
+ * `/cache-monitor costs` (алиас `cost`) печатает фактическую разбивку стоимости
+ * сессии по типам записей журнала: только `cost.total` из журнала, без оценок;
+ * неизвестная цена даёт `?` или `≥`. Отчёт без аргумента не меняется.
  *
  * Установка: `omp plugin link <каталог>` либо копия в `~/.omp/agent/extensions/`
  * (одно из двух). Сегмент `status` ставит статус в общий ряд; без него при
@@ -64,6 +66,9 @@ type TurnRecord = {
 	cause: string | null;
 };
 
+/** Стоимость одного типа записи; `missing` — часть цены неизвестна. */
+type CostBucket = { cost: number; missing: boolean };
+
 /** Итог по журналу сессии: то, что можно восстановить после resume/reload. */
 type SessionAggregate = {
 	last: LastTurn | null;
@@ -72,6 +77,8 @@ type SessionAggregate = {
 	cached: number;
 	write: number;
 	cost: number;
+	/** Фактическая стоимость по типам записей журнала. */
+	costs: Map<string, CostBucket>;
 	reBilled: number;
 	/** Хотя бы у одной восстановленной пере-оплаты нет цены модели. */
 	reBillCostMissing: boolean;
@@ -183,6 +190,106 @@ function addUsageTotals(target: SessionAggregate, usage: TurnUsage): void {
 	target.cost += usage.cost;
 }
 
+/**
+ * Стоимость usage-объекта по фактическому `cost.total`. `null` — usage нет
+ * вовсе; нечисловой total даёт `missing`, а деньги не выдумываются.
+ */
+function costBucket(source: unknown): CostBucket | null {
+	if (source === null || typeof source !== "object") return null;
+	const total = field(field(source, "cost"), "total");
+	if (typeof total === "number" && Number.isFinite(total)) {
+		return { cost: total, missing: false };
+	}
+	return { cost: 0, missing: true };
+}
+
+/** Прибавить стоимость к бакету типа записи; флаг `missing` накопительный. */
+function addCost(
+	target: Map<string, CostBucket>,
+	key: string,
+	bucket: CostBucket,
+): void {
+	const existing = target.get(key);
+	if (existing) {
+		existing.cost += bucket.cost;
+		existing.missing = existing.missing || bucket.missing;
+		return;
+	}
+	target.set(key, { ...bucket });
+}
+
+/** Ключ бакета фоновой записи: `usage:<kind>` / `model_usage:<purpose>`. */
+function prefixedKey(prefix: string, value: unknown): string {
+	return `${prefix}${typeof value === "string" ? value : "?"}`;
+}
+
+/**
+ * Ключ `model_usage`. В OMP 19.1 компакция и branch-summary пишутся не
+ * отдельными записями с usage, а `model_usage` с purpose `compaction:<method>`
+ * или `branch-summary`; сводим их к тем же бакетам, что и журнальные типы.
+ */
+function modelUsageCostKey(purpose: unknown): string {
+	if (typeof purpose === "string") {
+		if (purpose === "branch-summary" || purpose.startsWith("branch-summary:")) {
+			return "branch_summary";
+		}
+		if (purpose === "compaction" || purpose.startsWith("compaction:")) {
+			return "compaction";
+		}
+	}
+	return prefixedKey("model_usage:", purpose);
+}
+
+/** Подпись бакета для отчёта: русские имена и срезанные префиксы. */
+function costLabel(key: string): string {
+	if (key === "dialog") return "диалог";
+	if (key === "compaction") return "компакция";
+	if (key === "branch_summary") return "ветка";
+	const trimmed = key.startsWith("usage:")
+		? key.slice("usage:".length)
+		: key.startsWith("model_usage:")
+			? key.slice("model_usage:".length)
+			: key;
+	return trimmed === "?" || trimmed === "" ? "прочее" : trimmed;
+}
+
+/** `диалог` всегда первым; дальше по убыванию известной стоимости и подписи. */
+function compareCostBuckets(a: [string, CostBucket], b: [string, CostBucket]): number {
+	if (a[0] === "dialog") return -1;
+	if (b[0] === "dialog") return 1;
+	if (b[1].cost !== a[1].cost) return b[1].cost - a[1].cost;
+	const left = costLabel(a[0]);
+	const right = costLabel(b[0]);
+	if (left !== right) return left < right ? -1 : 1;
+	return a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0;
+}
+
+/** Одна строка бакета: известная цена `$X`, иначе `?` или нижняя граница `≥$X`. */
+function costLine(key: string, bucket: CostBucket): string {
+	const label = costLabel(key);
+	if (!bucket.missing) return `${label}: $${bucket.cost.toFixed(4)}`;
+	if (bucket.cost > 0) return `${label}: ≥$${bucket.cost.toFixed(4)}`;
+	return `${label}: ?`;
+}
+
+/**
+ * Отчёт `/cache-monitor costs`: заголовок и строки бакетов. Сумма — только
+ * известные `cost.total`; если хоть один бакет неполон, заголовок `≥$X`.
+ */
+function costReport(costs: Map<string, CostBucket>): string {
+	if (costs.size === 0) return "стоимость: нет данных";
+	let total = 0;
+	let missing = false;
+	for (const bucket of costs.values()) {
+		total += bucket.cost;
+		if (bucket.missing) missing = true;
+	}
+	const lines = [`стоимость сессии: ${missing ? "≥" : ""}$${total.toFixed(4)}`];
+	const sorted = [...costs].sort(compareCostBuckets);
+	for (const [key, bucket] of sorted) lines.push(costLine(key, bucket));
+	return lines.join("\n");
+}
+
 /** Канонический промах: префикс переписан целиком, кэш не прочитан. */
 function isCanonicalMiss(
 	prevPrompt: number | null,
@@ -253,6 +360,7 @@ function aggregateEntries(entries: readonly unknown[]): SessionAggregate {
 		cached: 0,
 		write: 0,
 		cost: 0,
+		costs: new Map(),
 		reBilled: 0,
 		reBillCostMissing: false,
 		trend: [],
@@ -286,7 +394,10 @@ function aggregateEntries(entries: readonly unknown[]): SessionAggregate {
 		if (type === "message") {
 			const message = field(entry, "message");
 			if (field(message, "role") !== "assistant") continue;
-			const usage = entryUsage(field(message, "usage"));
+			const usageSource = field(message, "usage");
+			const bucket = costBucket(usageSource);
+			if (bucket) addCost(result.costs, "dialog", bucket);
+			const usage = entryUsage(usageSource);
 			if (!usage) continue;
 
 			const hit = hitPercent(usage.input, usage.cacheRead, usage.cacheWrite);
@@ -341,7 +452,10 @@ function aggregateEntries(entries: readonly unknown[]): SessionAggregate {
 
 		if (type === "usage") {
 			// `kind` произвольный: в стоимость входят все виды, но не в hit/ходы.
-			const usage = entryUsage(field(entry, "usage"));
+			const source = field(entry, "usage");
+			const bucket = costBucket(source);
+			if (bucket) addCost(result.costs, prefixedKey("usage:", field(entry, "kind")), bucket);
+			const usage = entryUsage(source);
 			if (usage) result.cost += usage.cost;
 			continue;
 		}
@@ -349,13 +463,21 @@ function aggregateEntries(entries: readonly unknown[]): SessionAggregate {
 		// В OMP 19.1 cache warming, title/composer и другие off-transcript
 		// вызовы пишутся как `model_usage`: стоимость входит, токены — нет.
 		if (type === "model_usage") {
-			const usage = entryUsage(field(entry, "usage"));
+			const source = field(entry, "usage");
+			const bucket = costBucket(source);
+			if (bucket) {
+				addCost(result.costs, modelUsageCostKey(field(entry, "purpose")), bucket);
+			}
+			const usage = entryUsage(source);
 			if (usage) result.cost += usage.cost;
 			continue;
 		}
 
 		if (type === "compaction" || type === "branch_summary") {
-			const usage = entryUsage(field(entry, "usage"));
+			const source = field(entry, "usage");
+			const bucket = costBucket(source);
+			if (bucket) addCost(result.costs, type, bucket);
+			const usage = entryUsage(source);
 			if (usage) result.cost += usage.cost;
 			flushPending();
 			prevPrompt = null;
@@ -448,6 +570,8 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 	const trendHits: (number | null)[] = [];
 	/** Последние завершённые ходы для `history`; окно — `HISTORY_POINTS`. */
 	const history: TurnRecord[] = [];
+	/** Live-разбивка стоимости: диалог из `turn_end`, фон — только из журнала. */
+	let costs = new Map<string, CostBucket>();
 
 	// Состояние «эпохи» префикса: сравнение с prev действительно только внутри неё.
 	let epochReady = false;
@@ -524,6 +648,7 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 		sessionSavedMissing = false;
 		trendHits.length = 0;
 		history.length = 0;
+		costs = new Map();
 	};
 
 	/** Заменить всё восстановленное состояние снимком журнала. */
@@ -547,22 +672,25 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 		trendHits.push(...aggregate.trend);
 		history.length = 0;
 		history.push(...aggregate.history);
+		costs = new Map(aggregate.costs);
 	};
 
 	/**
 	 * Пересчитать только суммы по журналу: cache warming и компакция не
 	 * приходят событиями хода. Ходы, тренд и live-учёт пере-оплаты уже полны,
 	 * поэтому их не трогаем — иначе повторный вызов команды потерял бы
-	 * известные цены ходов и не добавил бы ничего нового.
+	 * известные цены ходов и не добавил бы ничего нового. Возвращает снимок
+	 * журнала (`null` — журнал пуст), чтобы `costs` не агрегировал дважды.
 	 */
-	const recomputeTotals = (ctx: ExtensionContext): void => {
+	const recomputeTotals = (ctx: ExtensionContext): SessionAggregate | null => {
 		const entries = sessionEntries(ctx);
-		if (entries.length === 0) return;
+		if (entries.length === 0) return null;
 		const aggregate = aggregateEntries(entries);
 		sessionInput = aggregate.input;
 		sessionCached = aggregate.cached;
 		sessionWrite = aggregate.write;
 		sessionCost = aggregate.cost;
+		return aggregate;
 	};
 
 	/** Восстановить суммы/тренд/последний ход из непустого журнала. */
@@ -666,6 +794,9 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 		sessionCached += usage.cacheRead;
 		sessionWrite += usage.cacheWrite;
 		sessionCost += usage.cost;
+		// Live-разбивка знает только диалог: фон приходит из журнала.
+		const dialogCost = costBucket(raw);
+		if (dialogCost) addCost(costs, "dialog", dialogCost);
 
 		const mainTui = ctx.mode === "tui" && ctx.agent.kind === "main";
 		if (mainTui) {
@@ -756,11 +887,21 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 	});
 
 	pi.registerCommand("cache-monitor", {
-		description: "Показать режим, модель, hit rate и тренд кэша; history — последние 8 ходов",
+		description:
+			"Показать режим, модель, hit rate и тренд кэша; history — последние 8 ходов, costs — разбивка стоимости",
 		handler: async (args, ctx) => {
+			const subcommand = args.trim().toLowerCase();
+			if (subcommand === "costs" || subcommand === "cost") {
+				// Cache warming и компакция могли не прийти событиями хода.
+				const aggregate = recomputeTotals(ctx);
+				// Журнал пуст (тесты/первый ход) — остаётся live-карта; иначе
+				// карта заменяется снимком журнала, так что повтор идемпотентен.
+				if (aggregate) costs = new Map(aggregate.costs);
+				notify(ctx, costReport(costs), "info");
+				return;
+			}
 			// Cache warming и компакция могли не прийти событиями хода.
 			recomputeTotals(ctx);
-			const subcommand = args.trim().toLowerCase();
 			if (subcommand === "history" || subcommand === "hist") {
 				const text =
 					history.length === 0

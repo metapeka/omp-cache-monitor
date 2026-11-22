@@ -16,10 +16,11 @@ read-only: не греет кэш, не меняет промпты, не тра
 
 ## Текущее состояние
 
-- Версия `0.6.0`, private GitHub `metapeka/omp-cache-monitor`, `main`.
+- Версия `0.7.0`, private GitHub `metapeka/omp-cache-monitor`, `main`.
 - `omp plugin link` → боевой чекаут; `omp plugin list` — `omp-cache-monitor@0.6.0`
-  и `omp-agent-workflow@0.5.0` (context guard, handoff, supervisor, modes).
-- `npm test` — 37 тестов; `npm run typecheck`; CI зелёный.
+  (0.7.0 после merge `feat/costs`) и `omp-agent-workflow@0.5.0` (context guard,
+  handoff, supervisor, modes).
+- `npm test` — 46 тестов; `npm run typecheck`; CI зелёный.
 - Установка одна: `omp plugin link` **или** копия файла, не оба.
 
 ## Нельзя
@@ -120,7 +121,8 @@ npm run yoda -- --resume=<session.jsonl>
 ## Ссылки
 
 - `ROADMAP.md` — этапы 2.5 (cache economics), 2.6 (context guard/handoff),
-  2.8 (история 8 ходов), 3 (TTL data-gated), 4 (release), 5 (publication).
+  2.8 (история 8 ходов), 2.11 (разбивка стоимости), 3 (TTL data-gated),
+  4 (release), 5 (publication).
 - `docs/research/cache-extensions.md` — рынок и что заимствуем.
 - `HANDOFF.md` — точка продолжения.
 - `~/projects/omp-agent-workflow/docs/yoda-workflow.md` — режимы

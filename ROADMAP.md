@@ -1,6 +1,6 @@
 # Roadmap: omp-cache-monitor
 
-Дата: 2026-11-22. Версия: 0.6.0. GitHub: private.
+Дата: 2026-11-23. Версия: 0.7.0. GitHub: private.
 Цель: довести расширение до релиза, которому можно доверять по цифрам,
 установке и поведению на всех переходах сессии.
 
@@ -18,11 +18,11 @@
 
 | Что | Состояние |
 |---|---|
-| Версия | 0.6.0: история последних 8 ходов в `/cache-monitor history` |
+| Версия | 0.7.0: разбивка стоимости сессии в `/cache-monitor costs` |
 | GitHub | `metapeka/omp-cache-monitor`, private, `main` |
 | Установка | `omp plugin link` на боевой чекаут; `omp plugin list` — `omp-cache-monitor@0.6.0` |
-| Проверки | `npm test` 37/37, typecheck, загрузка OMP, TUI (`/cache-monitor history`), `/new` и resume |
-| Постоянные тесты | `test/extension.test.mjs`, 37 тестов, `npm test` |
+| Проверки | `npm test` 46/46, typecheck, загрузка OMP, TUI (`/cache-monitor history`), `/new` и resume |
+| Постоянные тесты | `test/extension.test.mjs`, 46 тестов, `npm test` |
 | CI | GitHub Actions, зелёный (`npm ci`, `npm test`, `typecheck`) |
 | Рынок/конкуренты | `docs/research/cache-extensions.md` (2026-11-22) |
 | Инструкции агенту | `AGENTS.md` + глобальный `~/.omp/agent/AGENTS.md` |
@@ -54,6 +54,7 @@
 | P2 | TTL / expiry countdown | `omp-cache-meter`, `ubranch`, `pi-custom-footer` | Data-gated: на `cline-pass` lifetime нет. Дизайн и чеклист для будущих провайдеров — этап 3. |
 | P2 | `/compact` payback | `omp-cache-meter` | **Не делаем**: с кэшем допущение «removed-токены платились бы каждый ход» ложно → цифра будет врать. |
 | P2 | История последних N запросов | `omp-cache-meter`, `pi-cache-hit-monitor` | Готово в 0.6.0: `/cache-monitor history`, окно 8, без панели. |
+| P2 | Разбивка стоимости по типам записей | `omp-cache-meter` | Готово в 0.7.0: `/cache-monitor costs`, только `cost.total`, `?`/`≥` без оценок. |
 | P2 | Powerline-интеграция | `pi-powerline-footer` | Пример/доки через `customItems`. |
 | P3 | Cold-cache budget | `pi-cache-guard` | Отдельный слой, рядом с warming. |
 | P3 | Warming/optimizer/multi-session | `ubranch`, optimizers, Tern | Не наша read-only ниша сейчас. |
@@ -292,6 +293,25 @@ stale-marker guard (`sessionFile`) не дают уйти в цикл повто
 auto-compaction fallback 70%, `manual` выключает оба, `assisted` — прежнее
 поведение (auto 60, без handoff). Оркестратор/subagent-петля ещё дизайн.
 
+## Этап 2.11. Разбивка стоимости — готово (P2)
+
+- `/cache-monitor costs` (алиас `cost`): фактическая разбивка стоимости
+  сессии по типам записей журнала — `диалог`, `компакция`, `ветка`,
+  `usage:<kind>`, `model_usage:<purpose>` (префиксы срезаны).
+- Источник — только `usage.cost.total`; неизвестная цена даёт `?` (цена 0)
+  или `≥$X` (часть известна), заголовок получает `≥`. Оценок нет.
+- Read-only, zero-deps, одна notification; дефолтный отчёт и `history` не
+  меняются, статус-строка не задета.
+- Повторный вызов идемпотентен (карта заменяется снимком журнала), `/new`
+  очищает, resume восстанавливает из журнала.
+- Тесты: журнальные бакеты и сортировка, live без журнала, идемпотентность и
+  `/new`, resume против `сессия: $…`, `?`/`≥`, неизменные дефолт и история.
+- Критерий: разбивка читается одной командой, не меняет прежний вывод и не
+  выдумывает деньги.
+
+Реализовано в 0.7.0: `CostBucket`/`SessionAggregate.costs`, live-бакет
+`диалог` в `turn_end`, `costBucket`/`addCost`/`costReport`. Тестов 46.
+
 ## Этап 3. TTL: data-gated (P2)
 
 Проверено:
@@ -388,9 +408,10 @@ auto-compaction fallback 70%, `manual` выключает оба, `assisted` —
 6. Этап 2.8 — готово: история последних 8 ходов в `/cache-monitor history`.
 7. Этап 2.9 — готово (e2e в Orca): supervisor.
 8. Этап 2.10 — режимы готовы; оркестратор — дизайн в `omp-agent-workflow`.
-9. Этап 3 — TTL, только data-gated, без реализации на догадках.
-10. Этап 4 — английский README, пакет, установка, тег.
-11. Этап 5 — публикация, только после явного разрешения.
+9. Этап 2.11 — готово: разбивка стоимости в `/cache-monitor costs`.
+10. Этап 3 — TTL, только data-gated, без реализации на догадках.
+11. Этап 4 — английский README, пакет, установка, тег.
+12. Этап 5 — публикация, только после явного разрешения.
 
 ## Агенты
 

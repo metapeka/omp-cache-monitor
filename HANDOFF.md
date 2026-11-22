@@ -1,6 +1,6 @@
 # Передача: cache-monitor
 
-Дата: 2026-11-22. Репозиторий: `omp-cache-monitor`, ветка `main`; состояние —
+Дата: 2026-11-23. Репозиторий: `omp-cache-monitor`, ветка `main`; состояние —
 последний коммит, где менялся этот файл (`git log -1 -- HANDOFF.md`).
 Это продолжение работы, начатой в docs-репозитории
 `docs-omp-debian-availability` (там же пресеты, `omp-mode` и публичная вики).
@@ -9,23 +9,36 @@
 
 | Что | Состояние |
 |---|---|
-| Расширение `index.ts` | v0.6.0, 824 строки, контракт ниже |
-| Пакет | `package.json` (`omp.extensions` + `pi.extensions`, repository/homepage/bugs/engines), MIT, README (EN) + `docs/README.ru.md`, CHANGELOG |
-| Установка на машине | `omp plugin list` — `omp-cache-monitor@0.6.0` и `omp-agent-workflow@0.5.0` |
-| Проверки | `npm test` 37/37 (включая историю 8 ходов), typecheck; `npm pack` — 4 файла; чистый `HOME`: tarball через `npm install --prefix` → `/cache-monitor` и `history` работают; `git+ssh`-установка из GitHub в чистом `HOME` → 0.6.0 и TUI-команда; загрузка OMP, TUI: `/cache-monitor history` напечатал `история (1/8): 1. ↺ 12.2% · prompt 5267 · saved $0.0002`, дефолтный отчёт совпал по hit/saved; ранее (0.5.0) — `saved $0.0008`, статус hit 56.5% совпал с командой, TUI hit совпал с JSONL, фоновые вызовы добавляют только стоимость, non-TUI чистый |
-| Ревью | v0.4/v0.5 — merge |
+| Расширение `index.ts` | v0.7.0, 965 строк, контракт ниже |
+| Пакет | `package.json` (`omp.extensions` + `pi.extensions`, repository/homepage/bugs/engines), MIT, README (EN) + `docs/README.ru.md`, CHANGELOG 0.7.0 |
+| Установка на машине | `omp plugin list` — `omp-cache-monitor@0.6.0` (после merge 0.7.0) и `omp-agent-workflow@0.5.0` |
+| Проверки | `npm test` 46/46 (включая разбивку стоимости), typecheck; предыдущие проверки 0.6.0 остаются в силе: `npm pack` — 4 файла, чистый `HOME` (tarball и `git+ssh`), загрузка OMP, TUI `/cache-monitor history`, дефолтный отчёт, hit/saved совпадают с JSONL, non-TUI чист |
+| Ревью | v0.4/v0.5/v0.6/v0.7 — merge |
 | Ревью v0.4 | фоновый usage отделён от hit/ходов; граница resume не даёт ложной пере-оплаты |
 | Ревью v0.5 | reviewer: merge; исправлены пробелы покрытия — граница 5 мин, `/clear`/tree, ход без timestamp разрывает цепочку простоя |
 | Ревью v0.6 | reviewer: merge; nits исправлены — убрано мёртвое поле, покрыты live-epoch gate и регистр/пробелы алиаса |
+| Ревью v0.7 | reviewer: merge; nits закрыты — `/clear` retention, пустой label, compaction/branch-summary из `model_usage` сведены в общие бакеты |
 | Публикация | GitHub: `metapeka/omp-cache-monitor` (private, `main`); npm, marketplace — нет |
 
-## Контракт v0.6 (v0.5 + история 8 ходов; не менять без решения владельца)
+## Контракт v0.7 (v0.6 + разбивка стоимости; не менять без решения владельца)
 
 - `hit = cacheRead / (input + cacheRead + cacheWrite)`; знаменатель 0 → `n/a`.
 - Статус-ключ `cache-monitor`, текст `<OMP_MODE> ↺ N%` (без режима — `↺ N%`).
 - Команда `/cache-monitor` (не `/cache`: имя занято `ubranch/omp-cache-control`).
-  Аргумент `history`/`hist` печатает историю; любой другой (в т.ч. пустой) —
-  прежний отчёт без изменений. `recomputeTotals` вызывается в обеих ветках.
+  Аргумент `history`/`hist` печатает историю, `costs`/`cost` — разбивку
+  стоимости; любой другой (в т.ч. пустой) — прежний отчёт без изменений.
+  `recomputeTotals` вызывается в ветке costs и в остальных ветках.
+- `/cache-monitor costs` — фактическая разбивка стоимости сессии, одна
+  notification: заголовок `стоимость сессии: $X` (`≥$X`, если хоть один бакет
+  неполон) и строки `label: $X` / `label: ≥$X` / `label: ?`. Ключи: `dialog` →
+  `диалог`, `compaction` → `компакция`, `branch_summary` → `ветка`,
+  `usage:<kind>` и `model_usage:<purpose>` с префиксами срезанными (`?` →
+  `прочее`). `диалог` всегда первым, остальные — по убыванию известной
+  стоимости, затем по подписи. Стоимость — только `usage.cost.total`;
+  нечисловой total даёт `missing`, деньги не оцениваются. Карта пересобирается
+  из журнала (идемпотентно); пустой журнал оставляет live-карту, `/new`
+  очищает. Пустая карта — `стоимость: нет данных`. Дефолтный отчёт и
+  `history` этих строк не содержат.
 - `/cache-monitor history` — последние 8 завершённых ходов, одна notification:
   `история (N/8):` и строки `N. ↺ hit · prompt P [· saved …] [· miss premium …]
   [· причина]`, от старого к новому. `saved` — только при `cacheRead > 0`
@@ -94,7 +107,7 @@
 |---|---|
 | Продукт (код, пакет) | этот репозиторий; GitHub — https://github.com/metapeka/omp-cache-monitor |
 | Документация | `README.md` (EN), `docs/README.ru.md` (RU), `CHANGELOG.md`; в tarball входит только `README.md` |
-| Релиз | https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.6.0 (private, tarball-ассет) |
+| Релиз | https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.6.0 (private, tarball-ассет); тег 0.7.0 — после merge |
 | План развития | `ROADMAP.md` |
 | Исследование конкурентов | `docs/research/cache-extensions.md` |
 | Инструкции агенту | `AGENTS.md`; глобальные — `~/.omp/agent/AGENTS.md` |
@@ -162,7 +175,9 @@ omp --no-session --no-tools -p 'Reply with exactly: OK' --mode json   # exit 0, 
 omp --no-tools --session-dir /tmp/cm-check
 #   ↺ … на старте, затем ↺ N%; /cache-monitor печатает строку
 #   /cache-monitor history → «история (N/8):» и строки ходов
-#   /new → статус ↺ …, команда: ходов 0, ↺ n/a; history: «история: нет данных»
+#   /cache-monitor costs → «стоимость сессии: $…» и строки бакетов
+#   /new → статус ↺ …, команда: ходов 0, ↺ n/a; history: «история: нет данных»,
+#          costs: «стоимость: нет данных»
 
 # сверка с журналом сессии
 # assistant usage: input/cacheRead/cacheWrite/cost → hit = cacheRead/(сумма)
@@ -171,10 +186,11 @@ omp --no-tools --session-dir /tmp/cm-check
 ## Возможные следующие шаги (по решению владельца)
 
 Полный план с этапами, критериями и назначением агентов — `ROADMAP.md`.
-Кратко: этапы 1–2, 2.5, 2.8 и 4 (README, пакет, tarball, тег/release)
-готовы. Следующее — только по решению владельца: этап 5 (npm/marketplace)
-или P2-бэклог (powerline, `/compact` payback, панель). TTL на `cline-pass` не
-делаем: провайдер не декларирует lifetime; TTL — data-gated P2.
+Кратко: этапы 1–2, 2.5, 2.8, 2.11 и 4 (README, пакет, tarball, тег/release)
+готовы; ветка `feat/costs` (0.7.0) ждёт ревью и ff-merge, после которого —
+TUI-проверка `/cache-monitor costs`. Следующее — только по решению владельца:
+этап 5 (npm/marketplace) или P2-бэклог (powerline, панель). TTL на `cline-pass`
+не делаем: провайдер не декларирует lifetime; TTL — data-gated P2.
 
 ## Ограничения
 
@@ -204,3 +220,8 @@ omp --no-tools --session-dir /tmp/cm-check
   она не переносится и в панель/JSON не выводится. После resume деньги
   восстановленных ходов неизвестны (`saved ?`, `miss premium ? (N tok)`), а
   `reBilled` последней записи окна не восстанавливается.
+- Разбивка стоимости — только по журналу: live-событие `turn_end` даёт лишь
+  `диалог`, фоновые `usage`/`model_usage`/`compaction`/`branch_summary` без
+  записи в журнал не видны. Если у записи нет числового `cost.total`, её
+  стоимость неизвестна (`?`/`≥`), а не оценена; нестроковый `kind`/`purpose`
+  попадает в `прочее`.

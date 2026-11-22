@@ -3,7 +3,8 @@
 English | [Русский](docs/README.ru.md)
 
 OMP extension: prefix-cache hit rate in the status line, miss warnings, and the
-`/cache-monitor` command (`history` shows the last 8 turns).
+`/cache-monitor` command (`history` shows the last 8 turns, `costs` breaks the
+session cost down by journal entry type).
 
 It changes nothing in settings or requests: it reads the completed turn usage
 (`turn_end.message.usage`) and the session journal
@@ -73,6 +74,42 @@ comparison with the previous prefix is not proven.
 
 `/cache-monitor` without an argument prints the previous report; history is not
 added to it.
+
+## Cost breakdown
+
+`/cache-monitor costs` (alias `/cache-monitor cost`) prints where the session
+money actually went, as one notification:
+
+```
+стоимость сессии: $0.6369
+диалог: $0.5425
+recap: $0.0656
+composer-prediction: $0.0191
+job-widget: $0.0084
+title: $0.0012
+```
+
+- Sources are only the journal's `usage.cost.total` values: assistant messages
+  (`диалог`), `compaction` (`компакция`), `branch_summary` (`ветка`), and
+  `usage`/`model_usage` entries by `kind`/`purpose` (the `usage:` and
+  `model_usage:` prefixes are stripped). Background calls never appear from
+  live events, only from the journal.
+- OMP 19.1 journals compaction and branch-summary spend as `model_usage` with
+  purposes `compaction:<method>` / `branch-summary`; they fold into the
+  `компакция` / `ветка` buckets, the same as journaled `compaction` /
+  `branch_summary` entries.
+- `диалог` is always first; the other buckets sort by descending known cost,
+  then by label. A `kind`/`purpose` that is not a string is shown as `прочее`.
+- The header is `стоимость сессии: $X`, where `X` is the sum of the known
+  bucket costs. If any bucket has an unknown price, the header is `≥$X`; a
+  bucket with a wholly unknown price prints `label: ?`, and a bucket that is
+  only partly known prints `label: ≥$X`. No prices are estimated.
+- The command recomputes from the journal, so it is idempotent: a repeated call
+  replaces the map instead of adding to it. With an empty journal (fresh
+  session, no entries) it reports the live dialog map; `/new` clears it and an
+  empty map prints `стоимость: нет данных`.
+- The default `/cache-monitor` and `/cache-monitor history` output does not
+  change and never contains these lines.
 
 ## Resume, compaction, and cache warming
 

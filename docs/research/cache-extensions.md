@@ -80,7 +80,7 @@ cache usage), `@caph42/pi-ccline` (делегирует в `ccline`).
 | Model / thinking / mode | все три | нет | model/tier, без mode | model косвенно | model/provider | model/thinking |
 | Runtime deps | 0 | 0 | 0 | 1 | 1 | 0 |
 | Установка | npm/git | ручное копирование | npm/git | github | npm | npm |
-| Тесты / CI | 36 + CI | нет | нет данных | regression suite | нет данных | тесты в README |
+| Тесты / CI | 37 + CI | нет | нет данных | regression suite | нет данных | тесты в README |
 
 ## 5. Что совпадает, чем мы лучше, чем хуже
 
@@ -108,7 +108,7 @@ cache usage), `@caph42/pi-ccline` (делегирует в `ccline`).
 - **Resume без выдуманных цен**: восстанавливаем токены/тренд/суммы/историю,
   но не придумываем историческую стоимость; `saved`/`miss premium` после
   resume помечаются `≥`/`?`, фоновые вызовы добавляют только cost.
-- **Zero runtime deps, один файл `index.ts`, 36 тестов и CI** — у `catitw` тоже
+- **Zero runtime deps, один файл `index.ts`, 37 тестов и CI** — у `catitw` тоже
   zero-deps, но нет устанавливаемого пакета; у `omp-cache-meter` zero-deps, но
   многомодульный проект.
 - **Read-only**: не греем кэш, не меняем промпты, не тратим деньги.
@@ -171,7 +171,7 @@ cache usage), `@caph42/pi-ccline` (делегирует в `ccline`).
 | Warning-политика | Строже `catitw`: canonical miss + low-hit, раз на эпоху, не на первом ходе. | Сделано в 0.5.0: причина `простой N мин` / `перезапись префикса`, TTL-порог не выдумывается. |
 | Resume | Восстанавливаем суммы/тренд/историю, не выдумываем исторические цены. | Покрыто тестами (`≥`/`?`, tree/clear, границы эпохи); сохранять консерватизм. |
 | Zero-deps / read-only | Нет warming, нет платных запросов, один `index.ts`. | Сохранять; warming/optimizer — отдельные продукты. |
-| Тесты и CI | 36 тестов, typecheck, GitHub Actions. | Не мержить поведение без теста. |
+| Тесты и CI | 37 тестов, typecheck, GitHub Actions. | Не мержить поведение без теста. |
 
 ### Кандидаты у конкурентов
 

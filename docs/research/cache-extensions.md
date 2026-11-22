@@ -1,7 +1,7 @@
 # Cache extensions: рынок и сравнение с omp-cache-monitor
 
-Дата: 2026-11-22. Версия продукта: 0.5.0 (сверка рынка — на 0.4.0; наши
-возможности обновлены после этапа 2.5).
+Дата: 2026-11-22. Версия продукта: 0.6.0 (сверка рынка — на 0.4.0; наши
+возможности обновлены после этапов 2.5 и 2.8).
 Методика: README, package-страницы и исходники; GitHub API (звёзды, последний
 коммит), npm (версия, загрузки). Ничего не устанавливалось и не запускалось.
 Непроверенная совместимость помечена `[INFERENCE]`.
@@ -16,8 +16,8 @@
   но он не устанавливается как пакет и не имеет команды/стоимости/resume.
 - Сильнейший PI-конкурент по метрикам — `@narumitw/pi-cache-hit-monitor`.
 - Наша ниша: дешёвый read-only статус с `OMP_MODE`, `/cache-monitor` с
-  `saved`/`miss premium`, epoch-aware warnings с причиной (простой/rewrite) и
-  корректным resume; без TTL/warming/дашборда.
+  `saved`/`miss premium` и историей 8 ходов, epoch-aware warnings с причиной
+  (простой/rewrite) и корректным resume; без TTL/warming/дашборда.
 
 ## 1. Официальные каталоги
 
@@ -65,21 +65,22 @@ cache usage), `@caph42/pi-ccline` (делегирует в `ccline`).
 
 ## 4. Матрица возможностей
 
-| Возможность | Наш 0.5.0 | catitw | omp-cache-meter | ubranch | pi-cache-hit-monitor | pi-custom-footer |
+| Возможность | Наш 0.6.0 | catitw | omp-cache-meter | ubranch | pi-cache-hit-monitor | pi-custom-footer |
 |---|---|---|---|---|---|---|
 | Формула с `cacheWrite` | да | да | да | да | да | да |
 | Turn + session hit | да | да | да | частично | да | да |
 | Trend / sparkline | да, 12 | да, 10 | нет (таблица 8) | нет | да, 8 | нет |
+| История / forensics | да: 8 ходов в `/cache-monitor` | нет (тренд 10) | last 8 + панель/Tern | process-local ledger | нет (тренд 8) | нет |
 | Статус-строка | да, `OMP_MODE ↺ N%` | да | виджет над composer | только TTL | виджет | footer/header |
-| Команда-отчёт | `/cache-monitor` | нет | `/cache`, `/cache settings` | `/cache`, `/cache warm` | `/cache-hit-monitor` toggle | нет |
+| Команда-отчёт | `/cache-monitor`, `history` | нет | `/cache`, `/cache settings` | `/cache`, `/cache warm` | `/cache-hit-monitor` toggle | нет |
 | Стоимость хода/сессии | да + saved/miss premium | нет | да + rebuild/payback | только warm cost | да + saved/miss premium | да |
 | Warning-политика | canonical miss + low-hit + причина (простой/rewrite), раз на эпоху | warm→cold + причина | состояния warm/cold | нет | epoch reset, без toast | miss cause/cost |
-| Resume / история | resume из журнала, деньги `≥` | сброс | branch rebuild + history | process-local ledger | restore start/compact/tree | forks/compaction |
+| Resume / история | resume из журнала, история 8, деньги `≥`/`?` | сброс | branch rebuild + history | process-local ledger | restore start/compact/tree | forks/compaction |
 | TTL / warming | нет | нет | TTL + mirror warming | TTL + paid warming | нет | TTL `warm for 26m` |
 | Model / thinking / mode | все три | нет | model/tier, без mode | model косвенно | model/provider | model/thinking |
 | Runtime deps | 0 | 0 | 0 | 1 | 1 | 0 |
 | Установка | npm/git | ручное копирование | npm/git | github | npm | npm |
-| Тесты / CI | 31 + CI | нет | нет данных | regression suite | нет данных | тесты в README |
+| Тесты / CI | 36 + CI | нет | нет данных | regression suite | нет данных | тесты в README |
 
 ## 5. Что совпадает, чем мы лучше, чем хуже
 
@@ -98,16 +99,16 @@ cache usage), `@caph42/pi-ccline` (делегирует в `ccline`).
 - **`OMP_MODE`/пресеты**: ни один конкурент не связывает статус с режимом
   `cache-safe`/`quality`/`throughput`.
 - **Одна команда `/cache-monitor`** с режимом, моделью, thinking, последним
-  ходом, стоимостью, `saved`/`miss premium`, трендом и сессией — такой
-  комбинации нет ни у кого.
+  ходом, стоимостью, `saved`/`miss premium`, трендом, сессией и историей
+  8 ходов — такой комбинации нет ни у кого.
 - **Строгая warning-политика**: canonical miss + low-hit, по одному на эпоху,
   не на первом ходе, prompt ≥ 4000, только TUI main, с причиной
   `простой N мин` / `перезапись префикса`. У `catitw` причина есть только для
   warm→cold; у остальных либо нет, либо другие правила.
-- **Resume без выдуманных цен**: восстанавливаем токены/тренд/суммы, но не
-  придумываем историческую стоимость; `saved`/`miss premium` после resume
-  помечаются `≥`, фоновые вызовы добавляют только cost.
-- **Zero runtime deps, один файл `index.ts`, 31 тест и CI** — у `catitw` тоже
+- **Resume без выдуманных цен**: восстанавливаем токены/тренд/суммы/историю,
+  но не придумываем историческую стоимость; `saved`/`miss premium` после
+  resume помечаются `≥`/`?`, фоновые вызовы добавляют только cost.
+- **Zero runtime deps, один файл `index.ts`, 36 тестов и CI** — у `catitw` тоже
   zero-deps, но нет устанавливаемого пакета; у `omp-cache-meter` zero-deps, но
   многомодульный проект.
 - **Read-only**: не греем кэш, не меняем промпты, не тратим деньги.
@@ -121,9 +122,10 @@ cache usage), `@caph42/pi-ccline` (делегирует в `ccline`).
 - **Экономика сверх saved/miss premium**: rebuild cost, `/compact` payback,
   cold-send budget — `omp-cache-meter`, `pi-cache-guard`; `saved`/`miss premium`
   уже сделаны в 0.5.0.
-- **История/forensics/панель**: `omp-cache-meter` (last 8 + Tern),
+- **Панель/forensics/cross-session**: `omp-cache-meter` (last 8 + Tern),
   `supi-cache` (per-turn/cross-session), `getpipher` (ledger), optimizer
-  (persisted shards).
+  (persisted shards). История 8 ходов уже есть в `/cache-monitor history`; нет
+  панели, cross-session и persist-слоя.
 - **Виджет/размещение/RPC/JSON**: `omp-cache-meter`, `pi-cache-hit-monitor`,
   `pi-custom-footer`; у нас только статус-строка + команда.
 - **Активная оптимизация**: `pi-cache-optimizer`, `omp-cache-optimizer`,
@@ -165,11 +167,11 @@ cache usage), `@caph42/pi-ccline` (делегирует в `ccline`).
 | Сторона | Почему это наше | Следующий шаг |
 |---|---|---|
 | Mode-aware статус | `OMP_MODE` есть только у нас; конкуренты показывают cache в отрыве от режима. | Держать `OMP_MODE` в статусе и `/cache-monitor`; не заменять компактную строку большим дашбордом. |
-| `/cache-monitor` как отчёт | Одна команда: режим, модель, thinking, ход, стоимость, `saved`/`miss premium`, тренд, сессия. Такой комбинации нет. | Сделано в 0.5.0; держать компактным, не превращать в дашборд. |
+| `/cache-monitor` как отчёт | Одна команда: режим, модель, thinking, ход, стоимость, `saved`/`miss premium`, тренд, сессия, история 8. Такой комбинации нет. | Сделано в 0.5.0; история — в 0.6.0; держать компактным, не превращать в дашборд. |
 | Warning-политика | Строже `catitw`: canonical miss + low-hit, раз на эпоху, не на первом ходе. | Сделано в 0.5.0: причина `простой N мин` / `перезапись префикса`, TTL-порог не выдумывается. |
-| Resume | Восстанавливаем суммы/тренд, не выдумываем исторические цены. | Покрыто тестами (`≥`, tree/clear, границы эпохи); сохранять консерватизм. |
+| Resume | Восстанавливаем суммы/тренд/историю, не выдумываем исторические цены. | Покрыто тестами (`≥`/`?`, tree/clear, границы эпохи); сохранять консерватизм. |
 | Zero-deps / read-only | Нет warming, нет платных запросов, один `index.ts`. | Сохранять; warming/optimizer — отдельные продукты. |
-| Тесты и CI | 31 тест, typecheck, GitHub Actions. | Не мержить поведение без теста. |
+| Тесты и CI | 36 тестов, typecheck, GitHub Actions. | Не мержить поведение без теста. |
 
 ### Кандидаты у конкурентов
 
@@ -179,12 +181,12 @@ cache usage), `@caph42/pi-ccline` (делегирует в `ccline`).
 | `cache saved` и `miss premium` в `$` | `pi-cache-hit-monitor`, `omp-cache-meter` | Показывает не только %, но и деньги. | Сделано в 0.5.0: `cacheRead`/`reBilled × (input − cacheRead)`, `≥` после resume. | **Сделано** |
 | TTL / expiry countdown | `omp-cache-meter`, `ubranch`, `pi-custom-footer`, `pi-cache-guard` | Видно, когда кэш остынет. | Нужен authoritative lifetime; на `cline-pass` его нет. | **P2, data-gated** |
 | `/compact` payback | `omp-cache-meter` | Показывает, окупается ли компакция на холодном кэше. | Нужны цены, оценка summary и допущения о компакции. | **P2** |
-| История последних N запросов / панель | `omp-cache-meter`, `pi-cache-hit-monitor` | Разбор регрессий, а не только последний ход. | Новый UI/ring buffer; не ломать статус. | **P2** |
+| История последних N запросов / панель | `omp-cache-meter`, `pi-cache-hit-monitor` | Разбор регрессий, а не только последний ход. | История 8 сделана в 0.6.0 без нового UI; панель/cross-session — отдельный слой. | **История 8 — сделано; панель — P2** |
 | Интеграция с powerline | `pi-powerline-footer` | Наш `ctx.ui.setStatus` можно поднять в чужой powerline через `customItems`. | Почти без кода; только документация/пример. | **P2** |
 | Cold-cache budget / подтверждение дорогой отправки | `pi-cache-guard` | Не даёт случайно переплатить за холодный префикс. | Нужна оценка до запроса и UI-подтверждение; рядом с warming. | **P3** |
 | Активная оптимизация / warming / daemon | `pi-cache-optimizer`, `ubranch`, `omp-cache-warmer` | Поднимает hit rate и греет кэш. | Меняет промпты/тратит деньги; выходит из read-only ниши. | **P3 / не делаем** |
 | Multi-session / Tern / ledger | `omp-cache-meter`, `getpipher` | Видно все сессии и агенты. | Отдельный продукт, persist-слой, TUI-интеграция. | **P3 / не сейчас** |
-| `supi-cache` forensics | `supi-cache` | История и расследования регрессий. | Пакет deprecated; идея — в P2 history. | **Не берём как зависимость** |
+| `supi-cache` forensics | `supi-cache` | История и расследования регрессий. | Пакет deprecated; per-turn история 8 уже есть, cross-session/панель — нет. | **Не берём как зависимость** |
 
 ### TTL простыми словами
 

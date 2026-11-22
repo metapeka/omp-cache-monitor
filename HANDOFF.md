@@ -9,20 +9,43 @@
 
 | Что | Состояние |
 |---|---|
-| Расширение `index.ts` | v0.5.0, 693 строки, контракт ниже |
+| Расширение `index.ts` | v0.6.0, 824 строки, контракт ниже |
 | Пакет | `package.json` (`omp.extensions` + `pi.extensions`), MIT, README, CHANGELOG |
-| Установка на машине | `omp plugin list` — `omp-cache-monitor@0.5.0` и `omp-agent-workflow@0.3.0` |
-| Проверки | `npm test` 31/31 (включая причину мисса и `saved`/`miss premium`), typecheck, загрузка OMP exit 0, stderr пуст; 0.5.0 в TUI: `/cache-monitor` напечатал `saved $0.0008`, статус hit 56.5% совпал с командой; ранее — TUI hit совпал с JSONL (9.9% → 98.1%), `/new` сбрасывает суммы, resume восстанавливает суммы/тренд, фоновые вызовы добавляют только стоимость, предупреждение молчит на первом ходе эпохи, non-TUI чистый; `/handoff` и warning 35/50 проверены в TUI; `/handoff-new` открыл новую сессию; supervisor e2e в Orca: новая сессия прочитала HANDOFF.md; cooldown и stale-marker guard без цикла |
-| Ревью | 2 major (сброс после `/new`, ложный warning после компакции) исправлены, ре-ревью «ок» |
+| Установка на машине | `omp plugin list` — `omp-cache-monitor@0.5.0` (0.6.0 после merge `feat/cache-history`) и `omp-agent-workflow@0.3.0` |
+| Проверки | `npm test` 37/37 (включая историю 8 ходов), typecheck; загрузка OMP, TUI, `/new` и resume проверены в 0.5.0; там же `/cache-monitor` напечатал `saved $0.0008`, статус hit 56.5% совпал с командой, TUI hit совпал с JSONL, фоновые вызовы добавляют только стоимость, non-TUI чистый |
+| Ревью | v0.4/v0.5 — merge |
 | Ревью v0.4 | фоновый usage отделён от hit/ходов; граница resume не даёт ложной пере-оплаты |
 | Ревью v0.5 | reviewer: merge; исправлены пробелы покрытия — граница 5 мин, `/clear`/tree, ход без timestamp разрывает цепочку простоя |
+| Ревью v0.6 | reviewer: merge; nits исправлены — убрано мёртвое поле, покрыты live-epoch gate и регистр/пробелы алиаса |
 | Публикация | GitHub: `metapeka/omp-cache-monitor` (private, `main`); npm, marketplace — нет |
 
-## Контракт v0.5 (v0.4 + причина мисса и `saved`/`miss premium`; не менять без решения владельца)
+## Контракт v0.6 (v0.5 + история 8 ходов; не менять без решения владельца)
 
 - `hit = cacheRead / (input + cacheRead + cacheWrite)`; знаменатель 0 → `n/a`.
 - Статус-ключ `cache-monitor`, текст `<OMP_MODE> ↺ N%` (без режима — `↺ N%`).
 - Команда `/cache-monitor` (не `/cache`: имя занято `ubranch/omp-cache-control`).
+  Аргумент `history`/`hist` печатает историю; любой другой (в т.ч. пустой) —
+  прежний отчёт без изменений. `recomputeTotals` вызывается в обеих ветках.
+- `/cache-monitor history` — последние 8 завершённых ходов, одна notification:
+  `история (N/8):` и строки `N. ↺ hit · prompt P [· saved …] [· miss premium …]
+  [· причина]`, от старого к новому. `saved` — только при `cacheRead > 0`
+  (`$X` или `?` без цены); `miss premium` — только при `reBilled > 0`
+  (`$X (N tok)` или `? (N tok)`); причина — только у канонического промаха
+  (`простой N мин` / `перезапись префикса`), первый ход эпохи её не получает.
+  Нет ходов — `история: нет данных`.
+- История живёт в окне 8: live-ходы добавляются в `turn_end` с известными
+  ценами, восстановленные из журнала — с `savedCost`/`reBillCost = null`.
+  Причина в live и в warning считается одним `missCause(idleMs)`, промах —
+  одним `isCanonicalMiss(prevPrompt, usage, prompt)` (пороги `MIN_PREV_PROMPT`,
+  `MIN_PROMPT`, `IDLE_GAP_MS`).
+- Restore истории на resume/fork: последние 8 assistant-сообщений; границы
+  `model_change`/`thinking_level_change`/`reset_boundary`/`compaction`/
+  `branch_summary` начинают новую эпоху (причина `null`, база простоя
+  сброшена). `idleMs` — из `message.timestamp`; сообщение без timestamp
+  разрывает цепочку. У последней записи окна `reBilled = null`: граница
+  resume не журналируется.
+- `/new` очищает историю; `/clear` и переходы по дереву сохраняют; resume/fork
+  восстанавливают.
 - Эпоха префикса сбрасывается на: старт сессии, компакцию, смену модели,
   смену thinking (live, fallback на настройки), смену набора инструментов,
   `/new`/`/fork`/`/switch` (суммы тоже), `/clear`/ветку/дерево (только сравнение).
@@ -123,7 +146,8 @@ omp --no-session --no-tools -p 'Reply with exactly: OK' --mode json   # exit 0, 
 # TUI: статус и команда(в tmux/терминале Orca)
 omp --no-tools --session-dir /tmp/cm-check
 #   ↺ … на старте, затем ↺ N%; /cache-monitor печатает строку
-#   /new → статус ↺ …, команда: ходов 0, ↺ n/a
+#   /cache-monitor history → «история (N/8):» и строки ходов
+#   /new → статус ↺ …, команда: ходов 0, ↺ n/a; history: «история: нет данных»
 
 # сверка с журналом сессии
 # assistant usage: input/cacheRead/cacheWrite/cost → hit = cacheRead/(сумма)
@@ -132,11 +156,11 @@ omp --no-tools --session-dir /tmp/cm-check
 ## Возможные следующие шаги (по решению владельца)
 
 Полный план с этапами, критериями и назначением агентов — `ROADMAP.md`.
-Кратко: этапы 1–2 (тесты/CI и resume/compaction accounting) и этап 2.5
-(причина мисса, `saved`/`miss premium`) готовы; следующий — английский README
-и установка из tarball (этап 4); npm/marketplace/public — только после
-отдельного решения. TTL на `cline-pass` не делаем: провайдер не декларирует
-lifetime; TTL — data-gated P2.
+Кратко: этапы 1–2 (тесты/CI и resume/compaction accounting), 2.5 (причина
+мисса, `saved`/`miss premium`) и 2.8 (история 8 ходов) готовы; следующий —
+английский README и установка из tarball (этап 4); npm/marketplace/public —
+только после отдельного решения. TTL на `cline-pass` не делаем: провайдер не
+декларирует lifetime; TTL — data-gated P2.
 
 ## Ограничения
 
@@ -155,3 +179,7 @@ lifetime; TTL — data-gated P2.
   восстановить как границу эпохи, защищает только live-сравнение.
 - `getEntries()` может содержать чужие ветки: суммы по ним совпадают с native
   `/session`, тренд строится только по assistant-сообщениям в порядке журнала.
+- История — окно 8 и только в памяти/журнале текущей сессии; между сессиями
+  она не переносится и в панель/JSON не выводится. После resume деньги
+  восстановленных ходов неизвестны (`saved ?`, `miss premium ? (N tok)`), а
+  `reBilled` последней записи окна не восстанавливается.

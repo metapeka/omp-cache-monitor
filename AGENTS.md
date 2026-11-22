@@ -16,10 +16,11 @@ read-only: не греет кэш, не меняет промпты, не тра
 
 ## Текущее состояние
 
-- Версия `0.5.0`, private GitHub `metapeka/omp-cache-monitor`, `main`.
-- `omp plugin link` → боевой чекаут; `omp plugin list` — 0.5.0 и
-  `omp-agent-workflow` 0.3.0 (context guard, handoff, supervisor, modes).
-- `npm test` — 31 тест; `npm run typecheck`; CI зелёный.
+- Версия `0.6.0`, private GitHub `metapeka/omp-cache-monitor`, `main`.
+- `omp plugin link` → боевой чекаут; `omp plugin list` — 0.6.0 после merge
+  `feat/cache-history` и `omp-agent-workflow` 0.3.0 (context guard, handoff,
+  supervisor, modes).
+- `npm test` — 37 тестов; `npm run typecheck`; CI зелёный.
 - Установка одна: `omp plugin link` **или** копия файла, не оба.
 
 ## Нельзя
@@ -29,7 +30,7 @@ read-only: не греет кэш, не меняет промпты, не тра
 - Править боевой линкованный чекаут под эксперимент: для задач — worktree.
 - Переключать `omp plugin link` на ветку: он всегда смотрит на `main`.
 - Добавлять runtime-зависимости, `any`, фейковый TTL, warming, optimizer.
-- Менять контракт v0.4 без решения владельца.
+- Менять контракт v0.6 без решения владельца.
 - Коммитить секреты, логи сессий, `node_modules`, временные файлы.
 
 ## Рабочий процесс
@@ -116,7 +117,7 @@ orca worktree rm --worktree path:/home/db1/orca/workspaces/omp-cache-monitor/<sl
 ## Ссылки
 
 - `ROADMAP.md` — этапы 2.5 (cache economics), 2.6 (context guard/handoff),
-  3 (TTL data-gated), 4 (release), 5 (publication).
+  2.8 (история 8 ходов), 3 (TTL data-gated), 4 (release), 5 (publication).
 - `docs/research/cache-extensions.md` — рынок и что заимствуем.
 - `HANDOFF.md` — точка продолжения.
 - `~/projects/omp-agent-workflow/docs/yoda-workflow.md` — режимы

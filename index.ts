@@ -21,6 +21,11 @@
  * завершёнными ходами (эмпирический порог, не TTL провайдера) либо перезапись
  * префикса. Простой через границу эпохи не считается.
  *
+ * `/cache-monitor history` (алиас `hist`) печатает последние 8 завершённых
+ * ходов с той же причиной, `saved` и `miss premium`; при resume история
+ * восстанавливается из журнала, а неизвестные цены показываются как `?`.
+ * Отчёт без аргумента не меняется.
+ *
  * Установка: `omp plugin link <каталог>` либо копия в `~/.omp/agent/extensions/`
  * (одно из двух). Сегмент `status` ставит статус в общий ряд; без него при
  * `statusLine.showHookStatus` (дефолт) он показывается отдельным элементом.
@@ -45,6 +50,20 @@ type LastTurn = TurnUsage & {
 	savedCost: number | null;
 };
 
+/** Один ход в истории `/cache-monitor history`; деньги `null` — цен нет. */
+type TurnRecord = {
+	hit: number | null;
+	prompt: number;
+	cacheRead: number;
+	/** Экономия хода; `null` — цен нет или `cacheRead == 0`. */
+	savedCost: number | null;
+	/** Пере-оплата хода; `null` — сравнивать не с чем. */
+	reBilled: number | null;
+	reBillCost: number | null;
+	/** Причина канонического промаха; `null` — промаха нет или первая эпоха. */
+	cause: string | null;
+};
+
 /** Итог по журналу сессии: то, что можно восстановить после resume/reload. */
 type SessionAggregate = {
 	last: LastTurn | null;
@@ -57,6 +76,7 @@ type SessionAggregate = {
 	/** Хотя бы у одной восстановленной пере-оплаты нет цены модели. */
 	reBillCostMissing: boolean;
 	trend: (number | null)[];
+	history: TurnRecord[];
 };
 
 /** Хендл настроечного реестра: `get(scope)` без зависимости от его типа. */
@@ -75,6 +95,8 @@ const MIN_PREV_PROMPT = 2048;
 const IDLE_GAP_MS = 5 * 60_000;
 /** Сколько последних ходов держим в спарклайне. */
 const TREND_POINTS = 12;
+/** Окно `/cache-monitor history`: последние завершённые ходы. */
+const HISTORY_POINTS = 8;
 /** Уровни спарклайна: 0–100% по возрастанию. */
 const SPARK_LEVELS = "▁▂▃▄▅▆▇█";
 /** Нет знаменателя — hit не определён. */
@@ -161,6 +183,50 @@ function addUsageTotals(target: SessionAggregate, usage: TurnUsage): void {
 	target.cost += usage.cost;
 }
 
+/** Канонический промах: префикс переписан целиком, кэш не прочитан. */
+function isCanonicalMiss(
+	prevPrompt: number | null,
+	usage: TurnUsage,
+	prompt: number,
+): boolean {
+	return (
+		prevPrompt !== null &&
+		prevPrompt >= MIN_PREV_PROMPT &&
+		usage.cacheRead === 0 &&
+		usage.cacheWrite > 0 &&
+		prompt >= MIN_PROMPT
+	);
+}
+
+/** Причина канонического промаха: простой или перезапись префикса. */
+function missCause(idleMs: number | null): string {
+	return idleMs !== null && idleMs >= IDLE_GAP_MS
+		? `простой ${Math.round(idleMs / 60000)} мин`
+		: "перезапись префикса";
+}
+
+/** Одна строка `/cache-monitor history`: деньги только по известным ценам. */
+function historyLine(record: TurnRecord, index: number): string {
+	const parts = [
+		`${index + 1}. ↺ ${hitPercentText(record.hit)} · prompt ${record.prompt}`,
+	];
+	if (record.cacheRead > 0) {
+		parts.push(
+			record.savedCost === null ? "saved ?" : `saved $${record.savedCost.toFixed(4)}`,
+		);
+	}
+	if (record.reBilled !== null && record.reBilled > 0) {
+		const tokens = `(${record.reBilled} tok)`;
+		parts.push(
+			record.reBillCost === null
+				? `miss premium ? ${tokens}`
+				: `miss premium $${record.reBillCost.toFixed(4)} ${tokens}`,
+		);
+	}
+	if (record.cause !== null) parts.push(record.cause);
+	return parts.join(" · ");
+}
+
 /** Запись журнала, меняющая префикс: сравнение с прошлым ходом начинается заново. */
 function isEpochBoundary(type: unknown): boolean {
 	return (
@@ -173,9 +239,9 @@ function isEpochBoundary(type: unknown): boolean {
 /**
  * Свести журнал сессии к тем же метрикам, что копятся live-событиями.
  *
- * Assistant-сообщения дают токены, ходы, тренд и последний ход. Записи usage
- * (cache warming, title/composer), compaction и branch_summary добавляют только
- * стоимость: их токены не должны разбавлять hit диалога. Границы эпохи
+ * Assistant-сообщения дают токены, ходы, тренд, последний ход и историю. Записи
+ * usage (cache warming, title/composer), compaction и branch_summary добавляют
+ * только стоимость: их токены не должны разбавлять hit диалога. Границы эпохи
  * сбрасывают сравнение пере-оплаты. Цены прошлых моделей в журнале не
  * хранятся, поэтому `reBillCost` и `savedCost` восстановленных ходов — `null`.
  */
@@ -190,9 +256,14 @@ function aggregateEntries(entries: readonly unknown[]): SessionAggregate {
 		reBilled: 0,
 		reBillCostMissing: false,
 		trend: [],
+		history: [],
 	};
 	/** Prompt предыдущего assistant-сообщения внутри текущей эпохи. */
 	let prevPrompt: number | null = null;
+	/** Первый assistant-ход эпохи: причина промаха ему не приписывается. */
+	let firstOfEpoch = true;
+	/** Время предыдущего assistant-сообщения внутри эпохи; `null` — цепочки нет. */
+	let lastTimestamp: number | null = null;
 	/**
 	 * Пере-оплата последнего assistant-сообщения. Добавляется, только когда
 	 * появляется следующее сообщение или граница эпохи: самый последний ход
@@ -224,6 +295,21 @@ function aggregateEntries(entries: readonly unknown[]): SessionAggregate {
 				prevPrompt !== null && prevPrompt > 0
 					? Math.max(0, Math.min(prevPrompt, prompt) - usage.cacheRead)
 					: null;
+			const rawTimestamp = field(message, "timestamp");
+			const timestamp =
+				typeof rawTimestamp === "number" &&
+				Number.isFinite(rawTimestamp) &&
+				rawTimestamp > 0
+					? rawTimestamp
+					: 0;
+			const idleMs =
+				lastTimestamp !== null && timestamp > 0
+					? Math.max(0, timestamp - lastTimestamp)
+					: null;
+			const cause =
+				!firstOfEpoch && isCanonicalMiss(prevPrompt, usage, prompt)
+					? missCause(idleMs)
+					: null;
 
 			result.turns += 1;
 			addUsageTotals(result, usage);
@@ -233,10 +319,23 @@ function aggregateEntries(entries: readonly unknown[]): SessionAggregate {
 			result.last = { ...usage, hit, reBilled: null, reBillCost: null, savedCost: null };
 			result.trend.push(hit);
 			if (result.trend.length > TREND_POINTS) result.trend.shift();
+			// Цены прошлых моделей неизвестны: в истории они `null`, а не выдуманы.
+			result.history.push({
+				hit,
+				prompt,
+				cacheRead: usage.cacheRead,
+				savedCost: null,
+				reBilled,
+				reBillCost: null,
+				cause,
+			});
+			if (result.history.length > HISTORY_POINTS) result.history.shift();
 
 			flushPending();
 			pendingReBilled = reBilled;
 			prevPrompt = prompt;
+			firstOfEpoch = false;
+			lastTimestamp = timestamp > 0 ? timestamp : null;
 			continue;
 		}
 
@@ -260,16 +359,24 @@ function aggregateEntries(entries: readonly unknown[]): SessionAggregate {
 			if (usage) result.cost += usage.cost;
 			flushPending();
 			prevPrompt = null;
+			firstOfEpoch = true;
+			lastTimestamp = null;
 			continue;
 		}
 
 		if (isEpochBoundary(type)) {
 			flushPending();
 			prevPrompt = null;
+			firstOfEpoch = true;
+			lastTimestamp = null;
 		}
 	}
 
 	// pendingReBilled последнего хода намеренно отбрасывается: см. выше.
+	// В истории у последней записи окна `reBilled` тоже `null`: граница resume
+	// не журналируется, поэтому сравнение с прошлым префиксом не доказано.
+	const lastRecord = result.history[result.history.length - 1];
+	if (lastRecord) lastRecord.reBilled = null;
 	return result;
 }
 
@@ -339,6 +446,8 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 	/** Хотя бы у одного хода с cacheRead не было цен модели (в т.ч. после resume). */
 	let sessionSavedMissing = false;
 	const trendHits: (number | null)[] = [];
+	/** Последние завершённые ходы для `history`; окно — `HISTORY_POINTS`. */
+	const history: TurnRecord[] = [];
 
 	// Состояние «эпохи» префикса: сравнение с prev действительно только внутри неё.
 	let epochReady = false;
@@ -414,6 +523,7 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 		sessionSaved = 0;
 		sessionSavedMissing = false;
 		trendHits.length = 0;
+		history.length = 0;
 	};
 
 	/** Заменить всё восстановленное состояние снимком журнала. */
@@ -435,6 +545,8 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 		sessionSavedMissing = aggregate.cached > 0;
 		trendHits.length = 0;
 		trendHits.push(...aggregate.trend);
+		history.length = 0;
+		history.push(...aggregate.history);
 	};
 
 	/**
@@ -576,6 +688,20 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 			reBilled !== null && reBilled > 0 ? cacheDeltaCost(ctx.model, reBilled) : null;
 		const savedCost =
 			usage.cacheRead > 0 ? cacheDeltaCost(ctx.model, usage.cacheRead) : null;
+		const cause =
+			!freshEpoch && isCanonicalMiss(comparePrompt, usage, prompt)
+				? missCause(idleMs)
+				: null;
+		history.push({
+			hit,
+			prompt,
+			cacheRead: usage.cacheRead,
+			savedCost,
+			reBilled,
+			reBillCost,
+			cause,
+		});
+		if (history.length > HISTORY_POINTS) history.shift();
 		last = { ...usage, hit, reBilled, reBillCost, savedCost };
 		prevPrompt = prompt;
 		// База для простоя следующего хода. Ход без timestamp разрывает цепочку:
@@ -600,17 +726,11 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 
 		// Канонический промах: префикс переписан целиком, кэш не прочитан.
 		if (
-			comparePrompt !== null &&
-			comparePrompt >= MIN_PREV_PROMPT &&
-			usage.cacheRead === 0 &&
-			usage.cacheWrite > 0 &&
+			isCanonicalMiss(comparePrompt, usage, prompt) &&
 			!epochWarned.has("canonical-miss")
 		) {
 			epochWarned.add("canonical-miss");
-			const reason =
-				idleMs !== null && idleMs >= IDLE_GAP_MS
-					? `простой ${Math.round(idleMs / 60000)} мин`
-					: "перезапись префикса";
+			const reason = missCause(idleMs);
 			const costText =
 				reBilled !== null && reBilled > 0
 					? ` Пере-оплачено ≈ ${reBilled} tok${reBillCost === null ? "" : ` ($${reBillCost.toFixed(4)})`}.`
@@ -636,10 +756,21 @@ export default function cacheMonitor(pi: ExtensionAPI): void {
 	});
 
 	pi.registerCommand("cache-monitor", {
-		description: "Показать режим, модель, hit rate и тренд кэша префикса",
-		handler: async (_args, ctx) => {
+		description: "Показать режим, модель, hit rate и тренд кэша; history — последние 8 ходов",
+		handler: async (args, ctx) => {
 			// Cache warming и компакция могли не прийти событиями хода.
 			recomputeTotals(ctx);
+			const subcommand = args.trim().toLowerCase();
+			if (subcommand === "history" || subcommand === "hist") {
+				const text =
+					history.length === 0
+						? "история: нет данных"
+						: `история (${history.length}/${HISTORY_POINTS}):\n${history
+								.map(historyLine)
+								.join("\n")}`;
+				notify(ctx, text, "info");
+				return;
+			}
 			const modelLabel = ctx.model
 				? `${String(field(ctx.model, "provider") ?? "?")}/${String(field(ctx.model, "id") ?? "?")}`
 				: "?";

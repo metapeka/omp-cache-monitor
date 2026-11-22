@@ -79,10 +79,10 @@ async function turn(extension, ctx, turnUsage, turnIndex = 1, timestamp) {
 	await fire(extension, "turn_end", ctx, { message, turnIndex });
 }
 
-async function command(extension, ctx) {
+async function command(extension, ctx, args = "") {
 	const definition = extension.commands.get("cache-monitor");
 	assert.ok(definition, "expected /cache-monitor to be registered");
-	await definition.handler(undefined, ctx);
+	await definition.handler(args, ctx);
 }
 
 function spark(text) {
@@ -91,11 +91,15 @@ function spark(text) {
 }
 
 /** Journal entry for an assistant turn (the fixture shape `getEntries()` returns). */
-function assistantEntry(turnUsage) {
-	return {
-		type: "message",
-		message: { role: "assistant", provider: "test", model: "model-a", usage: turnUsage },
+function assistantEntry(turnUsage, timestamp) {
+	const message = {
+		role: "assistant",
+		provider: "test",
+		model: "model-a",
+		usage: turnUsage,
 	};
+	if (timestamp !== undefined) message.timestamp = timestamp;
+	return { type: "message", message };
 }
 
 /** Journal entry for off-transcript usage, e.g. cache warming. */
@@ -313,6 +317,144 @@ describe("cache saved and miss premium", () => {
 		);
 		assert.doesNotMatch(out, /saved/);
 		assert.match(out, /сессия: \$0\.0700, ходов 2, ↺ 11\.1%, miss premium 3000 tok$/);
+	});
+});
+
+describe("turn history", () => {
+	const START = 2_000_000;
+
+	it("lists the last turns with hits, money and miss causes, oldest first", async () => {
+		const { extension, ctx, notifications } = await started();
+		await turn(extension, ctx, usage(1000, 3000, 0, 0.01), 1, START);
+		await turn(extension, ctx, usage(3000, 1000, 0, 0.02), 2, START + 60_000);
+		await turn(
+			extension,
+			ctx,
+			usage(0, 0, 5000, 0.03),
+			3,
+			START + 60_000 + 6 * 60_000,
+		);
+		await turn(
+			extension,
+			ctx,
+			usage(0, 0, 5000, 0.03),
+			4,
+			START + 60_000 + 6 * 60_000 + 60_000,
+		);
+
+		await command(extension, ctx, "history");
+		const out = notifications.at(-1);
+		assert.equal(out.level, "info");
+		assert.equal(
+			out.text,
+			"история (4/8):\n" +
+				"1. ↺ 75% · prompt 4000 · saved $0.0081\n" +
+				"2. ↺ 25% · prompt 4000 · saved $0.0027 · miss premium $0.0081 (3000 tok)\n" +
+				"3. ↺ 0% · prompt 5000 · miss premium $0.0108 (4000 tok) · простой 6 мин\n" +
+				"4. ↺ 0% · prompt 5000 · miss premium $0.0135 (5000 tok) · перезапись префикса",
+		);
+	});
+
+	it("keeps the last 8 turns with numbering from 1", async () => {
+		const { extension, ctx, notifications } = await started();
+		for (let i = 1; i <= 10; i += 1) {
+			await turn(extension, ctx, usage(1000 - i * 10, i * 10, 0), i);
+		}
+
+		await command(extension, ctx, "hist");
+		const lines = notifications.at(-1).text.split("\n");
+		assert.equal(lines[0], "история (8/8):");
+		assert.equal(lines.length, 9);
+		// Turns 1–2 fell off the front; hits are 3%…10%.
+		assert.match(lines[1], /^1\. ↺ 3%/);
+		assert.match(lines[8], /^8\. ↺ 10%/);
+
+		// Case and surrounding whitespace are normalized.
+		await command(extension, ctx, " HISTORY ");
+		assert.equal(notifications.at(-1).text, lines.join("\n"));
+	});
+
+	it("gives no cause to the first live turn of a new epoch", async () => {
+		const { extension, ctx, notifications } = await started();
+		await turn(extension, ctx, usage(0, 0, 5000), 1);
+		ctx.model = { id: "model-b", provider: "test", cost: MODEL.cost };
+		await turn(extension, ctx, usage(0, 0, 5000), 2);
+		await turn(extension, ctx, usage(0, 0, 5000), 3);
+
+		await command(extension, ctx, "history");
+		const lines = notifications.at(-1).text.split("\n");
+		assert.equal(lines[1], "1. ↺ 0% · prompt 5000");
+		assert.equal(lines[2], "2. ↺ 0% · prompt 5000");
+		assert.equal(
+			lines[3],
+			"3. ↺ 0% · prompt 5000 · miss premium $0.0135 (5000 tok) · перезапись префикса",
+		);
+	});
+
+	it("restores history from the journal without inventing money or the resume gap", async () => {
+		const entries = [
+			assistantEntry(usage(0, 0, 5000, 0.05), START),
+			assistantEntry(usage(0, 0, 5000, 0.05), START + 6 * 60_000),
+			assistantEntry(usage(2000, 3000, 0, 0.02), START + 7 * 60_000),
+			{ type: "model_change", provider: "test", modelId: "model-b" },
+			assistantEntry(usage(0, 0, 5000, 0.05)),
+			assistantEntry(usage(0, 0, 5000, 0.05)),
+		];
+		const { extension, ctx, notifications } = await started({ entries, reason: "resume" });
+
+		await command(extension, ctx, "history");
+		const lines = notifications.at(-1).text.split("\n");
+		assert.equal(lines[0], "история (5/8):");
+		// The first turn of an epoch gets no cause, even on a full rewrite.
+		assert.equal(lines[1], "1. ↺ 0% · prompt 5000");
+		assert.equal(
+			lines[2],
+			"2. ↺ 0% · prompt 5000 · miss premium ? (5000 tok) · простой 6 мин",
+		);
+		assert.equal(lines[3], "3. ↺ 60% · prompt 5000 · saved ? · miss premium ? (2000 tok)");
+		assert.equal(lines[4], "4. ↺ 0% · prompt 5000");
+		// The last journaled turn has no proven comparison: no miss premium.
+		assert.equal(lines[5], "5. ↺ 0% · prompt 5000 · перезапись префикса");
+		assert.doesNotMatch(lines[4], /miss premium/);
+		assert.doesNotMatch(lines[5], /miss premium/);
+	});
+
+	it("clears history on /new, restores it on resume and keeps it on /clear", async () => {
+		const live = await started();
+		await turn(live.extension, live.ctx, usage(100, 300, 0), 1, START);
+		await command(live.extension, live.ctx, "history");
+		const before = live.notifications.at(-1).text;
+		assert.match(before, /^история \(1\/8\):/);
+
+		await fire(live.extension, "session_clear", live.ctx);
+		await command(live.extension, live.ctx, "history");
+		assert.equal(live.notifications.at(-1).text, before);
+
+		await fire(live.extension, "session_switch", live.ctx, { reason: "new" });
+		await command(live.extension, live.ctx, "history");
+		assert.equal(live.notifications.at(-1).text, "история: нет данных");
+
+		const entries = [
+			assistantEntry(usage(100, 300, 0)),
+			assistantEntry(usage(0, 400, 0)),
+		];
+		const resumed = await started({ entries, reason: "resume" });
+		await command(resumed.extension, resumed.ctx, "history");
+		assert.match(resumed.notifications.at(-1).text, /^история \(2\/8\):/);
+	});
+
+	it("keeps the default report free of history", async () => {
+		const { extension, ctx, notifications } = await started();
+		await turn(extension, ctx, usage(1000, 3000, 0, 0.01));
+
+		await command(extension, ctx);
+		assert.match(notifications.at(-1).text, /^режим: /);
+		assert.doesNotMatch(notifications.at(-1).text, /история/);
+
+		// An unknown argument keeps the old report, exactly as before.
+		await command(extension, ctx, "unknown");
+		assert.match(notifications.at(-1).text, /^режим: /);
+		assert.doesNotMatch(notifications.at(-1).text, /история/);
 	});
 });
 

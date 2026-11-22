@@ -1,6 +1,6 @@
 # Roadmap: omp-cache-monitor
 
-Дата: 2026-11-22. Версия: 0.5.0. GitHub: private.
+Дата: 2026-11-22. Версия: 0.6.0. GitHub: private.
 Цель: довести расширение до релиза, которому можно доверять по цифрам,
 установке и поведению на всех переходах сессии.
 
@@ -18,11 +18,11 @@
 
 | Что | Состояние |
 |---|---|
-| Версия | 0.5.0: причина мисса, `saved` и `miss premium` в `/cache-monitor` |
+| Версия | 0.6.0: история последних 8 ходов в `/cache-monitor history` |
 | GitHub | `metapeka/omp-cache-monitor`, private, `main` |
-| Установка | `omp plugin link` на боевой чекаут; боевой чекаут — 0.5.0 после merge ветки `feat/cache-economics` |
-| Проверки | `npm test` 31/31, typecheck; ранее (0.4.0) — загрузка OMP, TUI, `/new` и resume |
-| Постоянные тесты | `test/extension.test.mjs`, 31 тест, `npm test` |
+| Установка | `omp plugin link` на боевой чекаут; боевой чекаут — 0.5.0; 0.6.0 после merge ветки `feat/cache-history` |
+| Проверки | `npm test` 37/37, typecheck; загрузка OMP, TUI, `/new` и resume проверены в 0.5.0 |
+| Постоянные тесты | `test/extension.test.mjs`, 37 тестов, `npm test` |
 | CI | GitHub Actions, зелёный (`npm ci`, `npm test`, `typecheck`) |
 | Рынок/конкуренты | `docs/research/cache-extensions.md` (2026-11-22) |
 | Инструкции агенту | `AGENTS.md` + глобальный `~/.omp/agent/AGENTS.md` |
@@ -53,7 +53,7 @@
 | P1 | `cache saved` и `miss premium` в `$` | `pi-cache-hit-monitor`, `omp-cache-meter` | В `/cache-monitor` 0.5.0; `≥` при неизвестных исторических ценах. |
 | P2 | TTL / expiry countdown | `omp-cache-meter`, `ubranch`, `pi-custom-footer` | Только data-gated; на `cline-pass` — скрывать. |
 | P2 | `/compact` payback | `omp-cache-meter` | После P1, когда есть цены и оценка summary. |
-| P2 | История последних N запросов | `omp-cache-meter`, `pi-cache-hit-monitor` | Ring buffer/панель, не ломая статус. |
+| P2 | История последних N запросов | `omp-cache-meter`, `pi-cache-hit-monitor` | Готово в 0.6.0: `/cache-monitor history`, окно 8, без панели. |
 | P2 | Powerline-интеграция | `pi-powerline-footer` | Пример/доки через `customItems`. |
 | P3 | Cold-cache budget | `pi-cache-guard` | Отдельный слой, рядом с warming. |
 | P3 | Warming/optimizer/multi-session | `ubranch`, optimizers, Tern | Не наша read-only ниша сейчас. |
@@ -75,11 +75,12 @@
 - `test/extension.test.mjs` импортирует реальный `index.ts` через Node 22
   `--experimental-strip-types` и подменяет `pi`/`ctx`.
 - Покрыто: формула hit, спарклайн и усечение до 12, `saved` и `miss premium`,
-  включая ходы без цен и `≥` после resume, сброс на `/new`, смена эпохи,
-  причина мисса (idle/rewrite/без timestamp), пороги warnings, non-TUI no-op,
-  restore после resume, границы эпохи в журнале, cache warming/компакция в
-  суммах без ходов, отсутствие двойного счёта.
-- `npm test` — 31/31, детерминированно, без сети и модели.
+  включая ходы без цен и `≥` после resume, история 8 ходов (live, окно,
+  resume, `/new`/`/clear`, неизменный дефолтный отчёт), сброс на `/new`, смена
+  эпохи, причина мисса (idle/rewrite/без timestamp), пороги warnings,
+  non-TUI no-op, restore после resume, границы эпохи в журнале, cache
+  warming/компакция в суммах без ходов, отсутствие двойного счёта.
+- `npm test` — 37/37, детерминированно, без сети и модели.
 
 ### 1.2. Типы — готово
 
@@ -164,7 +165,7 @@ resume её нельзя восстановить как границу эпох
 `saved` и `miss premium` считаются одним helper `cacheDeltaCost` по
 `model.cost`; `saved` входит в строку хода и в итог сессии, `miss premium` —
 отдельной частью перед трендом. После resume восстановленный `cacheRead` не
-оценивается: `saved` считает только live-часть и показывает `≥`. Тестов 31,
+оценивается: `saved` считает только live-часть и показывает `≥`. Тестов 37,
 typecheck зелёный; `epochCause` удалён.
 
 ## Этап 2.6. Context guard / handoff — готово (P1)
@@ -235,7 +236,26 @@ typecheck зелёный; `epochCause` удалён.
   context ≥ 50% или высоком miss cost; `compact` — если задача одна и длинная.
 - Не запускать новую сессию автоматически без команды/супервизора.
 
-## Этап 2.8. Supervisor для unattended — готово (P2, e2e)
+## Этап 2.8. История последних ходов — готово (P2)
+
+- `/cache-monitor history` (алиас `hist`): последние 8 завершённых ходов —
+  hit, `prompt`, `saved`, `miss premium` и причина канонического промаха.
+- Read-only, zero-deps, одна notification; дефолтный отчёт без аргумента не
+  меняется, статус-строка и окно тренда не задеты.
+- Причина не приписывается первому ходу эпохи; деньги восстановленных ходов
+  не выдумываются (`saved ?`, `miss premium ? (N tok)`), `reBilled` последней
+  записи после resume не показывается.
+- Окно 8; `/new` очищает, resume/fork восстанавливает, `/clear` сохраняет.
+- Тесты: live-история с причинами, окно, resume с `?`, lifecycle, неизменный
+  дефолтный отчёт.
+- Критерий: история читается одной командой, не ломает дефолтный вывод и не
+  врёт после resume.
+
+Реализовано в 0.6.0: `TurnRecord`/`history` в live-состоянии и
+`SessionAggregate`, восстановление из журнала, `missCause`/`isCanonicalMiss`
+общие с warning, формат `история (N/8):`. Тестов 37.
+
+## Этап 2.9. Supervisor для unattended — готово (P2, e2e)
 
 - Внешний watchdog (shell-скрипт или Orca bot), а не отдельный LLM-надзиратель
   на первом этапе: он смотрит marker/context/idle и вызывает `/handoff-new`
@@ -255,7 +275,7 @@ E2E в реальном Orca-терминале пройден: supervisor от�
 новая сессия стартовала и прочитала `HANDOFF.md`. Cooldown 300 с и
 stale-marker guard (`sessionFile`) не дают уйти в цикл повторных handoff.
 
-## Этап 2.9. Yoda workflow mode — режимы готовы, оркестратор дизайн
+## Этап 2.10. Yoda workflow mode — режимы готовы, оркестратор дизайн
 
 - Режимы: `manual`, `assisted`, `yoda`, `yoda-supervised`.
 - Оркестратор — main; implementer/verifier/reviewer/scout — subagent'ы;
@@ -306,7 +326,7 @@ warm/cold и причину инвалидации, поэтому TTL не до
 
 ### 4.3. Тег и GitHub release
 
-- `CHANGELOG.md`, тег `v0.5.0` после этапа 2.5, private GitHub release.
+- `CHANGELOG.md`, тег `v0.6.0` после этапа 2.8, private GitHub release.
 - Проверить `omp plugin install github:metapeka/omp-cache-monitor` под
   авторизованным аккаунтом.
 - Критерий: чистая машина/профиль ставит плагин из GitHub.
@@ -325,11 +345,12 @@ warm/cold и причину инвалидации, поэтому TTL не до
 3. Этап 2.5 — готово: причина мисса (idle/rewrite) и saved/miss premium.
 4. Этап 2.6 — готово: context guard и `/handoff` в `omp-agent-workflow`.
 5. Этап 2.7 — готово: `/handoff-new`, state, `newSession`.
-6. Этап 2.8 — готово (e2e в Orca): supervisor.
-7. Этап 2.9 — режимы готовы; оркестратор — дизайн в `omp-agent-workflow`.
-8. Этап 3 — TTL, только data-gated, без реализации на догадках.
-9. Этап 4 — английский README, пакет, установка, тег.
-10. Этап 5 — публикация, только после явного разрешения.
+6. Этап 2.8 — готово: история последних 8 ходов в `/cache-monitor history`.
+7. Этап 2.9 — готово (e2e в Orca): supervisor.
+8. Этап 2.10 — режимы готовы; оркестратор — дизайн в `omp-agent-workflow`.
+9. Этап 3 — TTL, только data-gated, без реализации на догадках.
+10. Этап 4 — английский README, пакет, установка, тег.
+11. Этап 5 — публикация, только после явного разрешения.
 
 ## Агенты
 
@@ -342,8 +363,9 @@ warm/cold и причину инвалидации, поэтому TTL не до
 | `CacheEconomics` | 2.5: готово, причина мисса, saved/miss premium | task |
 | `ContextGuard` | 2.6: готово в `omp-agent-workflow` 0.3.0, 19 тестов | task |
 | `HandoffNew` | 2.7: готово в `omp-agent-workflow` 0.3.0 | task |
-| `Supervisor` | 2.8: готово, e2e в Orca пройден | task, опция |
-| `YodaOrchestrator` | 2.9: режимы, план/state, оркестрация | task |
+| `TurnHistory` | 2.8: готово, история 8 ходов в `/cache-monitor` | task |
+| `Supervisor` | 2.9: готово, e2e в Orca пройден | task, опция |
+| `YodaOrchestrator` | 2.10: режимы, план/state, оркестрация | task |
 | `Reviewer` | ревью каждого поведенческого PR | reviewer |
 | `DocsEnglish` | 4.1: английский README | task |
 | `ReleaseCheck` | 4.2–4.3: tarball, тег, установка | task |

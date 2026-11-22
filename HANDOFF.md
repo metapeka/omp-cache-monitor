@@ -60,6 +60,7 @@
 | Исследование конкурентов | `docs/research/cache-extensions.md` |
 | Инструкции агенту | `AGENTS.md`; глобальные — `~/.omp/agent/AGENTS.md` |
 | Агентский context guard | `/home/db1/projects/omp-agent-workflow` (linked plugin) |
+| Yoda workflow | `docs/yoda-workflow.md` — режимы и оркестрация |
 | Пресеты, `omp-mode`, план, вики | `metapeka/docs-omp-debian-availability` |
 | Публичная инструкция | https://metapeka.github.io/docs-omp-debian-availability/wiki/guide.html |
 | Установленная копия | `omp plugin link` → `/home/db1/projects/omp-cache-monitor`; файла в `~/.omp/agent/extensions/` нет (одно из двух, не оба) |

@@ -27,6 +27,7 @@
 | Рынок/конкуренты | `docs/research/cache-extensions.md` (2026-11-22) |
 | Инструкции агенту | `AGENTS.md` + глобальный `~/.omp/agent/AGENTS.md` |
 | Context guard | `omp-agent-workflow` 0.1.0, linked; warning 35/50, auto 60, `/handoff` |
+| Yoda workflow | `docs/yoda-workflow.md` — дизайн режимов и оркестрации |
 | npm / marketplace | не публиковались |
 | Английский README | нет |
 
@@ -228,6 +229,18 @@ resume её нельзя восстановить как границу эпох
 - Критерий: при отсутствии владельца агент доходит до границы задачи,
   делает handoff и продолжает; при ошибке — останавливается и пишет причину.
 
+## Этап 2.9. Yoda workflow mode (P1/P2, дизайн)
+
+- Режимы: `manual`, `assisted`, `yoda`, `yoda-supervised`.
+- Оркестратор — main; implementer/verifier/reviewer/scout — subagent'ы;
+  supervisor — внешний watchdog для смены сессии.
+- `yoda` без supervisor умеет только компакцию; `yoda-supervised` делает
+  clean-window handoff через `/handoff-new`.
+- Конфиг: `workflow.mode`, пороги, бюджеты, stop-gates.
+- Полный дизайн: `docs/yoda-workflow.md`.
+- Критерий: режим переключается конфигом, цикл проходит N задач с тестами,
+  handoff на границе, stop-gate останавливает работу.
+
 ## Этап 3. TTL: data-gated (P2)
 
 Проверено:
@@ -282,9 +295,10 @@ warm/cold и причину инвалидации, поэтому TTL не до
 4. Этап 2.6 — готово: context guard и `/handoff` в `omp-agent-workflow`.
 5. Этап 2.7 — `/handoff-new`: clean window, state-файл, `newSession`.
 6. Этап 2.8 — supervisor для unattended; только после 2.7.
-7. Этап 3 — TTL, только data-gated, без реализации на догадках.
-8. Этап 4 — английский README, пакет, установка, тег.
-9. Этап 5 — публикация, только после явного разрешения.
+7. Этап 2.9 — Yoda workflow mode; дизайн в `docs/yoda-workflow.md`.
+8. Этап 3 — TTL, только data-gated, без реализации на догадках.
+9. Этап 4 — английский README, пакет, установка, тег.
+10. Этап 5 — публикация, только после явного разрешения.
 
 ## Агенты
 
@@ -298,6 +312,7 @@ warm/cold и причину инвалидации, поэтому TTL не до
 | `ContextGuard` | 2.6: готово в `omp-agent-workflow` 0.1.0, 9 тестов | task |
 | `HandoffNew` | 2.7: `/handoff-new` и clean window | task |
 | `Supervisor` | 2.8: внешний watchdog для unattended | task, опция |
+| `YodaOrchestrator` | 2.9: режимы, план/state, оркестрация | task |
 | `Reviewer` | ревью каждого поведенческого PR | reviewer |
 | `DocsEnglish` | 4.1: английский README | task |
 | `ReleaseCheck` | 4.2–4.3: tarball, тег, установка | task |

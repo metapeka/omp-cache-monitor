@@ -116,5 +116,7 @@ orca worktree rm --worktree path:/home/db1/orca/workspaces/omp-cache-monitor/<sl
   3 (TTL data-gated), 4 (release), 5 (publication).
 - `docs/research/cache-extensions.md` — рынок и что заимствуем.
 - `HANDOFF.md` — точка продолжения.
+- `docs/yoda-workflow.md` — режимы `manual`/`assisted`/`yoda`/
+  `yoda-supervised`, оркестратор и subagent'ы.
 - `~/projects/omp-agent-workflow` — context guard и `/handoff`; 9 тестов,
   typecheck; установлен через `omp plugin link`.

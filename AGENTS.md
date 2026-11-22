@@ -20,9 +20,8 @@ read-only: не греет кэш, не меняет промпты, не тра
 ## Текущее состояние
 
 - Версия `0.9.0`, private GitHub `metapeka/omp-cache-monitor`, `main`.
-- `omp plugin link` → боевой чекаут; `omp plugin list` — `omp-cache-monitor@0.8.1`
-  (0.9.0 — после merge и re-link) и `omp-agent-workflow@0.5.4` (context guard,
-  handoff, supervisor, modes).
+- `omp plugin link` → боевой чекаут; `omp plugin list` — `omp-cache-monitor@0.9.0`
+  и `omp-agent-workflow@0.5.4` (context guard, handoff, supervisor, modes).
 - `npm test` — 68 тестов; `npm run typecheck`; CI зелёный.
 - Настройки: `package.json#omp.settings` (9 ключей, `Group · …` в описаниях),
   `/cache-monitor settings` (группы и подписи) и `help`, `language: ru|en`;

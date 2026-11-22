@@ -11,8 +11,8 @@
 |---|---|
 | Расширение `index.ts` | v0.9.0, 1370 строк, контракт ниже |
 | Пакет | `package.json` (`omp.extensions` + `omp.settings` из 9 ключей, `pi.extensions`, repository/homepage/bugs/engines), MIT, README (EN) + `docs/README.ru.md`, CHANGELOG 0.9.0, `docs/ui-settings.md`, `docs/omp-docs-map.md` |
-| Установка на машине | `omp plugin list` — `omp-cache-monitor@0.8.1` (0.9.0 — после merge и re-link) и `omp-agent-workflow@0.5.4` |
-| Проверки | `npm test` 68/68, typecheck, `npm pack` — 4 файла; 0.9.0: EN-тесты всех подкоманд и warning-ов без кириллицы, смена языка перерисовывает сохранённые причины; runtime 0.8.1 в силе (`omp plugin config list`, TUI `/cache-monitor settings`/`help`) |
+| Установка на машине | `omp plugin list` — `omp-cache-monitor@0.9.0` и `omp-agent-workflow@0.5.4` |
+| Проверки | `npm test` 68/68, typecheck, `npm pack` — 4 файла; 0.9.0: EN-тесты всех подкоманд и warning-ов без кириллицы, смена языка перерисовывает сохранённые причины; runtime TUI с `language: en`: settings/help/report/costs/history без кириллицы (0 совпадений), `language` возвращён в `ru`; TUI settings/help 0.8.1 в силе |
 | Ревью | v0.4/v0.5/v0.6/v0.7/v0.8/v0.8.1/v0.9 — merge |
 | Ревью v0.4 | фоновый usage отделён от hit/ходов; граница resume не даёт ложной пере-оплаты |
 | Ревью v0.5 | reviewer: merge; исправлены пробелы покрытия — граница 5 мин, `/clear`/tree, ход без timestamp разрывает цепочку простоя |

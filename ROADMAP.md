@@ -20,7 +20,7 @@
 |---|---|
 | Версия | 0.8.0: настройки плагина, `/cache-monitor settings` и `help` |
 | GitHub | `metapeka/omp-cache-monitor`, private, `main` |
-| Установка | `omp plugin link` на боевой чекаут; `omp plugin list` — `omp-cache-monitor@0.7.0`, 0.8.0 готовится в ветке `feat/ui-settings` |
+| Установка | `omp plugin link` на боевой чекаут; `omp plugin list` — `omp-cache-monitor@0.8.0` |
 | Проверки | `npm test` 60/60, typecheck, загрузка OMP, TUI (`/cache-monitor history`, `/cache-monitor costs`, `/cache-monitor settings`), `/new` и resume |
 | Постоянные тесты | `test/extension.test.mjs`, 60 тестов, `npm test` |
 | CI | GitHub Actions, зелёный (`npm ci`, `npm test`, `typecheck`) |

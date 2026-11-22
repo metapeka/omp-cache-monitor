@@ -11,13 +11,14 @@
 |---|---|
 | Расширение `index.ts` | v0.8.0, 1138 строк, контракт ниже |
 | Пакет | `package.json` (`omp.extensions` + `omp.settings` из 8 ключей, `pi.extensions`, repository/homepage/bugs/engines), MIT, README (EN) + `docs/README.ru.md`, CHANGELOG 0.8.0 |
-| Установка на машине | `omp plugin list` — `omp-cache-monitor@0.7.0` и `omp-agent-workflow@0.5.2`; 0.8.0 подготовлен в ветке `feat/ui-settings` |
-| Проверки | `npm test` 60/60 (46 старых + 14 настроек), typecheck; `npm pack --dry-run` — 4 файла; прежние проверки 0.7.0 в силе: TUI `/cache-monitor costs` на реальном журнале, чистый `HOME` (tarball и `git+ssh`), загрузка OMP, TUI `/cache-monitor history`, hit/saved совпадают с JSONL, non-TUI чист |
-| Ревью | v0.4/v0.5/v0.6/v0.7 — merge; v0.8 — на ревью |
+| Установка на машине | `omp plugin list` — `omp-cache-monitor@0.8.0` и `omp-agent-workflow@0.5.3` |
+| Проверки | `npm test` 60/60 (46 старых + 14 настроек), typecheck; `npm pack --dry-run` — 4 файла; runtime: `omp plugin config list` показал 8 ключей с описаниями, `lowHitPercent 70` → `/cache-monitor settings` показал `70 (changed)`, `help` напечатал справку; прежние проверки 0.7.0 в силе: TUI `/cache-monitor costs` на реальном журнале, чистый `HOME` (tarball и `git+ssh`), загрузка OMP, TUI `/cache-monitor history`, hit/saved совпадают с JSONL, non-TUI чист |
+| Ревью | v0.4/v0.5/v0.6/v0.7/v0.8 — merge |
 | Ревью v0.4 | фоновый usage отделён от hit/ходов; граница resume не даёт ложной пере-оплаты |
 | Ревью v0.5 | reviewer: merge; исправлены пробелы покрытия — граница 5 мин, `/clear`/tree, ход без timestamp разрывает цепочку простоя |
 | Ревью v0.6 | reviewer: merge; nits исправлены — убрано мёртвое поле, покрыты live-epoch gate и регистр/пробелы алиаса |
 | Ревью v0.7 | reviewer: merge; nits закрыты — `/clear` retention, пустой label, compaction/branch-summary из `model_usage` сведены в общие бакеты |
+| Ревью v0.8 | reviewer: merge; defaults побайтово прежние, runtime loader проверен, nits по docs исправлены |
 | Публикация | GitHub: `metapeka/omp-cache-monitor` (private, `main`); npm, marketplace — нет |
 
 ## Контракт v0.8 (v0.7 + настройки и справка; не менять без решения владельца)
@@ -212,10 +213,9 @@ omp --no-tools --session-dir /tmp/cm-check
 
 Полный план с этапами, критериями и назначением агентов — `ROADMAP.md`.
 Кратко: этапы 1–2, 2.5, 2.8, 2.11, 2.12 и 4 (README, пакет, tarball,
-тег/release 0.6.0) готовы; 0.7.0 (`/cache-monitor costs`) в `main`, 0.8.0
-(настройки, `settings`, `help`) — в ветке `feat/ui-settings` до ff-merge;
-тесты и typecheck зелёные. Следующее — только по
-решению владельца: тег/release `v0.7.0` и/или `v0.8.0`, этап 5
+тег/release 0.6.0) готовы; 0.7.0 (`/cache-monitor costs`) и 0.8.0 (настройки,
+`settings`, `help`) в `main`, TUI и runtime-настройки проверены. Следующее —
+только по решению владельца: тег/release `v0.7.0` и/или `v0.8.0`, этап 5
 (npm/marketplace) или P2-бэклог (powerline, панель). Phase 2 настроек —
 `language: ru|en`; Phase 3 — advanced-ключи (`warnCanonicalMiss`,
 `minPrevPromptTokens`, `oncePerEpoch`, `trendSize`, `statusShowCost`), см.

@@ -153,8 +153,10 @@ npm-пакет не опубликован. Репозиторий private, по
 требует авторизованного `gh`/SSH-доступа. OMP 19.1.0:
 
 ```bash
-# из GitHub (нужна авторизация: gh auth login или SSH-ключ)
-omp plugin install github:metapeka/omp-cache-monitor
+# из GitHub (private): git+ssh использует ваш SSH-ключ.
+# Сокращение `github:` обращается к API без авторизации и получает 404
+# для private-репозитория.
+omp plugin install git+ssh://git@github.com/metapeka/omp-cache-monitor.git
 
 # локальный чекаут: загружается из каталога без копирования
 omp plugin link /path/to/omp-cache-monitor

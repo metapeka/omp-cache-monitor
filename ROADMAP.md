@@ -334,12 +334,15 @@ warm/cold и причину инвалидации, поэтому TTL не до
 - Критерий уточнён: «пакет из tarball самодостаточен и грузится в чистом
   профиле»; прямой `.tgz`-install в OMP 19.1 недоступен.
 
-### 4.3. Тег и GitHub release
+### 4.3. Тег и GitHub release — готово
 
-- `CHANGELOG.md`, тег `v0.6.0` после этапа 2.8, private GitHub release.
-- Проверить `omp plugin install github:metapeka/omp-cache-monitor` под
-  авторизованным аккаунтом.
-- Критерий: чистая машина/профиль ставит плагин из GitHub.
+- `CHANGELOG.md` 0.6.0, тег `v0.6.0`, private GitHub release с tarball-ассетом.
+- `github:`-сокращение в OMP 19.1 для private-репозитория даёт 404
+  (неавторизованный API); рабочая установка:
+  `omp plugin install git+ssh://git@github.com/metapeka/omp-cache-monitor.git`.
+- Проверено в чистом `HOME`: установка из GitHub, `omp plugin list` → 0.6.0,
+  TUI `/cache-monitor` работает.
+- Критерий выполнен для авторизованного пользователя (SSH-ключ).
 
 ## Этап 5. Публикация (только по решению владельца)
 

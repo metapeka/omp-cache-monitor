@@ -157,8 +157,10 @@ by itself.
 The npm package is not published. OMP 19.1.0:
 
 ```bash
-# from GitHub (private repository: authentication required)
-omp plugin install github:metapeka/omp-cache-monitor
+# from GitHub (private): git+ssh uses your SSH key.
+# The `github:` shorthand queries the unauthenticated API and returns 404
+# for a private repository.
+omp plugin install git+ssh://git@github.com/metapeka/omp-cache-monitor.git
 
 # local checkout: loaded from the directory, no copying
 omp plugin link /path/to/omp-cache-monitor

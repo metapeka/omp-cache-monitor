@@ -23,7 +23,7 @@
 | Установка | `omp plugin link` на боевой чекаут; `omp plugin list` — 0.3.0 |
 | Проверки | `npm test` 16/16, загрузка OMP, TUI и `/new` |
 | Постоянные тесты | `test/extension.test.mjs`, 16 тестов, `npm test` |
-| CI | нет |
+| CI | GitHub Actions, зелёный (`npm ci`, `npm test`, `typecheck`) |
 | npm / marketplace | не публиковались |
 | Английский README | нет |
 
@@ -33,7 +33,7 @@
 |---|---|
 | Сделать GitHub-репозиторий private | готово |
 | Добавить `ROADMAP.md` и ссылку из HANDOFF | готово |
-| Защитить `main` после появления CI | ждёт этап 1.3 |
+| Защитить `main` | не включаем при прямом ff-merge; включить при переходе на PR-поток |
 | Завести метки/милстоуны GitHub | опционально |
 
 ## Этап 1. Контур качества (блокирует остальное)
@@ -47,25 +47,23 @@
   пороги warnings, non-TUI no-op.
 - `npm test` — 16/16, детерминированно, без сети и модели.
 
-### 1.2. Типы
+### 1.2. Типы — готово
 
-- Подтверждено: `@oh-my-pi/pi-coding-agent@19.1.0` опубликован и отдаёт
-  типы `./dist/types/index.d.ts`; это тот же контракт, который импортирует
-  `index.ts`. `@earendil-works/pi-coding-agent` — установленный runtime, не
-  источник типа для расширения.
-- Добавить devDependencies `@oh-my-pi/pi-coding-agent@19.1.0` и `typescript`;
-  `tsconfig.json` с `module`/`moduleResolution: NodeNext`, `target: ES2022`,
-  `strict`, `noEmit`, `skipLibCheck`; `npm run typecheck`.
-- Критерий: `noEmit` проходит на `index.ts`, devDependencies не попадают
-  в tarball (`files` не меняется).
+- `@oh-my-pi/pi-coding-agent@19.1.0` — источник типов для `index.ts`;
+  `@earendil-works/pi-coding-agent` — установленный runtime.
+- devDependencies: `@oh-my-pi/pi-coding-agent@19.1.0`, `typescript@7.0.2`,
+  `@types/node@22.20.5`; `tsconfig.json` с `NodeNext`/`ES2022`/`strict`/`noEmit`.
+- `npm run typecheck` проходит; tarball по-прежнему 4 файла, devDependencies
+  в него не попадают.
 
-### 1.3. CI
+### 1.3. CI — готово
 
-- `.github/workflows/ci.yml`: Node 22, `npm test`, `npm run typecheck`
-  при наличии.
-- Без секретов и вызовов модели.
-- После зелёного CI включить защиту `main`.
-- Критерий: push в `main` и PR не проходят с падающими тестами.
+- `.github/workflows/ci.yml`: push/PR в `main`, Node 22, `npm ci`,
+  `npm test`, `npm run typecheck`; `actions/checkout@v7`,
+  `actions/setup-node@v7`; без секретов и вызовов модели.
+- Прогон на GitHub зелёный; deprecated Node 20 в actions больше не всплывает.
+- Защита `main` не включена: работа идёт прямыми ff-merge. Включить при
+  переходе на PR-поток.
 
 ## Этап 2. Корректность lifecycle
 

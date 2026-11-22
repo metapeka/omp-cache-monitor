@@ -1,3 +1,5 @@
 node_modules/
 *.log
 .DS_Store
+.omp-handoff-session.json
+.omp-handoff-request.json

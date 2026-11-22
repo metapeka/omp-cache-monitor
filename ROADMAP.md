@@ -24,6 +24,7 @@
 | Проверки | `npm test` 22/22, typecheck, загрузка OMP, TUI, `/new` и resume |
 | Постоянные тесты | `test/extension.test.mjs`, 22 теста, `npm test` |
 | CI | GitHub Actions, зелёный (`npm ci`, `npm test`, `typecheck`) |
+| Рынок/конкуренты | `docs/research/cache-extensions.md` (2026-11-22) |
 | npm / marketplace | не публиковались |
 | Английский README | нет |
 

@@ -14,7 +14,7 @@
 | Установка на машине | `omp plugin link /home/db1/projects/omp-cache-monitor`, в `omp plugin list` — `omp-cache-monitor@0.2.0` |
 | Проверки | TUI hit совпал с JSONL (9.9% → 98.1%), `/new` сбрасывает суммы, предупреждение молчит на первом ходе эпохи, non-TUI чистый |
 | Ревью | 2 major (сброс после `/new`, ложный warning после компакции) исправлены, ре-ревью «ок» |
-| Публикация | **нет**: remote, npm, marketplace не трогали |
+| Публикация | GitHub: `metapeka/omp-cache-monitor` (public, `main`); npm, marketplace — нет |
 
 ## Контракт v0.2 (не менять без решения владельца)
 
@@ -35,7 +35,7 @@
 
 | Часть | Репозиторий/путь |
 |---|---|
-| Продукт (код, пакет) | этот репозиторий |
+| Продукт (код, пакет) | этот репозиторий; GitHub — https://github.com/metapeka/omp-cache-monitor |
 | Пресеты, `omp-mode`, план, вики | `metapeka/docs-omp-debian-availability` |
 | Публичная инструкция | https://metapeka.github.io/docs-omp-debian-availability/wiki/guide.html |
 | Установленная копия | `omp plugin link` → `/home/db1/projects/omp-cache-monitor`; файла в `~/.omp/agent/extensions/` нет (одно из двух, не оба) |
@@ -91,17 +91,16 @@ omp --no-tools --session-dir /tmp/cm-check
 
 ## Возможные следующие шаги (по решению владельца)
 
-1. GitHub: создать `metapeka/omp-cache-monitor`, запушить `main`, затем
-   `omp plugin install github:metapeka/omp-cache-monitor`.
-2. npm: `npm publish` → `omp plugin install omp-cache-monitor`.
-3. Marketplace: каталог-репозиторий с `.omp-plugin/marketplace.json`.
-4. Метрики: trend/sparkline, TTL-countdown (не дублировать native-сегмент `cache`),
+1. npm: `npm publish` → `omp plugin install omp-cache-monitor`.
+2. Marketplace: каталог-репозиторий с `.omp-plugin/marketplace.json`.
+3. Метрики: trend/sparkline, TTL-countdown (не дублировать native-сегмент `cache`),
    стоимость мисса в отчёте, восстановление сумм после resume.
-5. Локализация README на английский перед публикацией.
+4. Локализация README на английский перед публикацией.
 
 ## Ограничения
 
-- Публиковать и добавлять remote **только с явного разрешения владельца**.
+- npm, marketplace и новые remote — **только с явного разрешения владельца**;
+  GitHub-пуш в `metapeka/omp-cache-monitor` разрешён.
 - Номер upstream-бага: can1357/oh-my-pi#20128 (`getThinkingLevel` → `undefined`
   на моделях `off|auto`); не «чинить» его в обход — используется fallback.
 - OMP 19.1.0, проверено на маршруте `cline-pass`.

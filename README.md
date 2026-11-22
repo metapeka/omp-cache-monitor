@@ -60,20 +60,23 @@ hit = cacheRead / (input + cacheRead + cacheWrite)
 
 ## Установка
 
-Репозиторий локальный, npm-пакет не опубликован. OMP 19.1.0:
+npm-пакет не опубликован. OMP 19.1.0:
 
 ```bash
-# локальный пакет: загружается из этого каталога без копирования
-omp plugin link /home/db1/projects/omp-cache-monitor
+# из GitHub
+omp plugin install github:metapeka/omp-cache-monitor
+
+# локальный чекаут: загружается из каталога без копирования
+omp plugin link /path/to/omp-cache-monitor
 
 # эквивалент (алиас plugin link)
-omp install /home/db1/projects/omp-cache-monitor
+omp install /path/to/omp-cache-monitor
 ```
 
 Альтернатива — скопировать единственный файл расширения:
 
 ```bash
-cp /home/db1/projects/omp-cache-monitor/index.ts ~/.omp/agent/extensions/cache-monitor.ts
+cp /path/to/omp-cache-monitor/index.ts ~/.omp/agent/extensions/cache-monitor.ts
 ```
 
 Ставить нужно одним способом: `omp plugin link` **или** копия файла. Одновременно

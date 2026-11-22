@@ -20,7 +20,7 @@
 |---|---|
 | Версия | 0.4.0: resume-восстановление, полный учёт cache warming/компакции |
 | GitHub | `metapeka/omp-cache-monitor`, private, `main` |
-| Установка | `omp plugin link` на боевой чекаут; в `feat/resume` — 0.4.0, на боевом — 0.3.0 до merge |
+| Установка | `omp plugin link` на боевой чекаут; `omp plugin list` — 0.4.0 |
 | Проверки | `npm test` 22/22, typecheck, загрузка OMP, TUI, `/new` и resume |
 | Постоянные тесты | `test/extension.test.mjs`, 22 теста, `npm test` |
 | CI | GitHub Actions, зелёный (`npm ci`, `npm test`, `typecheck`) |

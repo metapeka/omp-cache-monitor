@@ -9,11 +9,12 @@
 
 | Что | Состояние |
 |---|---|
-| Расширение `index.ts` | v0.4.0, 615 строк, контракт ниже |
+| Расширение `index.ts` | v0.4.0, 633 строки, контракт ниже |
 | Пакет | `package.json` (`omp.extensions` + `pi.extensions`), MIT, README |
-| Установка на машине | `omp plugin link /home/db1/projects/omp-cache-monitor`, в `omp plugin list` — `omp-cache-monitor@0.3.0` (боевой чекаут ещё не обновлён) |
-| Проверки | `npm test` 22/22, typecheck, TUI hit совпал с JSONL (9.9% → 98.1%), `/new` сбрасывает суммы, resume восстанавливает суммы/тренд, cache warming и компакция входят в суммы без ходов, предупреждение молчит на первом ходе эпохи, non-TUI чистый, загрузка в OMP exit 0 |
+| Установка на машине | `omp plugin link /home/db1/projects/omp-cache-monitor`, в `omp plugin list` — `omp-cache-monitor@0.4.0` |
+| Проверки | `npm test` 22/22, typecheck, TUI hit совпал с JSONL (9.9% → 98.1%), `/new` сбрасывает суммы, resume восстанавливает суммы/тренд, фоновые вызовы добавляют только стоимость, предупреждение молчит на первом ходе эпохи, non-TUI чистый, загрузка в OMP exit 0 |
 | Ревью | 2 major (сброс после `/new`, ложный warning после компакции) исправлены, ре-ревью «ок» |
+| Ревью v0.4 | фоновый usage отделён от hit/ходов; граница resume не даёт ложной пере-оплаты |
 | Публикация | GitHub: `metapeka/omp-cache-monitor` (private, `main`); npm, marketplace — нет |
 
 ## Контракт v0.4 (v0.3 + resume и полный учёт usage; не менять без решения владельца)

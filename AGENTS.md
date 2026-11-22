@@ -18,7 +18,7 @@ read-only: не греет кэш, не меняет промпты, не тра
 
 - Версия `0.4.0`, private GitHub `metapeka/omp-cache-monitor`, `main`.
 - `omp plugin link` → боевой чекаут; `omp plugin list` — 0.4.0 и
-  `omp-agent-workflow` 0.1.0 (context guard).
+  `omp-agent-workflow` 0.2.0 (context guard, handoff, supervisor).
 - `npm test` — 22 теста; `npm run typecheck`; CI зелёный.
 - Установка одна: `omp plugin link` **или** копия файла, не оба.
 
@@ -73,8 +73,10 @@ orca worktree rm --worktree path:/home/db1/orca/workspaces/omp-cache-monitor/<sl
   с `reserveTokens: 500000`.
 - `HANDOFF` — слово-триггер: обнови `HANDOFF.md` (цель, состояние, решения,
   изменённые файлы, проверки, следующие шаги), затем сожми контекст.
-- `/handoff` — команда из `omp-agent-workflow`; native `/compact` остаётся.
-  Пороги: `OMP_CONTEXT_WARN`, `OMP_CONTEXT_SUGGEST`, `OMP_CONTEXT_AUTO`.
+- `/handoff` — компакция; `/handoff-new` — новая сессия после `HANDOFF.md`.
+  Supervisor запускается из `omp-agent-workflow` и реагирует на marker.
+  Пороги: `OMP_CONTEXT_WARN`, `OMP_CONTEXT_SUGGEST`, `OMP_CONTEXT_AUTO`,
+  `OMP_HANDOFF_AT`.
 - Не сжимать посреди tool-loop или незавершённого edit; ждать `turn_end` и
   `ctx.isIdle()`.
 - `context_pct` в native status line уже есть; свой процент не дублировать.
@@ -116,7 +118,8 @@ orca worktree rm --worktree path:/home/db1/orca/workspaces/omp-cache-monitor/<sl
   3 (TTL data-gated), 4 (release), 5 (publication).
 - `docs/research/cache-extensions.md` — рынок и что заимствуем.
 - `HANDOFF.md` — точка продолжения.
-- `docs/yoda-workflow.md` — режимы `manual`/`assisted`/`yoda`/
-  `yoda-supervised`, оркестратор и subagent'ы.
-- `~/projects/omp-agent-workflow` — context guard и `/handoff`; 9 тестов,
-  typecheck; установлен через `omp plugin link`.
+- `~/projects/omp-agent-workflow/docs/yoda-workflow.md` — режимы
+  `manual`/`assisted`/`yoda`/`yoda-supervised`, оркестратор и subagent'ы.
+- `~/projects/omp-agent-workflow/docs/handoff-auto-plan.md` — план handoff.
+- `~/projects/omp-agent-workflow` — context guard, `/handoff`, `/handoff-new`,
+  supervisor; 15 тестов, typecheck; установлен через `omp plugin link`.

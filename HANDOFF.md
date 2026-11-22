@@ -11,8 +11,8 @@
 |---|---|
 | Расширение `index.ts` | v0.4.0, 633 строки, контракт ниже |
 | Пакет | `package.json` (`omp.extensions` + `pi.extensions`), MIT, README |
-| Установка на машине | `omp plugin list` — `omp-cache-monitor@0.4.0` и `omp-agent-workflow@0.1.0` (context guard) |
-| Проверки | `npm test` 22/22, typecheck, TUI hit совпал с JSONL (9.9% → 98.1%), `/new` сбрасывает суммы, resume восстанавливает суммы/тренд, фоновые вызовы добавляют только стоимость, предупреждение молчит на первом ходе эпохи, non-TUI чистый, загрузка в OMP exit 0; `/handoff` и warning 35/50 проверены в TUI |
+| Установка на машине | `omp plugin list` — `omp-cache-monitor@0.4.0` и `omp-agent-workflow@0.2.0` |
+| Проверки | `npm test` 22/22, typecheck, TUI hit совпал с JSONL (9.9% → 98.1%), `/new` сбрасывает суммы, resume восстанавливает суммы/тренд, фоновые вызовы добавляют только стоимость, предупреждение молчит на первом ходе эпохи, non-TUI чистый, загрузка в OMP exit 0; `/handoff` и warning 35/50 проверены в TUI; `/handoff-new` открыл новую сессию; supervisor dry-run проверен |
 | Ревью | 2 major (сброс после `/new`, ложный warning после компакции) исправлены, ре-ревью «ок» |
 | Ревью v0.4 | фоновый usage отделён от hit/ходов; граница resume не даёт ложной пере-оплаты |
 | Публикация | GitHub: `metapeka/omp-cache-monitor` (private, `main`); npm, marketplace — нет |
@@ -60,7 +60,8 @@
 | Исследование конкурентов | `docs/research/cache-extensions.md` |
 | Инструкции агенту | `AGENTS.md`; глобальные — `~/.omp/agent/AGENTS.md` |
 | Агентский context guard | `/home/db1/projects/omp-agent-workflow` (linked plugin) |
-| Yoda workflow | `docs/yoda-workflow.md` — режимы и оркестрация |
+| Yoda workflow | `~/projects/omp-agent-workflow/docs/yoda-workflow.md` — отдельный продукт |
+| Automatic handoff plan | `~/projects/omp-agent-workflow/docs/handoff-auto-plan.md` |
 | Пресеты, `omp-mode`, план, вики | `metapeka/docs-omp-debian-availability` |
 | Публичная инструкция | https://metapeka.github.io/docs-omp-debian-availability/wiki/guide.html |
 | Установленная копия | `omp plugin link` → `/home/db1/projects/omp-cache-monitor`; файла в `~/.omp/agent/extensions/` нет (одно из двух, не оба) |

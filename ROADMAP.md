@@ -26,8 +26,9 @@
 | CI | GitHub Actions, зелёный (`npm ci`, `npm test`, `typecheck`) |
 | Рынок/конкуренты | `docs/research/cache-extensions.md` (2026-11-22) |
 | Инструкции агенту | `AGENTS.md` + глобальный `~/.omp/agent/AGENTS.md` |
-| Context guard | `omp-agent-workflow` 0.1.0, linked; warning 35/50, auto 60, `/handoff` |
-| Yoda workflow | `docs/yoda-workflow.md` — дизайн режимов и оркестрации |
+| Context guard | `omp-agent-workflow` 0.2.0, linked; warning 35/50, auto 60, `/handoff` |
+| Automatic handoff | `/handoff-new`, marker, supervisor; 15 тестов, dry-run проверен |
+| Yoda workflow | `~/projects/omp-agent-workflow/docs/yoda-workflow.md` — отдельный продукт |
 | npm / marketplace | не публиковались |
 | Английский README | нет |
 
@@ -185,13 +186,13 @@ resume её нельзя восстановить как границу эпох
   в безопасной точке; `/handoff` сохраняет решения и следующие шаги; тесты
   на `getContextUsage()`.
 
-Реализовано в `omp-agent-workflow` 0.1.0: warning 35/50, авто-компакция на 60%
+Реализовано в `omp-agent-workflow` 0.2.0: warning 35/50, авто-компакция на 60%
 после `turn_end`/`agent_end` при `ctx.isIdle()` и без очереди, команда
-`/handoff`; 9 тестов и typecheck. Пороги переопределяются через
+`/handoff`; 15 тестов и typecheck. Пороги переопределяются через
 `OMP_CONTEXT_WARN`, `OMP_CONTEXT_SUGGEST`, `OMP_CONTEXT_AUTO` (число или
 `off`). Расширение установлено через `omp plugin link`.
 
-## Этап 2.7. Handoff в новую сессию — clean window (P1, опция)
+## Этап 2.7. Handoff в новую сессию — clean window — готово (P1)
 
 Компакция остаётся аварийным предохранителем, но для длинной работы
 предпочтителен управляемый перенос в новую сессию: меньше потерь, чище
@@ -211,13 +212,17 @@ resume её нельзя восстановить как границу эпох
 - Критерий: `/handoff-new` создаёт новую сессию, старая остаётся в истории,
   state читается, дублирующей активной сессии нет.
 
+Реализовано в `omp-agent-workflow` 0.2.0: `/handoff-new` ждёт idle, проверяет
+`HANDOFF.md`, вызывает `ctx.newSession` и добавляет custom message
+«прочитай HANDOFF.md и продолжай». В реальном TUI новая сессия открылась.
+
 ### Cache-monitor как инструмент решения
 
 - Показывать в `/cache-monitor` рекомендацию: `handoff` на границе задачи при
   context ≥ 50% или высоком miss cost; `compact` — если задача одна и длинная.
 - Не запускать новую сессию автоматически без команды/супервизора.
 
-## Этап 2.8. Supervisor для unattended (P2, опция)
+## Этап 2.8. Supervisor для unattended — готово (P2, dry-run)
 
 - Внешний watchdog (shell-скрипт или Orca bot), а не отдельный LLM-надзиратель
   на первом этапе: он смотрит marker/context/idle и вызывает `/handoff-new`
@@ -229,6 +234,11 @@ resume её нельзя восстановить как границу эпох
 - Критерий: при отсутствии владельца агент доходит до границы задачи,
   делает handoff и продолжает; при ошибке — останавливается и пишет причину.
 
+Реализовано в `omp-agent-workflow` 0.2.0: `bin/omp-handoff-supervisor.mjs`
+читает session info и marker, отправляет `/handoff-new` через
+`orca terminal send`, затем continuation prompt. Есть `--dry-run`; полный
+end-to-end в реальном Orca-терминале ещё не прогонялся.
+
 ## Этап 2.9. Yoda workflow mode (P1/P2, дизайн)
 
 - Режимы: `manual`, `assisted`, `yoda`, `yoda-supervised`.
@@ -237,7 +247,7 @@ resume её нельзя восстановить как границу эпох
 - `yoda` без supervisor умеет только компакцию; `yoda-supervised` делает
   clean-window handoff через `/handoff-new`.
 - Конфиг: `workflow.mode`, пороги, бюджеты, stop-gates.
-- Полный дизайн: `docs/yoda-workflow.md`.
+- Полный дизайн: `~/projects/omp-agent-workflow/docs/yoda-workflow.md`.
 - Критерий: режим переключается конфигом, цикл проходит N задач с тестами,
   handoff на границе, stop-gate останавливает работу.
 
@@ -293,9 +303,9 @@ warm/cold и причину инвалидации, поэтому TTL не до
 2. Этап 2 — resume и полный учёт usage. Это ядро корректности.
 3. Этап 2.5 — P1 cache economics: причина мисса и saved/miss premium.
 4. Этап 2.6 — готово: context guard и `/handoff` в `omp-agent-workflow`.
-5. Этап 2.7 — `/handoff-new`: clean window, state-файл, `newSession`.
-6. Этап 2.8 — supervisor для unattended; только после 2.7.
-7. Этап 2.9 — Yoda workflow mode; дизайн в `docs/yoda-workflow.md`.
+5. Этап 2.7 — готово: `/handoff-new`, state, `newSession`.
+6. Этап 2.8 — готово (dry-run): supervisor; остался e2e в Orca.
+7. Этап 2.9 — Yoda workflow mode; дизайн в `omp-agent-workflow`.
 8. Этап 3 — TTL, только data-gated, без реализации на догадках.
 9. Этап 4 — английский README, пакет, установка, тег.
 10. Этап 5 — публикация, только после явного разрешения.
@@ -309,9 +319,9 @@ warm/cold и причину инвалидации, поэтому TTL не до
 | `CI` | 1.3: GitHub Actions и защита `main` | task |
 | `ResumeImplementer` | 2.1–2.2: восстановление и полный учёт usage | task |
 | `CacheEconomics` | 2.5: причина мисса, saved/miss premium | task |
-| `ContextGuard` | 2.6: готово в `omp-agent-workflow` 0.1.0, 9 тестов | task |
-| `HandoffNew` | 2.7: `/handoff-new` и clean window | task |
-| `Supervisor` | 2.8: внешний watchdog для unattended | task, опция |
+| `ContextGuard` | 2.6: готово в `omp-agent-workflow` 0.2.0, 15 тестов | task |
+| `HandoffNew` | 2.7: готово в `omp-agent-workflow` 0.2.0 | task |
+| `Supervisor` | 2.8: готово (dry-run), e2e pending | task, опция |
 | `YodaOrchestrator` | 2.9: режимы, план/state, оркестрация | task |
 | `Reviewer` | ревью каждого поведенческого PR | reviewer |
 | `DocsEnglish` | 4.1: английский README | task |

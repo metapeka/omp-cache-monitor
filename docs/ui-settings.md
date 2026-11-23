@@ -140,12 +140,26 @@ powerline-плагина не входят в `omp.settings` этого паке
   docs на двух языках. Критерий: `language: en` даёт полностью английский
   вывод, ни одной русской строки; `ru` (default) не меняет текущий вывод,
   кроме новой строки `language` в `settings`.
-- [ ] **Phase 3 — пресеты и advanced-ключи.** `preset`
+- [ ] **Phase 3 — пресеты и advanced-ключи (0.10.0).** `preset`
   (`balanced` / `quiet` / `verbose` / `custom`) задаёт набор значений;
   advanced: `warnCanonicalMiss`, `minPrevPromptTokens`, `oncePerEpoch`,
-  `trendSize`, `statusShowCost`.
+  `trendSize`, `statusShowCost`. Итого 15 ключей.
   Критерий: пресет меняет только перечисленные ключи, `custom` оставляет
-  ручные значения, каждый advanced-ключ покрыт тестом и строкой в docs.
+  ручные значения, каждый advanced-ключ покрыт тестом и строкой в docs;
+  defaults без настроек и `ru`-вывод остаются байт-в-байт прежними.
+
+### Пресеты (Phase 3)
+
+| Пресет | Значения |
+|---|---|
+| `balanced` (default) | текущие defaults: status on, mode on, warnings on, lowHit 50, idle 5, minPrompt 4000, history 8, money on, trend 12, status cost off, canonical on, minPrev 2048, once/epoch on |
+| `quiet` | `statusShowMode=false`, `warningsEnabled=false`, `statusShowCost=false`; остальное как balanced |
+| `verbose` | `lowHitPercent=60`, `idleMinutes=3`, `minPromptTokens=2000`, `historySize=12`, `trendSize=20`, `statusShowCost=true`, `minPrevPromptTokens=1024`, `oncePerEpoch=false`; остальное как balanced |
+| `custom` | preset-значения не применяются: только individual keys + defaults |
+
+Правило приоритета: **явно заданный ключ сильнее пресета**; `preset` не
+меняет `language`. Пресет применяется к незаданным ключам, `custom` — только
+defaults + individual keys.
 - [ ] **Phase 4 — онбординг и upstream.** Подсказка при первом промахе (как
   открыть `settings`), скриншоты Settings → Plugins, upstream-предложение
   `group`/`icon` для плагинных настроек.
@@ -154,13 +168,13 @@ powerline-плагина не входят в `omp.settings` этого паке
 
 ### Advanced-ключи (Phase 3)
 
-| Ключ | Смысл |
-|---|---|
-| `warnCanonicalMiss` | Отдельно выключать канонический промах, оставляя low hit. |
-| `minPrevPromptTokens` | Заменить константу `MIN_PREV_PROMPT = 2048` порогом предыдущего промпта. |
-| `oncePerEpoch` | Предупреждать один раз за эпоху или каждый подходящий ход. |
-| `trendSize` | Длина спарклайна (сейчас константа 12). |
-| `statusShowCost` | Добавить стоимость в статус-строку рядом с `↺`. |
+| Ключ | Default | Смысл |
+|---|---|---|
+| `warnCanonicalMiss` | `true` | Отдельно выключать канонический промах, оставляя low hit. |
+| `minPrevPromptTokens` | `2048` (0..1e6, step 256) | Заменить константу `MIN_PREV_PROMPT` порогом предыдущего промпта. |
+| `oncePerEpoch` | `true` | `true` — один warning каждого типа за эпоху; `false` — на каждом подходящем ходе. |
+| `trendSize` | `12` (1..50) | Длина спарклайна; live и restore используют одно значение. |
+| `statusShowCost` | `false` | Добавить стоимость последнего хода в статус: `↺ 98% $0.0027`. |
 
 ## Риски
 

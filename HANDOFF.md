@@ -6,6 +6,39 @@
 Это продолжение работы, начатой в docs-репозитории
 `docs-omp-debian-availability` (там же пресеты, `omp-mode` и публичная вики).
 
+## Следующая задача (взять первой)
+
+**Phase 3 UI: пресеты и advanced-ключи, версия 0.10.0.** Не начинать release,
+Phase 4 или P2 до неё, если владелец не передумал.
+
+- Ветка/worktree: `feat/ui-presets` от `main` (`b24e2bb`), `--no-parent`.
+- Схема `omp.settings`: добавить `preset` (`enum: balanced|quiet|verbose|custom`,
+  default `balanced`) и advanced: `warnCanonicalMiss` (bool, true),
+  `minPrevPromptTokens` (number, 2048, 0..1e6, step 256), `oncePerEpoch`
+  (bool, true), `trendSize` (number, 12, 1..50), `statusShowCost`
+  (bool, false). Итого 15 ключей.
+- Семантика пресетов (explicit key всегда сильнее пресета):
+  - `balanced` — текущие defaults;
+  - `quiet` — `statusShowMode=false`, `warningsEnabled=false`,
+    `statusShowCost=false`;
+  - `verbose` — `lowHitPercent=60`, `idleMinutes=3`, `minPromptTokens=2000`,
+    `historySize=12`, `trendSize=20`, `statusShowCost=true`,
+    `minPrevPromptTokens=1024`, `oncePerEpoch=false`;
+  - `custom` — только individual keys/defaults, без preset-значений.
+- Advanced: `warnCanonicalMiss=false` отключает только canonical miss;
+  `minPrevPromptTokens` заменяет `MIN_PREV_PROMPT`; `oncePerEpoch=false`
+  предупреждает на каждом подходящем ходе; `trendSize` меняет окно
+  спарклайна; `statusShowCost=true` добавляет стоимость последнего хода
+  в статус (`↺ 98% $0.0027`).
+- Defaults (без настроек) и `ru`-вывод остаются байт-в-байт прежними.
+- Тесты: preset-матрица, explicit override, `custom`, каждый advanced-ключ,
+  статус с/без cost, trendSize, `ru`/`en`, invalid values.
+- Docs/version: `docs/ui-settings.md` (Phase 3 done, таблица 15 ключей),
+  README EN/RU, CHANGELOG 0.10.0, ROADMAP 2.12, HANDOFF, AGENTS.
+- Проверки: `npm test`, `npm run typecheck`, `npm pack` 4 файла, TUI
+  `settings`/report/status; merge `--ff-only`, worktree удалить.
+- Release `v0.9.1`/`v0.10.0` — только по отдельному решению владельца.
+
 ## Что уже готово
 
 | Что | Состояние |
@@ -241,16 +274,14 @@ omp --no-tools --session-dir /tmp/cm-check
 пакет, tarball, тег/release 0.6.0) готовы; 0.7.0 (`/cache-monitor costs`),
 0.8.0 (настройки, `settings`, `help`) и 0.8.1 (группы, docs map) в `main`;
 0.9.0 (`language: ru|en`, 9 ключей, EN-вывод, 68 тестов) влит в
-`main` (`774e574`, `a9e94fd`), проверен unit-тестами и живым TUI. Следующее —
-только по решению владельца: тег/release `v0.9.1` (плюс, при желании,
-`v0.7.0`/`v0.8.0`), этап 5 (npm/marketplace) или P2-бэклог (панель).
-Powerline-интеграция закрыта в 0.9.1 (`docs/powerline.md`). Phase 3 —
-`preset` (`balanced`/`quiet`/`verbose`/`custom`) и advanced-ключи
-(`warnCanonicalMiss`, `minPrevPromptTokens`, `oncePerEpoch`, `trendSize`,
-`statusShowCost`); Phase 4 — подсказка при первом промахе, скриншоты
-Settings → Plugins, upstream `group`/`icon`. Критерии и чеклист —
-`docs/ui-settings.md`. TTL на `cline-pass` не делаем: провайдер не декларирует
-lifetime; TTL — data-gated P2.
+`main` (`774e574`, `a9e94fd`), проверен unit-тестами и живым TUI. Powerline
+закрыт в 0.9.1 (`docs/powerline.md`). **Следующая задача — Phase 3**
+(пресеты + advanced-ключи, 0.10.0): подробный scope и acceptance — в разделе
+«Следующая задача» выше и в `docs/ui-settings.md`. После неё: Phase 4 —
+подсказка при первом промахе, скриншоты Settings → Plugins, upstream
+`group`/`icon`. Тег/release `v0.9.1`/`v0.10.0`, этап 5
+(npm/marketplace) и P2 (панель) — только по решению владельца. TTL на
+`cline-pass` не делаем: провайдер не декларирует lifetime; TTL — data-gated P2.
 
 ## Ограничения
 

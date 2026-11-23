@@ -363,8 +363,15 @@ Phase 2 — в 0.9.0: девятый ключ `language` (`enum ["ru","en"]`, de
 `causeText(cause, language)`, английские `description` остались прежними.
 Тестов 68 (60 + 8 EN/нормализация), каждая EN-проверка запрещает кириллицу;
 `ru` (default) сохраняет прежний вывод, кроме строки `language` в `settings`.
-Фазы 3–4 (`preset`+advanced, онбординг/upstream) — в
-`docs/ui-settings.md`.
+
+**Следующая задача — Phase 3 (0.10.0):** `preset`
+(`balanced`/`quiet`/`verbose`/`custom`) + advanced-ключи
+(`warnCanonicalMiss`, `minPrevPromptTokens`, `oncePerEpoch`, `trendSize`,
+`statusShowCost`), 15 ключей всего. Явно заданный ключ сильнее пресета;
+`custom` — только individual/defaults; defaults без настроек и `ru`-вывод
+байт-в-байт прежние. Таблица пресетов, defaults и acceptance —
+`docs/ui-settings.md` и `HANDOFF.md` § «Следующая задача». После неё Phase 4
+(онбординг/upstream), затем release по решению владельца.
 
 ## Этап 3. TTL: data-gated (P2)
 
@@ -464,6 +471,7 @@ Phase 2 — в 0.9.0: девятый ключ `language` (`enum ["ru","en"]`, de
 8. Этап 2.10 — режимы готовы; оркестратор — дизайн в `omp-agent-workflow`.
 9. Этап 2.11 — готово: разбивка стоимости в `/cache-monitor costs`.
 10. Этап 2.12 — готово: настройки Phase 1/1.5 и Phase 2 (девтый ключ `language`, EN-вывод; `settings`/`help`, `docs/omp-docs-map.md`).
+    - **Следующая:** Phase 3 (0.10.0) — `preset` + advanced-ключи, 15 ключей; scope/acceptance в `HANDOFF.md` § «Следующая задача».
 11. Этап 3 — TTL, только data-gated, без реализации на догадках.
 12. Этап 4 — готово (0.6.0): английский README, пакет, tarball, тег/release.
 13. Этап 5 — публикация, только после явного разрешения.
@@ -481,6 +489,7 @@ Phase 2 — в 0.9.0: девятый ключ `language` (`enum ["ru","en"]`, de
 | `HandoffNew` | 2.7: готово в `omp-agent-workflow` 0.3.0 | task |
 | `TurnHistory` | 2.8: готово, история 8 ходов в `/cache-monitor` | task |
 | `UiSettings` | 2.12: готово, `omp.settings` (9 ключей), группы, `settings`/`help`, `language: ru\|en`, docs/ui-settings.md, docs/omp-docs-map.md | task |
+| `UiPresets` | 2.12 Phase 3: `preset` + advanced-ключи (0.10.0), следующая | task |
 | `Supervisor` | 2.9: готово, e2e в Orca пройден | task, опция |
 | `YodaOrchestrator` | 2.10: режимы, план/state, оркестрация | task |
 | `Reviewer` | ревью каждого поведенческого PR | reviewer |

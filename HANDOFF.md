@@ -22,7 +22,7 @@ Phase 4 закрыта; новых UI-задач в очереди нет.
 | Что | Состояние |
 |---|---|
 | Расширение `index.ts` | v0.10.1, контракт ниже: `preset` + advanced-ключи, второй статус-ключ `cache-monitor-cost`, онбординг на первом промахе |
-| Пакет | `package.json` 0.10.1 (`omp.extensions` + `omp.settings` из 15 ключей, `pi.extensions`, repository/homepage/bugs/engines), MIT, README (EN) + `docs/README.ru.md`, CHANGELOG 0.10.1, `docs/ui-settings.md`, `docs/omp-docs-map.md`, `docs/powerline.md`, `docs/upstream-settings-groups.md`, скриншоты `docs/images/` |
+| Пакет | `package.json` 0.10.1 (`omp.extensions` + `omp.settings` из 15 ключей, `pi.extensions`, repository/homepage/bugs/engines), MIT, README EN (`README.md`) + 中文 (`docs/README.zh.md`) + RU (`docs/README.ru.md`), CHANGELOG 0.10.1, `docs/ui-settings.md`, `docs/omp-docs-map.md`, `docs/powerline.md`, `docs/upstream-settings-groups.md`, `docs/release-notes-0.10.1.md`, скриншоты и demo-GIF `docs/images/` |
 | Установка на машине | `omp plugin list` — `omp-cache-monitor@0.10.1` и `omp-agent-workflow@0.5.14` |
 | Проверки | `npm test` 85/85, typecheck, `npm pack` — 4 файла; 0.10.1: подсказка только на первом каноническом промахе (RU/EN), скриншоты Settings → Plugins и `settings`, upstream issue #20253 |
 | Ревью | v0.4/v0.5/v0.6/v0.7/v0.8/v0.8.1/v0.9/v0.10.1 — merge |
@@ -33,6 +33,7 @@ Phase 4 закрыта; новых UI-задач в очереди нет.
 | Ревью v0.8 | reviewer: merge; defaults побайтово прежние, runtime loader проверен, nits по docs исправлены |
 | Ревью v0.8.1 | reviewer: merge; исправлены 404-ссылка docs, версия в ROADMAP и формулировка help про причину мисса |
 | Ревью v0.10.1 | reviewer: merge; nits закрыты — новые `docs/images/*` и upstream-doc в commit, Settings → Plugins переснят на 0.10.1 |
+| Ревью docs 0.10.1 | Docs3LangReview: merge with nits; исправлены «8 строк help» (EN/ZH) и ссылка на release notes в RU |
 | Публикация | GitHub: `metapeka/omp-cache-monitor` (private, `main`); npm, marketplace — нет |
 
 ## Контракт v0.10.1 (v0.10.0 + онбординг; не менять без решения владельца)

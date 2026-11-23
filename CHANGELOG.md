@@ -8,11 +8,14 @@
   `custom`). Подсказка показывается один раз за процесс, на обоих языках, и не
   повторяется в следующих эпохах или сессиях того же процесса. Отдельного
   ключа настроек нет.
-- **Скриншоты.** README (EN) и `docs/README.ru.md` показывают Settings →
-  Plugins и вывод `/cache-monitor settings`; файлы —
-  `docs/images/omp-plugins-settings.png` и
-  `docs/images/cache-monitor-settings.png`. В tarball они не входят
-  (`npm pack` по-прежнему 4 файла).
+- **Скриншоты и демо.** README (EN/ZH) и `docs/README.ru.md` показывают
+  Settings → Plugins, вывод `/cache-monitor settings` и demo-GIF
+  (`docs/images/demo.gif`, 4 кадра: Plugins → settings → live report). В
+  tarball они не входят (`npm pack` по-прежнему 4 файла).
+- **Документация.** README на трёх языках: English (`README.md`, основной),
+  Simplified Chinese (`docs/README.zh.md`) и Русский (`docs/README.ru.md`), с
+  переключателем языков, demo-GIF (`docs/images/demo.gif`), скриншотами,
+  Mermaid-схемами и таблицей сравнения с ближайшими cache-инструментами.
 - **Upstream.** Предложение `group`/`icon` для схемы плагинных настроек
   заведено: <https://github.com/can1357/oh-my-pi/issues/20253>; локальная
   копия — `docs/upstream-settings-groups.md`.

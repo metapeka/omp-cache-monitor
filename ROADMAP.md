@@ -380,13 +380,14 @@ advanced-ключи (`warnCanonicalMiss`, `minPrevPromptTokens`, `oncePerEpoch`,
 
 Phase 4 — в 0.10.1: первый канонический промах за процесс добавляет одну
 строку-подсказку (`/cache-monitor settings` и `preset`, RU/EN); скриншоты
-Settings → Plugins и `settings` — в README (EN/RU), файлы `docs/images/`;
-upstream-предложение `group`/`icon` заведено —
+Settings → Plugins и `settings`, demo-GIF — в README (EN/ZH/RU), файлы
+`docs/images/`; upstream-предложение `group`/`icon` заведено —
 <https://github.com/can1357/oh-my-pi/issues/20253>, локальная копия —
-`docs/upstream-settings-groups.md`. Тестов 85. Метрики и остальные warning-и
-не меняются.
+`docs/upstream-settings-groups.md`. Документация: English (основной), 中文,
+Русский; таблица конкурентов и Mermaid-схемы. Тестов 85. Метрики и остальные
+warning-и не меняются.
 
-**Следующая задача — release 0.10.1 по решению владельца.** TTL — data-gated,
+**Следующая задача — release 0.10.1:** тег/GitHub release; TTL — data-gated,
 этап 5 (npm/marketplace) и P2 — только по решению владельца.
 
 ## Этап 3. TTL: data-gated (P2)

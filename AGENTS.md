@@ -11,7 +11,9 @@ read-only: не греет кэш, не меняет промпты, не тра
 1. `HANDOFF.md` — текущее состояние, контракт, проверки, ограничения.
 2. `ROADMAP.md` — этапы, приоритеты, агенты.
 3. `docs/research/cache-extensions.md` — конкуренты и что заимствуем.
-4. `README.md` — пользовательский контракт (EN), `docs/README.ru.md` — RU.
+4. `README.md` — пользовательский контракт (EN, основной),
+   `docs/README.zh.md` — ZH, `docs/README.ru.md` — RU; demo и скриншоты —
+   `docs/images/`.
 5. `docs/ui-settings.md` — настройки, команды `settings`/`help`, ограничения
    UI OMP, роудмап фаз, риски; `docs/omp-docs-map.md` — карта встроенной
    документации OMP (`omp://docs`, 135 файлов).
@@ -29,8 +31,11 @@ read-only: не греет кэш, не меняет промпты, не тра
   таблица и риски — `docs/ui-settings.md`, карта документации OMP —
   `docs/omp-docs-map.md`, Powerline — `docs/powerline.md`.
 - Онбординг (0.10.1): первый канонический промах за процесс добавляет
-  подсказку про `/cache-monitor settings` и `preset`; скриншоты —
+  подсказку про `/cache-monitor settings` и `preset`; скриншоты и demo-GIF —
   `docs/images/`, upstream `group`/`icon` — issue #20253.
+- Документация: English `README.md` (основной), 中文 `docs/README.zh.md`, Русский
+  `docs/README.ru.md`; сравнение с конкурентами — в README, release notes —
+  `docs/release-notes-0.10.1.md`.
 - Установка одна: `omp plugin link` **или** копия файла, не оба.
 
 ## Нельзя

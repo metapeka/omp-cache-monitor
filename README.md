@@ -1,6 +1,12 @@
 # omp-cache-monitor
 
-English | [Русский](docs/README.ru.md)
+**English** · [中文](docs/README.zh.md) · [Русский](docs/README.ru.md)
+
+> **Read-only prefix-cache visibility for OMP.** Hit rate, miss causes, costs,
+> and 8-turn history — without warming the cache, rewriting prompts, or spending
+> an extra token.
+
+`0.10.1` · OMP 19.1.x · zero runtime dependencies · one file `index.ts` · 85 tests
 
 OMP extension: prefix-cache hit rate in the status line, miss warnings, and the
 `/cache-monitor` command (`history` shows the last 8 turns, `costs` breaks the
@@ -11,6 +17,130 @@ It changes nothing in settings or requests: it reads the completed turn usage
 (`turn_end.message.usage`) and the session journal
 (`sessionManager.getEntries()`), then publishes a status. An error inside the
 handler never breaks the turn.
+
+## Demo
+
+![omp-cache-monitor demo](docs/images/demo.gif)
+
+*Settings → Plugins, `/cache-monitor settings`, and a report with real turn
+data — recorded in OMP 19.1.1.*
+
+## Why omp-cache-monitor?
+
+The individual numbers exist in other cache tools. **The combination is the
+feature:** a read-only observer that speaks the same language as OMP modes,
+warns only when a miss is real, and survives resume without inventing money.
+
+| ✅ | What it means |
+|---|---|
+| **Read-only by design** | No cache warming, no prompt rewriting, no proxy, no hidden model calls. It observes usage that OMP already paid for. |
+| **Mode-aware status** | `cache-safe ↺ 98%`, `quality ↺ 74%`, `throughput ↺ 91%` — the hit rate is tied to the active `OMP_MODE`, not shown in isolation. |
+| **One command, one mental model** | `/cache-monitor` combines mode, model, thinking, last turn, session totals, trend, `saved` and `miss premium`; `history`, `costs`, `settings`, `help` cover the rest. |
+| **Epoch-aware warnings** | Canonical miss or low hit, once per prefix epoch, skipped on the first turn and after model/thinking/tool/compaction/resume changes. The cause is named: `простой N мин` / `idle N min` or `перезапись префикса` / `prefix rewrite`. |
+| **15 settings, 4 presets** | `balanced`, `quiet`, `verbose`, `custom`; every key has bounds, defaults and English manifest descriptions. `language: ru \| en` localizes the runtime output. |
+| **Honest resume** | Totals, trend and 8-turn history are restored from the journal; historical prices are not invented. Money after resume is `≥` or `?`, never a fake exact number. |
+| **Zero runtime dependencies** | One `index.ts`, 85 deterministic tests, CI, `npm pack` = 4 files. No daemon, no database, no network. |
+| **Onboarding built in** | The first canonical miss adds a one-time hint: where `/cache-monitor settings` is and what `preset` means. |
+
+## At a glance
+
+| | |
+|---|---|
+| **Status line** | `cache-safe ↺ 98%` — key `cache-monitor`; optional `cache-monitor-cost` segment |
+| **Warnings** | Canonical miss and low hit, with cause; once per epoch; prompt floor 4000 tokens |
+| **Commands** | `/cache-monitor`, `history`/`hist`, `costs`/`cost`, `settings`/`setting`, `help`/`?` |
+| **History** | Last 8 completed turns, restored after resume |
+| **Costs** | Session breakdown by `dialog`/`compaction`/`branch`/`other`; `saved` and `miss premium` |
+| **Settings** | 15 keys in `omp.settings`; presets `balanced`/`quiet`/`verbose`/`custom`; `language: ru \| en` |
+| **Docs** | English, 中文, Русский; deep dives in `docs/` |
+| **Release** | [v0.10.1](https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1) — private GitHub release with tarball |
+| **Install** | `omp plugin install …` or `omp plugin link /path`; no runtime deps |
+
+## How it works
+
+```mermaid
+flowchart LR
+  subgraph OMP["OMP runtime"]
+    T["turn_end<br/>message.usage"]
+    J["session journal<br/>sessionManager.getEntries()"]
+    U["TUI status line"]
+    N["notifications"]
+  end
+  subgraph EXT["omp-cache-monitor · index.ts"]
+    H["hit = cacheRead /<br/>(input + cacheRead + cacheWrite)"]
+    E["prefix epoch<br/>model · thinking · tools"]
+    W["warning policy<br/>canonical miss · low hit"]
+    R["report · history · costs<br/>settings · help"]
+  end
+  T --> H
+  J --> H
+  H --> U
+  H --> E
+  E --> W
+  W --> N
+  R --> N
+```
+
+```mermaid
+sequenceDiagram
+  participant OMP
+  participant Ext as omp-cache-monitor
+  OMP->>Ext: session_start / session_switch
+  Ext->>Ext: read 15 settings, restore journal totals
+  OMP->>Ext: turn_end(usage)
+  Ext->>Ext: compute hit, saved, miss premium, cause
+  Ext->>OMP: setStatus("cache-safe ↺ 98%")
+  Ext->>OMP: notify(miss cause) — only if the epoch is not fresh
+  OMP->>Ext: /cache-monitor [history|costs|settings|help]
+  Ext->>OMP: report or command output
+```
+
+## Competitors
+
+Nearest tools as of **2026-11-23**. This is a positioning table, not a
+benchmark: features change, and a missing cell means "not the focus", not
+"broken". Sources and caveats: [`docs/research/cache-extensions.md`](docs/research/cache-extensions.md).
+
+| Project | Ecosystem | Status / UI | Command report | Warnings | TTL / warming | Settings | Runtime deps |
+|---|---|---|---|---|---|---|---|
+| **omp-cache-monitor 0.10.1** | OMP | `cache-safe ↺ 98%`, mode-aware | `/cache-monitor` + history/costs/settings/help | canonical miss + low hit, cause, once per epoch | no — read-only | 15 keys, 4 presets, RU/EN | **0** |
+| [omp-cache-meter](https://github.com/andreiverdes/agent-cache-meter) 0.1.1 | OMP | widget above composer | `/cache`, panel, last 8 | warm/cold states | TTL + mirror warming | `/cache settings` | 0 |
+| [omp-cache-hit-rate-extension](https://github.com/catitw/omp-cache-hit-rate-extension) | OMP | status + 10-turn trend | no command | warm→cold alert | no | no | 0 (manual copy) |
+| [omp-cache-control](https://github.com/ubranch/omp-cache-control) | OMP | TTL only | `/cache`, `/cache warm` | no | TTL + paid warming | on/off | 1 |
+| [omp-cache-optimizer](https://github.com/EF-FlowCode/omp-cache-optimizer) 2.1.0 | OMP | footer stats | `/cache-optimizer` + doctor | compat warnings | warming decision | doctor/config | 0 |
+| [pi-cache-hit-monitor](https://pi.dev/packages/@narumitw/pi-cache-hit-monitor) 0.1.5 | PI | widget + 8-turn trend | toggle command | epoch reset, no toast | no | show/hide | 1 |
+
+**Where we deliberately do not compete:** TTL countdowns, warming, prompt
+optimization, cross-session forensics and dashboards. Those are separate
+products; on `cline-pass` the provider does not even declare a cache lifetime,
+so a TTL would be a guess. This plugin stays a trustworthy observer.
+
+**What no other tool in this table combines:** `OMP_MODE`-aware status, one
+command with report/history/costs/settings, epoch-aware warnings with a named
+cause, resume without invented prices, 15-key presets, and a zero-dependency
+single file.
+
+## Quick start
+
+```bash
+# from GitHub (private; uses your SSH key)
+omp plugin install git+ssh://git@github.com/metapeka/omp-cache-monitor.git
+
+# or from a local checkout — loaded in place, no copying
+omp plugin link /path/to/omp-cache-monitor
+```
+
+Then restart `omp`, send a prompt, and run:
+
+```text
+/cache-monitor
+/cache-monitor history
+/cache-monitor costs
+/cache-monitor settings
+```
+
+Full installation options, status-line wiring and Powerline are in
+[Installation](#installation) below.
 
 ## What it shows
 
@@ -321,11 +451,11 @@ Applied to new sessions; settings re-reads immediately.
 Docs: README.md, docs/ui-settings.md, docs/omp-docs-map.md.
 ```
 
-`/cache-monitor help` (alias `?`) prints a nine-line reference: what `↺`
+`/cache-monitor help` (alias `?`) prints an eight-line reference: what `↺`
 means (higher is cheaper), that a miss is `cacheRead 0`, the subcommands
-(`отчёт`, `history`, `costs`, `settings`, `help`), the `preset` bundle and
-advanced keys, where to change settings, and links to `README.md`,
-`docs/ui-settings.md`, `docs/omp-docs-map.md`. It makes no TTL promises.
+(`отчёт`, `history`, `costs`, `settings`, `help`), where to change settings,
+and links to `README.md`, `docs/ui-settings.md`, `docs/omp-docs-map.md`. It
+makes no TTL promises.
 
 ## Installation
 
@@ -376,7 +506,7 @@ is in [`docs/powerline.md`](docs/powerline.md).
 
 ## Compatibility and name conflicts
 
-- OMP 19.1.0; verified on the `cline-pass` route.
+- OMP 19.1.x (19.1.0–19.1.1); verified on the `cline-pass` route.
 - The command is `/cache-monitor` because `/cache` is already taken by
   `ubranch/omp-cache-control`. Both extensions can stay enabled: they register
   different commands and different status keys.
@@ -385,11 +515,20 @@ is in [`docs/powerline.md`](docs/powerline.md).
 
 ## Related documents
 
+- [中文 README](docs/README.zh.md) · [Русский README](docs/README.ru.md)
 - Cheat sheet for modes, `/cache-monitor`, and diagnostics:
   https://metapeka.github.io/docs-omp-debian-availability/wiki/guide.html
 - `cache-safe`/`quality`/`throughput` presets, the `omp-mode` wrapper, and the
   decision history — https://github.com/metapeka/docs-omp-debian-availability
   (`presets/`, `docs/plan-cache-modes.md`).
+- Competitor sources and caveats —
+  [`docs/research/cache-extensions.md`](docs/research/cache-extensions.md).
+- Release notes — [`docs/release-notes-0.10.1.md`](docs/release-notes-0.10.1.md).
+
+## Release
+
+- [v0.10.1](https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1) —
+  presets, onboarding, three-language docs, demo GIF.
 
 ## License
 

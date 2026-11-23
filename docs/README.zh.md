@@ -154,10 +154,13 @@ sequenceDiagram
 ## 快速开始
 
 ```bash
-# from GitHub (private; uses your SSH key)
-omp plugin install git+ssh://git@github.com/metapeka/omp-cache-monitor.git
+# 从公开 GitHub 安装（shorthand）
+omp plugin install github:metapeka/omp-cache-monitor
 
-# or from a local checkout — loaded in place, no copying
+# 或 HTTPS git
+omp plugin install git+https://github.com/metapeka/omp-cache-monitor.git
+
+# 或从本地检出处加载，无需复制
 omp plugin link /path/to/omp-cache-monitor
 ```
 
@@ -461,18 +464,22 @@ Docs: README.md, docs/ui-settings.md, docs/omp-docs-map.md.
 
 ## 安装
 
-npm 包尚未发布。OMP 19.1.0：
+npm 包尚未发布。仓库是公开的；OMP 19.1：
 
 ```bash
-# from GitHub (private): git+ssh uses your SSH key.
-# The `github:` shorthand queries the unauthenticated API and returns 404
-# for a private repository.
+# 公开 GitHub shorthand
+omp plugin install github:metapeka/omp-cache-monitor
+
+# HTTPS git（无需 SSH 密钥）
+omp plugin install git+https://github.com/metapeka/omp-cache-monitor.git
+
+# 配置了 SSH 密钥时也可以
 omp plugin install git+ssh://git@github.com/metapeka/omp-cache-monitor.git
 
-# local checkout: loaded from the directory, no copying
+# 本地检出处：直接从目录加载，不复制
 omp plugin link /path/to/omp-cache-monitor
 
-# equivalent (alias of plugin link)
+# 等价写法（plugin link 的别名）
 omp install /path/to/omp-cache-monitor
 ```
 

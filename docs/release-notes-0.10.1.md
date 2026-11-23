@@ -32,8 +32,11 @@ work; v0.10.0 was not tagged separately.
 ## Install
 
 ```bash
-# private GitHub, uses your SSH key
-omp plugin install git+ssh://git@github.com/metapeka/omp-cache-monitor.git
+# public GitHub shorthand
+omp plugin install github:metapeka/omp-cache-monitor
+
+# or HTTPS git
+omp plugin install git+https://github.com/metapeka/omp-cache-monitor.git
 
 # or from a local checkout
 omp plugin link /path/to/omp-cache-monitor

@@ -87,7 +87,7 @@ warns only when a miss is real, and survives resume without inventing money.
 | **Costs** | Session breakdown by `dialog`/`compaction`/`branch`/`other`; `saved` and `miss premium` |
 | **Settings** | 15 keys in `omp.settings`; presets `balanced`/`quiet`/`verbose`/`custom`; `language: ru \| en` |
 | **Docs** | English, 中文, Русский; deep dives in `docs/` |
-| **Release** | [v0.10.1](https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1) — private GitHub release with tarball |
+| **Release** | [v0.10.1](https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1) — GitHub release with tarball |
 | **Install** | `omp plugin install …` or `omp plugin link /path`; no runtime deps |
 
 ## How it works
@@ -157,8 +157,11 @@ single file.
 ## Quick start
 
 ```bash
-# from GitHub (private; uses your SSH key)
-omp plugin install git+ssh://git@github.com/metapeka/omp-cache-monitor.git
+# from public GitHub (shorthand)
+omp plugin install github:metapeka/omp-cache-monitor
+
+# or HTTPS git
+omp plugin install git+https://github.com/metapeka/omp-cache-monitor.git
 
 # or from a local checkout — loaded in place, no copying
 omp plugin link /path/to/omp-cache-monitor
@@ -493,12 +496,16 @@ makes no TTL promises.
 
 ## Installation
 
-The npm package is not published. OMP 19.1.0:
+The npm package is not published. The repository is public; OMP 19.1:
 
 ```bash
-# from GitHub (private): git+ssh uses your SSH key.
-# The `github:` shorthand queries the unauthenticated API and returns 404
-# for a private repository.
+# public GitHub shorthand
+omp plugin install github:metapeka/omp-cache-monitor
+
+# HTTPS git (no SSH key needed)
+omp plugin install git+https://github.com/metapeka/omp-cache-monitor.git
+
+# SSH also works if your key is configured
 omp plugin install git+ssh://git@github.com/metapeka/omp-cache-monitor.git
 
 # local checkout: loaded from the directory, no copying

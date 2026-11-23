@@ -1,6 +1,6 @@
 # Roadmap: omp-cache-monitor
 
-Дата: 2026-11-23. Версия: 0.10.1. GitHub: private.
+Дата: 2026-11-23. Версия: 0.10.1. GitHub: public.
 Цель: довести расширение до релиза, которому можно доверять по цифрам,
 установке и поведению на всех переходах сессии.
 
@@ -20,7 +20,7 @@
 | Что | Состояние |
 |---|---|
 | Версия | 0.10.1: Phase 4 + GitHub release `v0.10.1` |
-| GitHub | `metapeka/omp-cache-monitor`, private, `main` |
+| GitHub | `metapeka/omp-cache-monitor`, public, `main` |
 | Установка | `omp plugin link` на боевой чекаут; `omp plugin list` — `omp-cache-monitor@0.10.1` |
 | Проверки | `npm test` 85/85, typecheck, `npm pack` — 4 файла; runtime: `omp plugin config list` с 15 ключами, TUI `/cache-monitor settings`/`help` на `ru` и `en`, онбординг-подсказка |
 | Постоянные тесты | `test/extension.test.mjs`, 85 тестов, `npm test` |
@@ -65,7 +65,7 @@
 
 | Задача | Статус |
 |---|---|
-| Сделать GitHub-репозиторий private | готово |
+| Сделать GitHub-репозиторий public | готово (2026-11-23; ранее был private) |
 | Добавить `ROADMAP.md` и ссылку из HANDOFF | готово |
 | Добавить `AGENTS.md` и глобальные правила | готово |
 | Защитить `main` | не включаем при прямом ff-merge; включить при переходе на PR-поток |
@@ -441,8 +441,7 @@ asset). TTL — data-gated, этап 5 (npm/marketplace) и P2 — только 
 
 - Формат: `README.md` на английском, русская версия — `docs/README.ru.md`,
   переключатель в обоих файлах.
-- Установка: отмечено, что private GitHub требует авторизации; npm не
-  публиковался.
+- Установка: публичный GitHub (`github:`/HTTPS/SSH); npm не публиковался.
 - Критерий выполнен: команды сверены с кодом, TTL не обещается.
 
 ### 4.2. Пакет и установка из tarball — готово (с оговоркой)
@@ -463,10 +462,11 @@ asset). TTL — data-gated, этап 5 (npm/marketplace) и P2 — только 
 
 ### 4.3. Тег и GitHub release — готово
 
-- `CHANGELOG.md` 0.6.0, тег `v0.6.0`, private GitHub release с tarball-ассетом.
-- `github:`-сокращение в OMP 19.1 для private-репозитория даёт 404
-  (неавторизованный API); рабочая установка:
-  `omp plugin install git+ssh://git@github.com/metapeka/omp-cache-monitor.git`.
+- `CHANGELOG.md` 0.6.0, тег `v0.6.0`, GitHub release с tarball-ассетом.
+- `github:`-сокращение в OMP 19.1 работает для публичного репозитория; для
+  private оно давало 404 (историческая оговорка). Рабочая установка:
+  `omp plugin install github:metapeka/omp-cache-monitor` или
+  `omp plugin install git+https://github.com/metapeka/omp-cache-monitor.git`.
 - Проверено в чистом `HOME`: установка из GitHub, `omp plugin list` → 0.6.0,
   TUI `/cache-monitor` работает.
 - Критерий выполнен для авторизованного пользователя (SSH-ключ).
@@ -539,4 +539,4 @@ asset). TTL — data-gated, этап 5 (npm/marketplace) и P2 — только 
 - Cache warming и compaction могут не приходить live-событием; спасает
   пересчёт по записям при вызове команды.
 - TTL у `cline-pass` не подтверждён; countdown запрещён до появления данных.
-- Private GitHub усложняет установку `github:` без авторизации; npm позже.
+- Публичный GitHub упрощает установку `github:`/HTTPS; npm позже.

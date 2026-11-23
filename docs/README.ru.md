@@ -86,7 +86,7 @@ read-only наблюдатель, который говорит на языке 
 | **Стоимость** | Разбивка сессии по `dialog`/`compaction`/`branch`/`other`; `saved` и `miss premium` |
 | **Настройки** | 15 ключей в `omp.settings`; пресеты `balanced`/`quiet`/`verbose`/`custom`; `language: ru \| en` |
 | **Документация** | English, 中文, Русский; детали в `docs/` |
-| **Релиз** | [v0.10.1](https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1) — private GitHub release с tarball |
+| **Релиз** | [v0.10.1](https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1) — GitHub release с tarball |
 | **Установка** | `omp plugin install …` или `omp plugin link /path`; runtime-зависимостей нет |
 
 ## Как это работает
@@ -157,8 +157,11 @@ sequenceDiagram
 ## Быстрый старт
 
 ```bash
-# из GitHub (private; используется ваш SSH-ключ)
-omp plugin install git+ssh://git@github.com/metapeka/omp-cache-monitor.git
+# из публичного GitHub (shorthand)
+omp plugin install github:metapeka/omp-cache-monitor
+
+# или HTTPS git
+omp plugin install git+https://github.com/metapeka/omp-cache-monitor.git
 
 # или из локального чекаута — загружается на месте, без копирования
 omp plugin link /path/to/omp-cache-monitor
@@ -488,13 +491,16 @@ Docs: README.md, docs/ui-settings.md, docs/omp-docs-map.md.
 
 ## Установка
 
-npm-пакет не опубликован. Репозиторий private, поэтому установка из GitHub
-требует авторизованного `gh`/SSH-доступа. OMP 19.1.0:
+npm-пакет не опубликован. Репозиторий публичный; OMP 19.1:
 
 ```bash
-# из GitHub (private): git+ssh использует ваш SSH-ключ.
-# Сокращение `github:` обращается к API без авторизации и получает 404
-# для private-репозитория.
+# публичный GitHub shorthand
+omp plugin install github:metapeka/omp-cache-monitor
+
+# HTTPS git (SSH-ключ не нужен)
+omp plugin install git+https://github.com/metapeka/omp-cache-monitor.git
+
+# SSH тоже работает, если ключ настроен
 omp plugin install git+ssh://git@github.com/metapeka/omp-cache-monitor.git
 
 # локальный чекаут: загружается из каталога без копирования

@@ -35,7 +35,7 @@ Phase 4 закрыта; новых UI-задач в очереди нет.
 | Ревью v0.8.1 | reviewer: merge; исправлены 404-ссылка docs, версия в ROADMAP и формулировка help про причину мисса |
 | Ревью v0.10.1 | reviewer: merge; nits закрыты — новые `docs/images/*` и upstream-doc в commit, Settings → Plugins переснят на 0.10.1 |
 | Ревью docs 0.10.1 | Docs3LangReview: merge with nits; исправлены «8 строк help» (EN/ZH) и ссылка на release notes в RU |
-| Публикация | GitHub: `metapeka/omp-cache-monitor` (private, `main`); npm, marketplace — нет |
+| Публикация | GitHub: `metapeka/omp-cache-monitor` (public, `main`); npm, marketplace — нет |
 
 ## Контракт v0.10.1 (v0.10.0 + онбординг; не менять без решения владельца)
 
@@ -195,8 +195,8 @@ Phase 4 закрыта; новых UI-задач в очереди нет.
 | Часть | Репозиторий/путь |
 |---|---|
 | Продукт (код, пакет) | этот репозиторий; GitHub — https://github.com/metapeka/omp-cache-monitor |
-| Документация | `README.md` (EN), `docs/README.ru.md` (RU), `docs/ui-settings.md` (настройки/справка), `CHANGELOG.md`; в tarball входит только `README.md` |
-| Релиз | https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.6.0 (private, tarball-ассет); теги `v0.7.0`/`v0.8.0`/`v0.9.0`/`v0.10.x` — по решению владельца |
+| Документация | `README.md` (EN, main), `docs/README.zh.md` (ZH), `docs/README.ru.md` (RU), `docs/ui-settings.md` (настройки/справка), `CHANGELOG.md`; в tarball входит только `README.md` |
+| Релиз | https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.6.0 (GitHub release, tarball-ассет); теги `v0.7.0`/`v0.8.0`/`v0.9.0`/`v0.10.x` — по решению владельца |
 | План развития | `ROADMAP.md` |
 | Исследование конкурентов | `docs/research/cache-extensions.md` |
 | Инструкции агенту | `AGENTS.md`; глобальные — `~/.omp/agent/AGENTS.md` |
@@ -300,9 +300,8 @@ omp --no-tools --session-dir /tmp/cm-check
   каталог (`ENOTDIR`), `file:` — «Invalid package name». Пакет проверяется
   через `npm install --prefix <home>/.omp/plugins <tgz>` или распакованный
   каталог; `github:`-установка — отдельный путь (4.3).
-- Для private-репозитория `omp plugin install github:metapeka/...` даёт 404:
-  bun обращается к неавторизованному `api.github.com/.../tarball`. Рабочий
-  путь — `git+ssh://git@github.com/metapeka/omp-cache-monitor.git` с SSH-ключом.
+- Репозиторий публичный: `omp plugin install github:metapeka/omp-cache-monitor`
+  работает; для private исторически был 404 (неавторизованный tarball API).
 - В журнале нет цен прошлых моделей, поэтому деньги за восстановленную
   пере-оплату и `saved` не считаются: только токены и `≥` для частично
   известной суммы; `saved` после resume растёт только по live-ходам.

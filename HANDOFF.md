@@ -1,7 +1,8 @@
 # Передача: cache-monitor
 
-Дата: 2026-11-23. Репозиторий: `omp-cache-monitor`; 0.9.0 подготовлен в ветке
-`feat/i18n` от `main`, состояние — последний коммит ветки.
+Дата: 2026-11-23. Репозиторий: `omp-cache-monitor`; 0.9.0 влит в `main`
+(`774e574` — фича, `a9e94fd` — проверки), `main == origin/main`, worktree
+`feat/i18n` удалён.
 Это продолжение работы, начатой в docs-репозитории
 `docs-omp-debian-availability` (там же пресеты, `omp-mode` и публичная вики).
 
@@ -239,10 +240,10 @@ omp --no-tools --session-dir /tmp/cm-check
 Кратко: этапы 1–2, 2.5, 2.8, 2.11, 2.12 (Phase 1 + 1.5 + 2) и 4 (README,
 пакет, tarball, тег/release 0.6.0) готовы; 0.7.0 (`/cache-monitor costs`),
 0.8.0 (настройки, `settings`, `help`) и 0.8.1 (группы, docs map) в `main`;
-0.9.0 (`language: ru|en`, 9 ключей, EN-вывод, 68 тестов) — в ветке
-`feat/i18n`, проверен unit-тестами. Следующее — только по решению владельца:
-merge 0.9.0, тег/release `v0.9.0` (плюс, при желании, `v0.7.0`/`v0.8.0`),
-этап 5 (npm/marketplace) или P2-бэклог (powerline, панель). Phase 3 —
+0.9.0 (`language: ru|en`, 9 ключей, EN-вывод, 68 тестов) влит в
+`main` (`774e574`, `a9e94fd`), проверен unit-тестами и живым TUI. Следующее —
+только по решению владельца: тег/release `v0.9.0` (плюс, при желании,
+`v0.7.0`/`v0.8.0`), этап 5 (npm/marketplace) или P2-бэклог (powerline, панель). Phase 3 —
 `preset` (`balanced`/`quiet`/`verbose`/`custom`) и advanced-ключи
 (`warnCanonicalMiss`, `minPrevPromptTokens`, `oncePerEpoch`, `trendSize`,
 `statusShowCost`); Phase 4 — подсказка при первом промахе, скриншоты

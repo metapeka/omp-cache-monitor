@@ -22,7 +22,7 @@ Phase 4 закрыта; новых UI-задач в очереди нет.
 | Что | Состояние |
 |---|---|
 | Расширение `index.ts` | v0.10.1, контракт ниже: `preset` + advanced-ключи, второй статус-ключ `cache-monitor-cost`, онбординг на первом промахе |
-| Пакет | `package.json` 0.10.1 (`omp.extensions` + `omp.settings` из 15 ключей, `pi.extensions`, repository/homepage/bugs/engines), MIT, README EN (`README.md`) + 中文 (`docs/README.zh.md`) + RU (`docs/README.ru.md`), CHANGELOG 0.10.1, `docs/ui-settings.md`, `docs/omp-docs-map.md`, `docs/powerline.md`, `docs/upstream-settings-groups.md`, `docs/release-notes-0.10.1.md`, скриншоты и demo-GIF `docs/images/` |
+| Пакет | `package.json` 0.10.1 (`omp.extensions` + `omp.settings` из 15 ключей, `pi.extensions`, repository/homepage/bugs/engines), MIT, README EN (`README.md`) + 中文 (`docs/README.zh.md`) + RU (`docs/README.ru.md`), логотип `docs/images/logo.png`, CHANGELOG 0.10.1, `docs/ui-settings.md`, `docs/omp-docs-map.md`, `docs/powerline.md`, `docs/upstream-settings-groups.md`, `docs/release-notes-0.10.1.md`, скриншоты и demo-GIF `docs/images/` |
 | Релиз | [v0.10.1](https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1) — GitHub release, tarball `omp-cache-monitor-0.10.1.tgz` |
 | Установка на машине | `omp plugin list` — `omp-cache-monitor@0.10.1` и `omp-agent-workflow@0.5.14` |
 | Проверки | `npm test` 85/85, typecheck, `npm pack` — 4 файла; 0.10.1: подсказка только на первом каноническом промахе (RU/EN), скриншоты Settings → Plugins и `settings`, upstream issue #20253 |

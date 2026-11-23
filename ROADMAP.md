@@ -384,8 +384,8 @@ Settings → Plugins и `settings`, demo-GIF — в README (EN/ZH/RU), файл�
 `docs/images/`; upstream-предложение `group`/`icon` заведено —
 <https://github.com/can1357/oh-my-pi/issues/20253>, локальная копия —
 `docs/upstream-settings-groups.md`. Документация: English (основной), 中文,
-Русский; таблица конкурентов и Mermaid-схемы. Тестов 85. Метрики и остальные
-warning-и не меняются.
+Русский; таблица конкурентов и Mermaid-схемы. README: логотип, badges,
+сворачиваемое Contents. Тестов 85. Метрики и остальные warning-и не меняются.
 
 **Релиз v0.10.1 выполнен** —
 <https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1> (tarball

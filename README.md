@@ -1,12 +1,46 @@
-# omp-cache-monitor
+<p align="center">
+  <img src="docs/images/logo.png" width="112" alt="omp-cache-monitor logo">
+</p>
 
-**English** · [中文](docs/README.zh.md) · [Русский](docs/README.ru.md)
+<h1 align="center">omp-cache-monitor</h1>
 
-> **Read-only prefix-cache visibility for OMP.** Hit rate, miss causes, costs,
-> and 8-turn history — without warming the cache, rewriting prompts, or spending
-> an extra token.
+<p align="center">
+  <b>Read-only prefix-cache visibility for OMP.</b><br>
+  Hit rate, miss causes, costs, and 8-turn history — without warming the cache,
+  rewriting prompts, or spending an extra token.
+</p>
 
-`0.10.1` · OMP 19.1.x · zero runtime dependencies · one file `index.ts` · 85 tests
+<p align="center">
+  <code>0.10.1</code> · OMP 19.1.x · zero runtime dependencies · one file
+  <code>index.ts</code> · 85 tests
+</p>
+
+<p align="center">
+  <b>English</b> · <a href="docs/README.zh.md">中文</a> ·
+  <a href="docs/README.ru.md">Русский</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1"><img alt="release v0.10.1" src="https://img.shields.io/badge/release-v0.10.1-blue?style=flat-square"></a>
+  <img alt="85 tests passing" src="https://img.shields.io/badge/tests-85%20passing-brightgreen?style=flat-square">
+  <img alt="zero runtime dependencies" src="https://img.shields.io/badge/runtime%20deps-0-brightgreen?style=flat-square">
+  <img alt="OMP 19.1.x" src="https://img.shields.io/badge/OMP-19.1.x-8A2BE2?style=flat-square">
+  <img alt="15 settings" src="https://img.shields.io/badge/settings-15-blueviolet?style=flat-square">
+  <img alt="docs EN ZH RU" src="https://img.shields.io/badge/docs-EN%20%7C%20ZH%20%7C%20RU-informational?style=flat-square">
+  <img alt="MIT license" src="https://img.shields.io/badge/license-MIT-blue?style=flat-square">
+</p>
+
+<details open>
+<summary><b>📚 Contents</b></summary>
+
+- **Start here** — [Demo](#demo) · [Why omp-cache-monitor?](#why-omp-cache-monitor) · [At a glance](#at-a-glance) · [Quick start](#quick-start)
+- **Understand it** — [How it works](#how-it-works) · [Formula](#formula) · [Saved and miss premium](#saved-and-miss-premium)
+- **Use it** — [Status line](#what-it-shows) · [Warnings](#warnings) · [Settings](#settings) · [History](#turn-history) · [Costs](#cost-breakdown)
+- **Operate it** — [Installation](#installation) · [Resume](#resume-compaction-and-cache-warming) · [Powerline](#powerline) · [Compatibility](#compatibility-and-name-conflicts)
+- **Compare** — [Competitors](#competitors) · [Research](docs/research/cache-extensions.md) · [Release notes](docs/release-notes-0.10.1.md)
+- **Everything else** — [Docs map](docs/omp-docs-map.md) · [Upstream proposal](docs/upstream-settings-groups.md) · [License](#license)
+
+</details>
 
 OMP extension: prefix-cache hit rate in the status line, miss warnings, and the
 `/cache-monitor` command (`history` shows the last 8 turns, `costs` breaks the

@@ -36,7 +36,7 @@ read-only: не греет кэш, не меняет промпты, не тра
   `docs/images/`, upstream `group`/`icon` — issue #20253.
 - Документация: English `README.md` (основной), 中文 `docs/README.zh.md`, Русский
   `docs/README.ru.md`; сравнение с конкурентами — в README, release notes —
-  `docs/release-notes-0.10.1.md`.
+  `docs/release-notes-0.10.1.md`; логотип/badges/Contents — в каждом README.
 - Установка одна: `omp plugin link` **или** копия файла, не оба.
 
 ## Нельзя

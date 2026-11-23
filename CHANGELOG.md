@@ -16,6 +16,10 @@
   Simplified Chinese (`docs/README.zh.md`) и Русский (`docs/README.ru.md`), с
   переключателем языков, demo-GIF (`docs/images/demo.gif`), скриншотами,
   Mermaid-схемами и таблицей сравнения с ближайшими cache-инструментами.
+- **Оформление README.** Логотип `docs/images/logo.png`, центрированный
+  заголовок, badges (release/tests/deps/OMP/settings/docs/license) и
+  сворачиваемое «Contents»; то же в EN/ZH/RU. GitHub-описание и topics
+  обновлены.
 - **Upstream.** Предложение `group`/`icon` для схемы плагинных настроек
   заведено: <https://github.com/can1357/oh-my-pi/issues/20253>; локальная
   копия — `docs/upstream-settings-groups.md`.

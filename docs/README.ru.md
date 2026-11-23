@@ -1,12 +1,46 @@
-# omp-cache-monitor
+<p align="center">
+  <img src="images/logo.png" width="112" alt="omp-cache-monitor logo">
+</p>
 
-[English](../README.md) · [中文](README.zh.md) · **Русский**
+<h1 align="center">omp-cache-monitor</h1>
 
-> **Read-only наблюдаемость префикс-кэша для OMP.** Hit rate, причины промахов,
-> стоимость и история 8 ходов — без прогрева кэша, переписывания промптов и
-> лишних токенов.
+<p align="center">
+  <b>Read-only наблюдаемость префикс-кэша для OMP.</b><br>
+  Hit rate, причины промахов, стоимость и история 8 ходов — без прогрева кэша,
+  переписывания промптов и лишних токенов.
+</p>
 
-`0.10.1` · OMP 19.1.x · ноль runtime-зависимостей · один файл `index.ts` · 85 тестов
+<p align="center">
+  <code>0.10.1</code> · OMP 19.1.x · ноль runtime-зависимостей · один файл
+  <code>index.ts</code> · 85 тестов
+</p>
+
+<p align="center">
+  <a href="../README.md">English</a> · <a href="README.zh.md">中文</a> ·
+  <b>Русский</b>
+</p>
+
+<p align="center">
+  <a href="https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1"><img alt="release v0.10.1" src="https://img.shields.io/badge/release-v0.10.1-blue?style=flat-square"></a>
+  <img alt="85 тестов" src="https://img.shields.io/badge/tests-85%20passing-brightgreen?style=flat-square">
+  <img alt="ноль runtime-зависимостей" src="https://img.shields.io/badge/runtime%20deps-0-brightgreen?style=flat-square">
+  <img alt="OMP 19.1.x" src="https://img.shields.io/badge/OMP-19.1.x-8A2BE2?style=flat-square">
+  <img alt="15 настроек" src="https://img.shields.io/badge/settings-15-blueviolet?style=flat-square">
+  <img alt="docs EN ZH RU" src="https://img.shields.io/badge/docs-EN%20%7C%20ZH%20%7C%20RU-informational?style=flat-square">
+  <img alt="MIT license" src="https://img.shields.io/badge/license-MIT-blue?style=flat-square">
+</p>
+
+<details open>
+<summary><b>📚 Содержание</b></summary>
+
+- **Начать здесь** — [Демо](#демо) · [Почему omp-cache-monitor?](#почему-omp-cache-monitor) · [Коротко](#коротко) · [Быстрый старт](#быстрый-старт)
+- **Понять** — [Как это работает](#как-это-работает) · [Формула](#формула) · [Saved и miss premium](#saved-и-miss-premium)
+- **Использовать** — [Статус](#что-показывает) · [Предупреждения](#предупреждения) · [Настройки](#настройки) · [История](#история-последних-ходов) · [Стоимость](#разбивка-стоимости)
+- **Эксплуатировать** — [Установка](#установка) · [Resume](#resume-компакция-и-cache-warming) · [Powerline](#powerline) · [Совместимость](#совместимость-и-конфликты-имён)
+- **Сравнить** — [Конкуренты](#конкуренты) · [Исследование](research/cache-extensions.md) · [Release notes](release-notes-0.10.1.md)
+- **Остальное** — [Карта docs](omp-docs-map.md) · [Upstream](upstream-settings-groups.md) · [Лицензия](#лицензия)
+
+</details>
 
 Расширение OMP: hit rate кэша префикса в статус-строке, предупреждения о промахах
 и команда `/cache-monitor` (`history` — последние 8 ходов, `costs` — разбивка

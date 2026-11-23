@@ -1,11 +1,46 @@
-# omp-cache-monitor
+<p align="center">
+  <img src="images/logo.png" width="112" alt="omp-cache-monitor logo">
+</p>
 
-[English](../README.md) · **中文** · [Русский](README.ru.md)
+<h1 align="center">omp-cache-monitor</h1>
 
-> **面向 OMP 的前缀缓存只读可观测性。** 命中率、未命中原因、成本，以及最近
-> 8 个回合的历史——不预热缓存、不改写提示词，也不多花一个 token。
+<p align="center">
+  <b>面向 OMP 的前缀缓存只读可观测性。</b><br>
+  命中率、未命中原因、成本，以及最近 8 个回合的历史——不预热缓存、不改写提示词，
+  也不多花一个 token。
+</p>
 
-`0.10.1` · OMP 19.1.x · 零运行时依赖 · 单文件 `index.ts` · 85 项测试
+<p align="center">
+  <code>0.10.1</code> · OMP 19.1.x · 零运行时依赖 · 单文件
+  <code>index.ts</code> · 85 项测试
+</p>
+
+<p align="center">
+  <a href="../README.md">English</a> · <b>中文</b> ·
+  <a href="README.ru.md">Русский</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1"><img alt="release v0.10.1" src="https://img.shields.io/badge/release-v0.10.1-blue?style=flat-square"></a>
+  <img alt="85 项测试通过" src="https://img.shields.io/badge/tests-85%20passing-brightgreen?style=flat-square">
+  <img alt="零运行时依赖" src="https://img.shields.io/badge/runtime%20deps-0-brightgreen?style=flat-square">
+  <img alt="OMP 19.1.x" src="https://img.shields.io/badge/OMP-19.1.x-8A2BE2?style=flat-square">
+  <img alt="15 项设置" src="https://img.shields.io/badge/settings-15-blueviolet?style=flat-square">
+  <img alt="docs EN ZH RU" src="https://img.shields.io/badge/docs-EN%20%7C%20ZH%20%7C%20RU-informational?style=flat-square">
+  <img alt="MIT license" src="https://img.shields.io/badge/license-MIT-blue?style=flat-square">
+</p>
+
+<details open>
+<summary><b>📚 目录</b></summary>
+
+- **从这里开始** — [演示](#演示) · [为什么选择 omp-cache-monitor？](#为什么选择-omp-cache-monitor) · [一览](#一览) · [快速开始](#快速开始)
+- **理解它** — [工作原理](#工作原理) · [计算公式](#计算公式) · [节省金额与未命中溢价](#节省金额与未命中溢价)
+- **使用它** — [状态栏](#显示内容) · [警告](#警告) · [设置](#设置) · [历史](#回合历史) · [成本](#成本明细)
+- **运维它** — [安装](#安装) · [恢复](#恢复压缩与缓存预热) · [Powerline](#powerline) · [兼容性](#兼容性与名称冲突)
+- **比较** — [竞品对比](#竞品对比) · [研究](research/cache-extensions.md) · [发布说明](release-notes-0.10.1.md)
+- **其他** — [文档地图](omp-docs-map.md) · [上游提案](upstream-settings-groups.md) · [许可证](#许可证)
+
+</details>
 
 OMP 扩展：在状态栏显示前缀缓存命中率、未命中警告，以及 `/cache-monitor`
 命令（`history` 显示最近 8 个回合，`costs` 按会话日志条目类型拆分会话成本，

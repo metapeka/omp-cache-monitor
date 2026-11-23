@@ -193,6 +193,10 @@ live-часть и показывает `≥`.
 Предупреждение — сигнал проверить, что менялось за 1–2 хода до него, а не ошибка
 само по себе.
 
+Первый канонический промах за процесс добавляет одноразовую подсказку: где
+открыть `/cache-monitor settings` и что значит `preset`. Повторно она не
+появляется ни в следующих эпохах, ни при смене сессии в том же процессе.
+
 `warnCanonicalMiss: false` отключает только toast о каноническом промахе
 (low hit продолжает работать); `minPrevPromptTokens` двигает порог предыдущего
 промпта; `oncePerEpoch: false` предупреждает на каждом подходящем ходе, а не
@@ -209,6 +213,14 @@ omp plugin config set omp-cache-monitor lowHitPercent 30
 omp plugin config set omp-cache-monitor statusEnabled false
 omp plugin config set omp-cache-monitor showMoney false
 ```
+
+Settings → Plugins в OMP 19.1.1:
+
+![OMP Settings → Plugins с omp-cache-monitor](images/omp-plugins-settings.png)
+
+Те же значения из `/cache-monitor settings`:
+
+![вывод cache-monitor settings](images/cache-monitor-settings.png)
 
 OMP рисует плагинные настройки **плоским списком**: `description` выбранной
 строки показывается в подвале, а групп, заголовков и иконок в схеме плагина

@@ -1,6 +1,6 @@
 # Roadmap: omp-cache-monitor
 
-Дата: 2026-11-23. Версия: 0.10.0. GitHub: private.
+Дата: 2026-11-23. Версия: 0.10.1. GitHub: private.
 Цель: довести расширение до релиза, которому можно доверять по цифрам,
 установке и поведению на всех переходах сессии.
 
@@ -9,7 +9,8 @@
 - Сначала корректность метрик и lifecycle, потом публикация.
 - Один файл расширения `index.ts`, без runtime-зависимостей.
 - Любая задача — отдельный worktree `feat/<slug>` от `main`; merge только
-  `--ff-only`, worktree и ветка удаляются после merge.
+  `--ff-only`. Worktree удаляется после merge; ветка остаётся ref'ом для
+  аудита и восстановления (удаление — только по решению владельца).
 - Публикация npm/marketplace и смена видимости репозитория — только по
   явному решению владельца.
 - Один агент — один worktree. Параллельные правки одного файла запрещены.
@@ -18,11 +19,11 @@
 
 | Что | Состояние |
 |---|---|
-| Версия | 0.10.0: Phase 3 (`preset` + advanced-ключи) |
+| Версия | 0.10.1: Phase 4 (онбординг, скриншоты, upstream `group`/`icon`) |
 | GitHub | `metapeka/omp-cache-monitor`, private, `main` |
-| Установка | `omp plugin link` на боевой чекаут; `omp plugin list` — `omp-cache-monitor@0.10.0` |
-| Проверки | `npm test` 84/84, typecheck, `npm pack` — 4 файла; runtime: `omp plugin config list` с 15 ключами, TUI `/cache-monitor settings`/`help` на `ru` и `en` |
-| Постоянные тесты | `test/extension.test.mjs`, 84 теста, `npm test` |
+| Установка | `omp plugin link` на боевой чекаут; `omp plugin list` — `omp-cache-monitor@0.10.1` |
+| Проверки | `npm test` 85/85, typecheck, `npm pack` — 4 файла; runtime: `omp plugin config list` с 15 ключами, TUI `/cache-monitor settings`/`help` на `ru` и `en`, онбординг-подсказка |
+| Постоянные тесты | `test/extension.test.mjs`, 85 тестов, `npm test` |
 | CI | GitHub Actions, зелёный (`npm ci`, `npm test`, `typecheck`) |
 | Рынок/конкуренты | `docs/research/cache-extensions.md` (2026-11-22) |
 | Инструкции агенту | `AGENTS.md` + глобальный `~/.omp/agent/AGENTS.md` |
@@ -55,7 +56,7 @@
 | P2 | `/compact` payback | `omp-cache-meter` | **Не делаем**: с кэшем допущение «removed-токены платились бы каждый ход» ложно → цифра будет врать. |
 | P2 | История последних N запросов | `omp-cache-meter`, `pi-cache-hit-monitor` | Готово в 0.6.0: `/cache-monitor history`, окно 8, без панели. |
 | P2 | Разбивка стоимости по типам записей | `omp-cache-meter` | Готово в 0.7.0: `/cache-monitor costs`, только `cost.total`, `?`/`≥` без оценок. |
-| P2 | UI/настройки и справка | `omp-cache-meter`, OMP plugin settings | Готово в 0.8.0: 8 ключей в `omp.settings`, runtime-чтение, `/cache-monitor settings` и `help`; defaults сохраняют прежний вывод. Phase 1.5 в 0.8.1: группы в описаниях и `settings`, help из 8 строк, `docs/omp-docs-map.md`. Phase 2 в 0.9.0: `language: ru\|en`, 9 ключей, единый словарь строк, EN-тесты без кириллицы. Phase 3 в 0.10.0: `preset` + 5 advanced-ключей, 15 ключей, 84 теста. |
+| P2 | UI/настройки и справка | `omp-cache-meter`, OMP plugin settings | Готово в 0.8.0: 8 ключей в `omp.settings`, runtime-чтение, `/cache-monitor settings` и `help`; defaults сохраняют прежний вывод. Phase 1.5 в 0.8.1: группы в описаниях и `settings`, help из 8 строк, `docs/omp-docs-map.md`. Phase 2 в 0.9.0: `language: ru\|en`, 9 ключей, единый словарь строк, EN-тесты без кириллицы. Phase 3 в 0.10.0: `preset` + 5 advanced-ключей, 15 ключей, 84 теста. Phase 4 в 0.10.1: онбординг-подсказка, скриншоты, upstream `group`/`icon` (#20253), 85 тестов. |
 | P2 | Powerline-интеграция | `pi-powerline-footer` | Готово в 0.9.1: `docs/powerline.md`, нативный `statusLine`/`powerline-thin` и пример `customItems` (`statusKey: "cache-monitor"`); кода не требуется. В 0.10.0 добавлен второй элемент `cache-monitor-cost` для `statusShowCost`. |
 | P3 | Cold-cache budget | `pi-cache-guard` | Отдельный слой, рядом с warming. |
 | P3 | Warming/optimizer/multi-session | `ubranch`, optimizers, Tern | Не наша read-only ниша сейчас. |
@@ -313,7 +314,7 @@ auto-compaction fallback 70%, `manual` выключает оба, `assisted` —
 Реализовано в 0.7.0: `CostBucket`/`SessionAggregate.costs`, live-бакет
 `диалог` в `turn_end`, `costBucket`/`addCost`/`costReport`. Тестов 46.
 
-## Этап 2.12. Настройки плагина и справка — Phase 1–3 готово (P2)
+## Этап 2.12. Настройки плагина и справка — Phase 1–4 готово (P2)
 
 - Схема `package.json` → `omp.settings`: 15 ключей (`preset`,
   `statusEnabled`, `statusShowMode`, `statusShowCost`, `warningsEnabled`,
@@ -377,8 +378,16 @@ advanced-ключи (`warnCanonicalMiss`, `minPrevPromptTokens`, `oncePerEpoch`,
 не меняется. Тестов 84 (68 + 16). Defaults без настроек и `ru`-вывод
 байт-в-байт прежние (кроме новых строк `settings`). Детали — `docs/ui-settings.md`.
 
-**Следующая задача — Phase 4:** онбординг (подсказка про settings),
-скриншоты, upstream `group`/`icon`; затем release по решению владельца.
+Phase 4 — в 0.10.1: первый канонический промах за процесс добавляет одну
+строку-подсказку (`/cache-monitor settings` и `preset`, RU/EN); скриншоты
+Settings → Plugins и `settings` — в README (EN/RU), файлы `docs/images/`;
+upstream-предложение `group`/`icon` заведено —
+<https://github.com/can1357/oh-my-pi/issues/20253>, локальная копия —
+`docs/upstream-settings-groups.md`. Тестов 85. Метрики и остальные warning-и
+не меняются.
+
+**Следующая задача — release 0.10.1 по решению владельца.** TTL — data-gated,
+этап 5 (npm/marketplace) и P2 — только по решению владельца.
 
 ## Этап 3. TTL: data-gated (P2)
 
@@ -477,8 +486,8 @@ advanced-ключи (`warnCanonicalMiss`, `minPrevPromptTokens`, `oncePerEpoch`,
 7. Этап 2.9 — готово (e2e в Orca): supervisor.
 8. Этап 2.10 — режимы готовы; оркестратор — дизайн в `omp-agent-workflow`.
 9. Этап 2.11 — готово: разбивка стоимости в `/cache-monitor costs`.
-10. Этап 2.12 — готово: настройки Phase 1/1.5, Phase 2 (девятый ключ `language`, EN-вывод) и Phase 3 (`preset` + 5 advanced-ключей, 15 ключей; `settings`/`help`, `docs/omp-docs-map.md`).
-    - **Следующая:** Phase 4 — онбординг, скриншоты, upstream `group`/`icon`; scope — `HANDOFF.md`.
+10. Этап 2.12 — готово: настройки Phase 1/1.5, Phase 2 (девятый ключ `language`, EN-вывод), Phase 3 (`preset` + 5 advanced-ключей, 15 ключей; `settings`/`help`, `docs/omp-docs-map.md`) и Phase 4 (онбординг, скриншоты, upstream `group`/`icon`, 85 тестов).
+    - **Следующая:** release 0.10.1 по решению владельца; scope — `HANDOFF.md`.
 11. Этап 3 — TTL, только data-gated, без реализации на догадках.
 12. Этап 4 — готово (0.6.0): английский README, пакет, tarball, тег/release.
 13. Этап 5 — публикация, только после явного разрешения.
@@ -497,6 +506,7 @@ advanced-ключи (`warnCanonicalMiss`, `minPrevPromptTokens`, `oncePerEpoch`,
 | `TurnHistory` | 2.8: готово, история 8 ходов в `/cache-monitor` | task |
 | `UiSettings` | 2.12: готово, `omp.settings` (9 ключей), группы, `settings`/`help`, `language: ru\|en`, docs/ui-settings.md, docs/omp-docs-map.md | task |
 | `UiPresets` | 2.12 Phase 3: готово, `preset` + advanced-ключи (0.10.0), 15 ключей, 84 теста | task |
+| `UiOnboarding` | 2.12 Phase 4: готово (0.10.1), подсказка на первом промахе, скриншоты, upstream #20253 | task |
 | `Supervisor` | 2.9: готово, e2e в Orca пройден | task, опция |
 | `YodaOrchestrator` | 2.10: режимы, план/state, оркестрация | task |
 | `Reviewer` | ревью каждого поведенческого PR | reviewer |

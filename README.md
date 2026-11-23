@@ -195,6 +195,10 @@ event is not treated as a mid-session miss.
 A warning is a signal to check what changed 1–2 turns before it, not an error
 by itself.
 
+The first canonical miss in a process also appends a one-time onboarding hint:
+where to open `/cache-monitor settings` and what `preset` means. It is not
+repeated in later epochs or sessions of the same process.
+
 `warnCanonicalMiss: false` disables only the canonical-miss toast (low hit keeps
 working); `minPrevPromptTokens` moves the previous-prompt floor;
 `oncePerEpoch: false` warns on every qualifying turn instead of once per
@@ -211,6 +215,14 @@ omp plugin config set omp-cache-monitor lowHitPercent 30
 omp plugin config set omp-cache-monitor statusEnabled false
 omp plugin config set omp-cache-monitor showMoney false
 ```
+
+Settings → Plugins in OMP 19.1.1:
+
+![OMP Settings → Plugins with omp-cache-monitor](docs/images/omp-plugins-settings.png)
+
+The same values from `/cache-monitor settings`:
+
+![cache-monitor settings output](docs/images/cache-monitor-settings.png)
 
 OMP renders plugin settings as a **flat list**: the `description` of the
 selected row appears in the panel footer, and there are no groups, headers or

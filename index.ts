@@ -305,6 +305,8 @@ type Texts = {
 			cacheWrite: number,
 			prompt: number,
 		) => string;
+		/** Один раз за процесс: где найти настройки и что значит preset. */
+		onboarding: string;
 	};
 };
 
@@ -379,6 +381,8 @@ const TEXTS: Record<Language, Texts> = {
 			lowHit: (hit, input, cacheRead, cacheWrite, prompt) =>
 				`Кэш префикса: hit ${hit} (input ${input}, cacheRead ${cacheRead}, cacheWrite ${cacheWrite}, prompt ${prompt}). ` +
 				"Префикс изменился или кэш не читается — проверьте модель, thinking, режим и MCP.",
+			onboarding:
+				"Настройки: /cache-monitor settings (или Settings → Plugins → omp-cache-monitor). preset — набор значений: balanced, quiet, verbose, custom.",
 		},
 	},
 	en: {
@@ -450,6 +454,8 @@ const TEXTS: Record<Language, Texts> = {
 			lowHit: (hit, input, cacheRead, cacheWrite, prompt) =>
 				`Prefix cache: hit ${hit} (input ${input}, cacheRead ${cacheRead}, cacheWrite ${cacheWrite}, prompt ${prompt}). ` +
 				"Prefix changed or cache is not being read — check model, thinking, mode and MCP.",
+			onboarding:
+				"Settings: /cache-monitor settings (or Settings → Plugins → omp-cache-monitor). preset is a value bundle: balanced, quiet, verbose, custom.",
 		},
 	},
 };
@@ -988,6 +994,8 @@ export default function cacheMonitor(pi: ExtensionAPI, source: PluginSource = {}
 	let epochThinking = "?";
 	let epochTools = "";
 	let epochWarned = new Set<string>();
+	/** Онбординг показываем один раз за процесс, на первом каноническом промахе. */
+	let onboardingHintShown = false;
 	/** Время последнего завершённого хода; `null` — timestamp не приходил. */
 	let lastTurnAt: number | null = null;
 
@@ -1315,7 +1323,10 @@ export default function cacheMonitor(pi: ExtensionAPI, source: PluginSource = {}
 				reBilled !== null && reBilled > 0
 					? texts.warning.reBilled(reBilled, reBillCost)
 					: "";
-			notify(ctx, texts.warning.miss(usage.cacheWrite, prompt, reason) + costText, "warning");
+			const missText = texts.warning.miss(usage.cacheWrite, prompt, reason) + costText;
+			const hint = onboardingHintShown ? "" : `\n${texts.warning.onboarding}`;
+			onboardingHintShown = true;
+			notify(ctx, missText + hint, "warning");
 		}
 
 		// Низкий hit — не обязательно промах, но признак смены префикса.

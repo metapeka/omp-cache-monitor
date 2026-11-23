@@ -19,15 +19,18 @@ read-only: не греет кэш, не меняет промпты, не тра
 
 ## Текущее состояние
 
-- Версия `0.10.0`, private GitHub `metapeka/omp-cache-monitor`, `main`.
-- `omp plugin link` → боевой чекаут; `omp plugin list` — `omp-cache-monitor@0.10.0`
-  и `omp-agent-workflow@0.5.7` (context guard, handoff, supervisor, modes).
-- `npm test` — 84 теста; `npm run typecheck`; CI зелёный.
+- Версия `0.10.1`, private GitHub `metapeka/omp-cache-monitor`, `main`.
+- `omp plugin link` → боевой чекаут; `omp plugin list` — `omp-cache-monitor@0.10.1`
+  и `omp-agent-workflow@0.5.13` (context guard, handoff, supervisor, modes).
+- `npm test` — 85 тестов; `npm run typecheck`; CI зелёный.
 - Настройки: `package.json#omp.settings` (15 ключей, `Group · …` в описаниях),
   `/cache-monitor settings` (группы и подписи), `preset` + advanced-ключи,
   второй статус-ключ `cache-monitor-cost`; `language: ru|en`;
   таблица и риски — `docs/ui-settings.md`, карта документации OMP —
   `docs/omp-docs-map.md`, Powerline — `docs/powerline.md`.
+- Онбординг (0.10.1): первый канонический промах за процесс добавляет
+  подсказку про `/cache-monitor settings` и `preset`; скриншоты —
+  `docs/images/`, upstream `group`/`icon` — issue #20253.
 - Установка одна: `omp plugin link` **или** копия файла, не оба.
 
 ## Нельзя
@@ -37,7 +40,7 @@ read-only: не греет кэш, не меняет промпты, не тра
 - Править боевой линкованный чекаут под эксперимент: для задач — worktree.
 - Переключать `omp plugin link` на ветку: он всегда смотрит на `main`.
 - Добавлять runtime-зависимости, `any`, фейковый TTL, warming, optimizer.
-- Менять контракт v0.10.0 без решения владельца.
+- Менять контракт v0.10.1 без решения владельца.
 - Коммитить секреты, логи сессий, `node_modules`, временные файлы.
 - Удалять ветку (`--delete-branch`, `git branch -D`) без явного разрешения
   владельца; после merge ветка остаётся ref'ом для аудита и восстановления.

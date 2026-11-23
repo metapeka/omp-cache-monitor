@@ -479,6 +479,27 @@ describe("miss cause", () => {
 		assert.match(miss.text, /причина: простой 6 мин\./);
 	});
 
+	it("shows the settings hint once, on the first canonical miss", async () => {
+		const first = await started({ settings: { oncePerEpoch: false } });
+		await turn(first.extension, first.ctx, usage(0, 0, 5000), 1, START);
+		await turn(first.extension, first.ctx, usage(0, 0, 5000), 2, START + 60_000);
+		await turn(first.extension, first.ctx, usage(0, 0, 5000), 3, START + 120_000);
+
+		const misses = first.notifications.filter((n) => /промах/.test(n.text));
+		assert.equal(misses.length, 2);
+		assert.match(misses[0].text, /\/cache-monitor settings/);
+		assert.match(misses[0].text, /preset — набор значений/);
+		assert.doesNotMatch(misses[1].text, /\/cache-monitor settings/);
+
+		const english = await started({ settings: { language: "en", oncePerEpoch: false } });
+		await turn(english.extension, english.ctx, usage(0, 0, 5000), 1, START);
+		await turn(english.extension, english.ctx, usage(0, 0, 5000), 2, START + 60_000);
+		const enMiss = english.notifications.find((n) => /Prefix cache: miss/.test(n.text));
+		assert.ok(enMiss, "expected an English canonical-miss warning");
+		assert.match(enMiss.text, /Settings: \/cache-monitor settings/);
+		assert.match(enMiss.text, /preset is a value bundle/);
+	});
+
 	it("falls back to prefix rewrite for a short gap or a missing timestamp", async () => {
 		const short = await started();
 		await turn(short.extension, short.ctx, usage(0, 0, 5000), 1, START);
@@ -1749,7 +1770,9 @@ describe("english output", () => {
 		assert.equal(
 			texts[0],
 			"Prefix cache: miss (cacheRead 0, cacheWrite 5000, prompt 5000) — " +
-				"cause: idle 6 min. Re-billed ≈ 5000 tok ($0.0135).",
+				"cause: idle 6 min. Re-billed ≈ 5000 tok ($0.0135).\n" +
+				"Settings: /cache-monitor settings (or Settings → Plugins → omp-cache-monitor). " +
+				"preset is a value bundle: balanced, quiet, verbose, custom.",
 		);
 		assert.equal(
 			texts[1],

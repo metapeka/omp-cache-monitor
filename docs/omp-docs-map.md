@@ -1,7 +1,7 @@
 # Карта документации OMP (omp-docs-map)
 
 Короткий навигатор по встроенной документации OMP для задач
-`omp-cache-monitor`. Проверено на OMP 19.1.0.
+`omp-cache-monitor`. Проверено на OMP 19.1.1.
 
 ## Как открыть
 
@@ -41,5 +41,7 @@ read omp://docs/plugin-manager-installer-plumbing.md
   документация OMP и не источник терминов для плагина.
 - Групп, иконок и заголовков в схеме плагинных настроек нет — только плоский
   список с `description` выбранной строки в подвале. Подробности и обход
-  через порядок ключей — [`ui-settings.md`](ui-settings.md).
+  через порядок ключей — [`ui-settings.md`](ui-settings.md); upstream-
+  предложение `group`/`icon` — <https://github.com/can1357/oh-my-pi/issues/20253>,
+  копия — [`upstream-settings-groups.md`](upstream-settings-groups.md).
 - Конкурентный анализ и заимствования — [`research/cache-extensions.md`](research/cache-extensions.md).

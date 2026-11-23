@@ -1,44 +1,41 @@
 # Передача: cache-monitor
 
-Дата: 2026-11-23. Репозиторий: `omp-cache-monitor`; 0.10.0 — Phase 3
-(`preset` + advanced-ключи, 15 ключей) поверх 0.9.1.
+Дата: 2026-11-23. Репозиторий: `omp-cache-monitor`; 0.10.1 — Phase 4
+(онбординг, скриншоты, upstream `group`/`icon`) поверх 0.10.0.
 Это продолжение работы, начатой в docs-репозитории
 `docs-omp-debian-availability` (там же пресеты, `omp-mode` и публичная вики).
 
 ## Следующая задача (взять первой)
 
-**Phase 4 UI: онбординг и upstream.** Release, TTL и P2 не начинать без
-отдельного решения владельца.
+**Release 0.10.1 или TTL/P2 — только по отдельному решению владельца.**
+Phase 4 закрыта; новых UI-задач в очереди нет.
 
-- Подсказка при первом каноническом промахе: как открыть
-  `/cache-monitor settings` и что значит `preset`.
-- Скриншоты Settings → Plugins и `settings` для README (EN/RU).
-- Upstream-предложение `group`/`icon` в схему плагинных настроек
-  (`can1357/oh-my-pi`); пока группы кодируются порядком ключей и префиксом
-  `Preset ·`/`Status ·`/`Warnings ·`/`Reports ·`.
-- Критерий: новый пользователь находит настройки по подсказке; скриншоты в
-  README; предложение заведено.
-- Проверки те же: `npm test`, `npm run typecheck`, `npm pack` 4 файла.
-- Release `v0.10.0` — только по отдельному решению владельца.
+- Release `v0.10.1` (тег/release) — только по решению владельца; пакет и
+  CHANGELOG готовы.
+- TTL (этап 3) — data-gated: у провайдера `promptCache: null`, без данных не
+  начинать.
+- P2-бэклог — только по решению владельца.
+- Проверки: `npm test`, `npm run typecheck`, `npm pack` 4 файла.
 
 ## Что уже готово
 
 | Что | Состояние |
 |---|---|
-| Расширение `index.ts` | v0.10.0, контракт ниже: `preset` + advanced-ключи, второй статус-ключ `cache-monitor-cost` |
-| Пакет | `package.json` 0.10.0 (`omp.extensions` + `omp.settings` из 15 ключей, `pi.extensions`, repository/homepage/bugs/engines), MIT, README (EN) + `docs/README.ru.md`, CHANGELOG 0.10.0, `docs/ui-settings.md`, `docs/omp-docs-map.md`, `docs/powerline.md` |
-| Установка на машине | `omp plugin list` — `omp-cache-monitor@0.10.0` и `omp-agent-workflow@0.5.7` |
-| Проверки | `npm test` 84/84, typecheck, `npm pack` — 4 файла; 0.10.0: preset-матрица, explicit override, `custom`, каждый advanced-ключ, cost-статус, `trendSize`, `ru`/`en` без кириллицы, строковые значения CLI; defaults без настроек и `ru`-вывод байт-в-байт прежние, кроме новых строк `settings` |
-| Ревью | v0.4/v0.5/v0.6/v0.7/v0.8/v0.8.1/v0.9 — merge |
+| Расширение `index.ts` | v0.10.1, контракт ниже: `preset` + advanced-ключи, второй статус-ключ `cache-monitor-cost`, онбординг на первом промахе |
+| Пакет | `package.json` 0.10.1 (`omp.extensions` + `omp.settings` из 15 ключей, `pi.extensions`, repository/homepage/bugs/engines), MIT, README (EN) + `docs/README.ru.md`, CHANGELOG 0.10.1, `docs/ui-settings.md`, `docs/omp-docs-map.md`, `docs/powerline.md`, `docs/upstream-settings-groups.md`, скриншоты `docs/images/` |
+| Установка на машине | `omp plugin list` — `omp-cache-monitor@0.10.1` и `omp-agent-workflow@0.5.13` |
+| Проверки | `npm test` 85/85, typecheck, `npm pack` — 4 файла; 0.10.1: подсказка только на первом каноническом промахе (RU/EN), скриншоты Settings → Plugins и `settings`, upstream issue #20253 |
+| Ревью | v0.4/v0.5/v0.6/v0.7/v0.8/v0.8.1/v0.9/v0.10.1 — merge |
 | Ревью v0.4 | фоновый usage отделён от hit/ходов; граница resume не даёт ложной пере-оплаты |
 | Ревью v0.5 | reviewer: merge; исправлены пробелы покрытия — граница 5 мин, `/clear`/tree, ход без timestamp разрывает цепочку простоя |
 | Ревью v0.6 | reviewer: merge; nits исправлены — убрано мёртвое поле, покрыты live-epoch gate и регистр/пробелы алиаса |
 | Ревью v0.7 | reviewer: merge; nits закрыты — `/clear` retention, пустой label, compaction/branch-summary из `model_usage` сведены в общие бакеты |
 | Ревью v0.8 | reviewer: merge; defaults побайтово прежние, runtime loader проверен, nits по docs исправлены |
 | Ревью v0.8.1 | reviewer: merge; исправлены 404-ссылка docs, версия в ROADMAP и формулировка help про причину мисса |
+| Ревью v0.10.1 | reviewer: merge; nits — включить новые `docs/images/*` и upstream-doc в commit, переснять Settings → Plugins на 0.10.1 после merge |
 | Публикация | GitHub: `metapeka/omp-cache-monitor` (private, `main`); npm, marketplace — нет |
 
-## Контракт v0.10.0 (v0.9.0 + `preset` и advanced-ключи; не менять без решения владельца)
+## Контракт v0.10.1 (v0.10.0 + онбординг; не менять без решения владельца)
 
 - `hit = cacheRead / (input + cacheRead + cacheWrite)`; знаменатель 0 → `n/a`.
 - Настройки: `package.json#omp.settings` — ровно 15 ключей (`preset`,
@@ -95,6 +92,10 @@
   `README.md`, `docs/ui-settings.md`, `docs/omp-docs-map.md`.
   Документация: `docs/ui-settings.md` (ограничения UI OMP, роудмап фаз),
   `docs/omp-docs-map.md` (135 файлов `omp://docs`).
+- Онбординг v0.10.1: первый канонический промах за процесс добавляет к
+  warning одну строку — где открыть `/cache-monitor settings` и что значит
+  `preset` (`balanced`/`quiet`/`verbose`/`custom`). RU/EN; один раз за
+  процесс, без нового ключа настроек.
 - Статус-ключи: `cache-monitor` с текстом `<OMP_MODE> ↺ N%` (без режима —
   `↺ N%`) и, при `statusShowCost`, `cache-monitor-cost` с `$X`.
 - Команда `/cache-monitor` (не `/cache`: имя занято `ubranch/omp-cache-control`).
@@ -193,7 +194,7 @@
 |---|---|
 | Продукт (код, пакет) | этот репозиторий; GitHub — https://github.com/metapeka/omp-cache-monitor |
 | Документация | `README.md` (EN), `docs/README.ru.md` (RU), `docs/ui-settings.md` (настройки/справка), `CHANGELOG.md`; в tarball входит только `README.md` |
-| Релиз | https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.6.0 (private, tarball-ассет); теги `v0.7.0`/`v0.8.0` — по решению владельца |
+| Релиз | https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.6.0 (private, tarball-ассет); теги `v0.7.0`/`v0.8.0`/`v0.9.0`/`v0.10.x` — по решению владельца |
 | План развития | `ROADMAP.md` |
 | Исследование конкурентов | `docs/research/cache-extensions.md` |
 | Инструкции агенту | `AGENTS.md`; глобальные — `~/.omp/agent/AGENTS.md` |
@@ -280,10 +281,9 @@ omp --no-tools --session-dir /tmp/cm-check
 пакет, tarball, тег/release 0.6.0) готовы; 0.7.0 (`/cache-monitor costs`),
 0.8.0 (настройки, `settings`, `help`), 0.8.1 (группы, docs map),
 0.9.0 (`language: ru|en`, EN-вывод) и 0.9.1 (`docs/powerline.md`) в `main`;
-0.10.0 (`preset` + advanced-ключи, 15 ключей, 84 теста) — Phase 3, проверен
-unit-тестами. **Следующая задача — Phase 4:** подсказка при первом промахе,
-скриншоты Settings → Plugins, upstream `group`/`icon`; scope — раздел
-«Следующая задача» выше. Тег/release `v0.10.0`, этап 5
+0.10.0 (`preset` + advanced-ключи, 15 ключей, 84 теста) — Phase 3;
+0.10.1 — Phase 4 (онбординг на первом промахе, скриншоты, upstream issue
+#20253, 85 тестов). **Phase 4 закрыта.** Тег/release `v0.10.1`, этап 5
 (npm/marketplace) и P2 (панель) — только по решению владельца. TTL на
 `cline-pass` не делаем: провайдер не декларирует lifetime; TTL — data-gated P2.
 

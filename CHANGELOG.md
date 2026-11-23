@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.10.1 — 2026-11-23
+
+- **Онбординг.** Первый канонический промах в процессе добавляет к warning
+  одну строку: `/cache-monitor settings` (или Settings → Plugins →
+  omp-cache-monitor) и что значит `preset` (`balanced` / `quiet` / `verbose` /
+  `custom`). Подсказка показывается один раз за процесс, на обоих языках, и не
+  повторяется в следующих эпохах или сессиях того же процесса. Отдельного
+  ключа настроек нет.
+- **Скриншоты.** README (EN) и `docs/README.ru.md` показывают Settings →
+  Plugins и вывод `/cache-monitor settings`; файлы —
+  `docs/images/omp-plugins-settings.png` и
+  `docs/images/cache-monitor-settings.png`. В tarball они не входят
+  (`npm pack` по-прежнему 4 файла).
+- **Upstream.** Предложение `group`/`icon` для схемы плагинных настроек
+  заведено: <https://github.com/can1357/oh-my-pi/issues/20253>; локальная
+  копия — `docs/upstream-settings-groups.md`.
+- Тестов 85 (+1: подсказка только на первом промахе, RU/EN); typecheck
+  зелёный. Поведение метрик, отчётов и остальных warning-ов не меняется.
+
 ## 0.10.0 — 2026-11-23
 
 - **Пресеты.** Новый ключ `preset` (`balanced` / `quiet` / `verbose` /

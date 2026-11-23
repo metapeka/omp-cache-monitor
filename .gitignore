@@ -3,3 +3,4 @@ node_modules/
 .DS_Store
 .omp-handoff-session.json
 .omp-handoff-request.json
+.omp-handoff-supervisor.lock/

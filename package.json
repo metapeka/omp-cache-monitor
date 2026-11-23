@@ -1,6 +1,6 @@
 {
   "name": "omp-cache-monitor",
-  "version": "0.9.1",
+  "version": "0.10.0",
   "type": "module",
   "scripts": {
     "test": "node --experimental-strip-types test/extension.test.mjs",
@@ -37,6 +37,12 @@
       "./index.ts"
     ],
     "settings": {
+      "preset": {
+        "type": "enum",
+        "values": ["balanced", "quiet", "verbose", "custom"],
+        "default": "balanced",
+        "description": "Preset · Value bundle for the other keys: balanced, quiet, verbose or custom. Default: balanced. An explicitly set key always beats the preset; custom applies no preset values and never changes language."
+      },
       "statusEnabled": {
         "type": "boolean",
         "default": true,
@@ -46,6 +52,11 @@
         "type": "boolean",
         "default": true,
         "description": "Status · Prefix the hit rate with OMP_MODE (cache-safe ↺ 98%). Default: true."
+      },
+      "statusShowCost": {
+        "type": "boolean",
+        "default": false,
+        "description": "Status · Publish the last turn cost as a separate segment ($0.0027) under cache-monitor-cost. Default: false. The hit line is unchanged; the segment appears after the first completed turn."
       },
       "warningsEnabled": {
         "type": "boolean",
@@ -76,6 +87,24 @@
         "step": 500,
         "description": "Warnings · Skip warnings for prompts smaller than N tokens. Default: 4000."
       },
+      "warnCanonicalMiss": {
+        "type": "boolean",
+        "default": true,
+        "description": "Warnings · Toast on a canonical prefix miss. Default: true. Off keeps low-hit warnings."
+      },
+      "minPrevPromptTokens": {
+        "type": "number",
+        "default": 2048,
+        "min": 0,
+        "max": 1000000,
+        "step": 256,
+        "description": "Warnings · Minimum previous-prompt tokens before a canonical-miss comparison. Default: 2048; range 0–1000000. Smaller prefixes are not compared."
+      },
+      "oncePerEpoch": {
+        "type": "boolean",
+        "default": true,
+        "description": "Warnings · Emit each warning kind once per prefix epoch. Default: true. false warns on every qualifying turn."
+      },
       "historySize": {
         "type": "number",
         "default": 8,
@@ -83,6 +112,14 @@
         "max": 50,
         "step": 1,
         "description": "Reports · Turns kept by /cache-monitor history. Default: 8; range 1–50."
+      },
+      "trendSize": {
+        "type": "number",
+        "default": 12,
+        "min": 1,
+        "max": 50,
+        "step": 1,
+        "description": "Reports · Sparkline points kept live and after resume. Default: 12; range 1–50."
       },
       "showMoney": {
         "type": "boolean",

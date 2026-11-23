@@ -21,6 +21,9 @@ cache-safe ↺ 98%
 
 Режим берётся из `OMP_MODE` (его выставляет `omp-mode`); без режима остаётся
 `↺ 98%`, до первого хода — `↺ …`, при нулевом знаменателе — `↺ n/a` (без `%`).
+При `statusShowCost: true` второй ключ `cache-monitor-cost` публикует
+стоимость последнего хода как `$0.0027` (4 знака); hit-строка не меняется, а
+cost-сегмент появляется только после завершённого хода.
 
 Команда `/cache-monitor` печатает одной строкой режим, модель, thinking,
 последний ход с `saved`, `miss premium`, тренд и итог сессии:
@@ -171,7 +174,8 @@ live-часть и показывает `≥`.
 модели, thinking или набора инструментов, поэтому законно холодный ход после
 такого события не считается промахом посреди сессии.
 
-1. **Канонический промах** — на предыдущем ходе промпт был ≥ 2048 токенов, а на
+1. **Канонический промах** — на предыдущем ходе промпт был ≥
+   `minPrevPromptTokens` токенов (по умолчанию 2048), а на
    текущем `cacheRead = 0` и `cacheWrite > 0`: префикс перезаписан целиком или
    кэш истёк. Причина считается per-turn: `простой N мин`
    (`idle N min` при `language: en`), если между
@@ -189,6 +193,11 @@ live-часть и показывает `≥`.
 Предупреждение — сигнал проверить, что менялось за 1–2 хода до него, а не ошибка
 само по себе.
 
+`warnCanonicalMiss: false` отключает только toast о каноническом промахе
+(low hit продолжает работать); `minPrevPromptTokens` двигает порог предыдущего
+промпта; `oncePerEpoch: false` предупреждает на каждом подходящем ходе, а не
+один раз за эпоху.
+
 ## Настройки
 
 Схема лежит в `package.json` → `omp.settings`. OMP показывает её в
@@ -204,8 +213,8 @@ omp plugin config set omp-cache-monitor showMoney false
 OMP рисует плагинные настройки **плоским списком**: `description` выбранной
 строки показывается в подвале, а групп, заголовков и иконок в схеме плагина
 нет (они есть только у core settings). Поэтому группы кодируются порядком
-ключей и префиксом `Status ·` / `Warnings ·` / `Reports ·` в описании, а
-`/cache-monitor settings` повторяет те же заголовки. Детали и
+ключей и префиксом `Preset ·` / `Status ·` / `Warnings ·` / `Reports ·` в
+описании, а `/cache-monitor settings` повторяет те же заголовки. Детали и
 upstream-предложение `group`/`icon` — [`ui-settings.md`](ui-settings.md).
 Карта документации OMP — [`omp-docs-map.md`](omp-docs-map.md).
 
@@ -217,39 +226,62 @@ upstream-предложение `group`/`icon` — [`ui-settings.md`](ui-setting
 
 ```
 ⚙ настройки cache-monitor
+🎛 Пресет
+  preset: balanced (default) — набор значений
 ⚙ Статус
   statusEnabled: true (default) — ↺ N% в статус-строке
   statusShowMode: true (default) — префикс OMP_MODE
+  statusShowCost: false (default) — стоимость хода отдельным сегментом
 ⚠️ Предупреждения
   warningsEnabled: true (default) — toast о промахах
   lowHitPercent: 50 (default) — порог низкого hit
   idleMinutes: 5 (default) — «простой N мин», не TTL
   minPromptTokens: 4000 (default) — не шуметь на мелких промптах
+  warnCanonicalMiss: true (default) — warning о каноническом промахе
+  minPrevPromptTokens: 2048 (default) — порог предыдущего промпта
+  oncePerEpoch: true (default) — один warning за эпоху
 📊 Отчёты
   historySize: 8 (default) — окно /cache-monitor history
+  trendSize: 12 (default) — точек в спарклайне
   showMoney: true (default) — $ в saved/miss premium
   language: ru (default) — язык вывода
 💵 цены модели: да
 Изменить: omp plugin config set omp-cache-monitor <key> <value>
 ```
 
+`preset` — набор значений остальных ключей; явно заданный ключ сильнее
+пресета, а `custom` не применяет пресетных значений. `balanced` повторяет
+defaults, `quiet` выключает режим в статусе, warning-и и cost-сегмент,
+`verbose` повышает плотность сигналов (lowHit 60, idle 3, minPrompt 2000,
+history 12, trend 20, cost on, minPrev 1024, warning на каждом ходе).
+Advanced-ключи (`warnCanonicalMiss`, `minPrevPromptTokens`, `oncePerEpoch`,
+`trendSize`, `statusShowCost`) настраивают отдельные поведения сверху.
+`preset` печатает только `settings`; отчёт, history и costs его не содержат.
+
 | Ключ | Default | Диапазон | Что меняет |
 |---|---|---|---|
+| `preset` | `balanced` | `balanced` / `quiet` / `verbose` / `custom` | Набор значений остальных ключей. Явно заданный ключ сильнее пресета; `custom` не применяет пресетных значений. `language` не меняет. |
 | `statusEnabled` | `true` | boolean | Публиковать hit rate в статус-строке. `false` — `setStatus` не вызывается, старый статус не чистится. |
 | `statusShowMode` | `true` | boolean | Префикс `OMP_MODE` у статуса (`cache-safe ↺ 75%`). `false` — только `↺ 75%`. |
+| `statusShowCost` | `false` | boolean | Публиковать стоимость последнего хода отдельным статус-ключом `cache-monitor-cost` (`$0.0027`, 4 знака). Hit-строка `cache-monitor` не меняется. |
 | `warningsEnabled` | `true` | boolean | Предупреждения о каноническом промахе и низком hit. `false` — ни одного warning. |
 | `lowHitPercent` | `50` | 1–100 | Warning, когда hit ниже этого процента. |
 | `idleMinutes` | `5` | 1–240 | Разрыв, который причина промаха называет простоем (`простой N мин` / `idle N min`). Эмпирика, **не** TTL провайдера. |
 | `minPromptTokens` | `4000` | 0–1 000 000 | Не предупреждать на меньших промптах; тот же порог в причине и restore. |
+| `warnCanonicalMiss` | `true` | boolean | Toast о каноническом промахе. `false` отключает только его, low hit продолжает работать. |
+| `minPrevPromptTokens` | `2048` | 0–1 000 000 | Минимальный prompt предыдущего хода для сравнения; заменяет прежнюю константу `MIN_PREV_PROMPT`. |
+| `oncePerEpoch` | `true` | boolean | `true` — один warning каждого типа за эпоху; `false` — на каждом подходящем ходе. |
 | `historySize` | `8` | 1–50 | Окно `/cache-monitor history` (live и после resume) и делитель `история (N/M):` / `history (N/M):`. |
+| `trendSize` | `12` | 1–50 | Длина спарклайна; live-окно и restore из журнала используют одно значение. |
 | `showMoney` | `true` | boolean | `saved` и деньги `miss premium` в отчёте и history. При `false` остаются токены (`miss premium: 3000 tok` / `miss premium 3000 tok`), а `/cache-monitor costs` деньги показывает. |
 | `language` | `ru` | `ru` / `en` | Язык пользовательского вывода: подписи отчёта, заголовки и причины history, подписи costs, `settings`, `help` и warning-и. `ru` сохраняет прежний вывод байт-в-байт. Описания `omp.settings` в манифесте остаются английскими при любом языке. |
 
-Невалидные значения откатываются к default; числа округляются и зажимаются
-(`lowHitPercent: 500` → `100`, `idleMinutes: 0` → `1`, `historySize: 3.6` → `4`).
-Невалидный `language` откатывается к `ru`. Defaults воспроизводят вывод до
-0.8.0 побайтово, кроме новой строки `language` в `settings`. Подробности:
-[`ui-settings.md`](ui-settings.md).
+Невалидные значения откатываются к значению пресета (без пресета — к
+default); числа округляются и зажимаются (`lowHitPercent: 500` → `100`,
+`idleMinutes: 0` → `1`, `historySize: 3.6` → `4`, `trendSize: 999` → `50`,
+`minPrevPromptTokens: -5` → `0`). Невалидный `language` откатывается к `ru` и
+пресетом не меняется. Defaults воспроизводят вывод до 0.8.0 побайтово, кроме
+новых строк в `settings`. Подробности: [`ui-settings.md`](ui-settings.md).
 
 `language: en` переводит все пользовательские строки — подписи отчёта и
 history, причины промахов, подписи costs, `settings`, `help` и warning-и —

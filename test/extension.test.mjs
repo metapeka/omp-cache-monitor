@@ -1042,13 +1042,19 @@ describe("cost breakdown", () => {
 
 describe("plugin settings", () => {
 	const DEFAULTS = {
+		preset: "balanced",
 		statusEnabled: true,
 		statusShowMode: true,
+		statusShowCost: false,
 		warningsEnabled: true,
 		lowHitPercent: 50,
 		idleMinutes: 5,
 		minPromptTokens: 4000,
+		warnCanonicalMiss: true,
+		minPrevPromptTokens: 2048,
+		oncePerEpoch: true,
 		historySize: 8,
+		trendSize: 12,
 		showMoney: true,
 		language: "ru",
 	};
@@ -1062,16 +1068,22 @@ describe("plugin settings", () => {
 			idleMinutes: 0,
 			minPromptTokens: 499.4,
 			historySize: 3.6,
-			showMoney: "false",
+			showMoney: "no",
 		});
 		assert.deepEqual(config, {
+			preset: "balanced",
 			statusEnabled: true,
 			statusShowMode: false,
+			statusShowCost: false,
 			warningsEnabled: true,
 			lowHitPercent: 100,
 			idleMinutes: 1,
 			minPromptTokens: 499,
+			warnCanonicalMiss: true,
+			minPrevPromptTokens: 2048,
+			oncePerEpoch: true,
 			historySize: 4,
+			trendSize: 12,
 			showMoney: true,
 			language: "ru",
 		});
@@ -1084,17 +1096,40 @@ describe("plugin settings", () => {
 		assert.equal(normalizeConfig({ language: 1 }).language, "ru");
 	});
 
+	it("accepts CLI string values for booleans and numbers", () => {
+		const config = normalizeConfig({
+			statusShowCost: "true",
+			warningsEnabled: "FALSE",
+			lowHitPercent: "60",
+			trendSize: "20",
+			minPrevPromptTokens: "1024",
+		});
+		assert.equal(config.statusShowCost, true);
+		assert.equal(config.warningsEnabled, false);
+		assert.equal(config.lowHitPercent, 60);
+		assert.equal(config.trendSize, 20);
+		assert.equal(config.minPrevPromptTokens, 1024);
+
+		// Валидная строка сильнее пресета; пустая и нечисловая — откат к пресету.
+		const preset = normalizeConfig({ preset: "verbose", trendSize: "7" });
+		assert.equal(preset.lowHitPercent, 60);
+		assert.equal(preset.trendSize, 7);
+		assert.equal(normalizeConfig({ preset: "verbose", trendSize: "" }).trendSize, 20);
+		assert.equal(normalizeConfig({ preset: "verbose", trendSize: "abc" }).trendSize, 20);
+		assert.equal(normalizeConfig({ preset: "verbose", oncePerEpoch: "yes" }).oncePerEpoch, false);
+	});
+
 	it("falls back to defaults for invalid values and shapes", () => {
 		assert.deepEqual(normalizeConfig(undefined), DEFAULTS);
 		assert.deepEqual(normalizeConfig("text"), DEFAULTS);
 		assert.deepEqual(
 			normalizeConfig({
 				statusEnabled: 1,
-				statusShowMode: "true",
+				statusShowMode: "yes",
 				warningsEnabled: "no",
 				lowHitPercent: Number.NaN,
 				idleMinutes: Number.POSITIVE_INFINITY,
-				minPromptTokens: "4000",
+				minPromptTokens: "many",
 				historySize: null,
 				showMoney: 0,
 			}),
@@ -1229,21 +1264,29 @@ describe("plugin settings", () => {
 		assert.equal(
 			out,
 			"⚙ настройки cache-monitor\n" +
+				"🎛 Пресет\n" +
+				"  preset: balanced (default) — набор значений\n" +
 				"⚙ Статус\n" +
 				"  statusEnabled: true (default) — ↺ N% в статус-строке\n" +
 				"  statusShowMode: true (default) — префикс OMP_MODE\n" +
+				"  statusShowCost: false (default) — стоимость хода отдельным сегментом\n" +
 				"⚠️ Предупреждения\n" +
 				"  warningsEnabled: true (default) — toast о промахах\n" +
 				"  lowHitPercent: 50 (default) — порог низкого hit\n" +
 				"  idleMinutes: 5 (default) — «простой N мин», не TTL\n" +
 				"  minPromptTokens: 4000 (default) — не шуметь на мелких промптах\n" +
+				"  warnCanonicalMiss: true (default) — warning о каноническом промахе\n" +
+				"  minPrevPromptTokens: 2048 (default) — порог предыдущего промпта\n" +
+				"  oncePerEpoch: true (default) — один warning за эпоху\n" +
 				"📊 Отчёты\n" +
 				"  historySize: 8 (default) — окно /cache-monitor history\n" +
+				"  trendSize: 12 (default) — точек в спарклайне\n" +
 				"  showMoney: true (default) — $ в saved/miss premium\n" +
 				"  language: ru (default) — язык вывода\n" +
 				"💵 цены модели: да\n" +
 				"Изменить: omp plugin config set omp-cache-monitor <key> <value>",
 		);
+		assert.match(out, /^🎛 Пресет$/m);
 		assert.match(out, /^⚙ Статус$/m);
 		assert.match(out, /^⚠️ Предупреждения$/m);
 		assert.match(out, /^📊 Отчёты$/m);
@@ -1280,8 +1323,7 @@ describe("plugin settings", () => {
 		assert.match(out, /Settings → Plugins → omp-cache-monitor/);
 		assert.match(out, /omp plugin config/);
 		assert.match(out, /docs\/omp-docs-map\.md/);
-		const lines = out.split("\n");
-		assert.ok(lines.length >= 6 && lines.length <= 10, `unexpected help size: ${lines.length}`);
+		assert.equal(out.split("\n").length, 8);
 
 		await command(extension, ctx, "?");
 		assert.equal(notifications.at(-1).text, out);
@@ -1300,6 +1342,240 @@ describe("plugin settings", () => {
 
 		await turn(extension, ctx, usage(3800, 200, 0), 3);
 		assert.match(notifications.at(-1).text, /hit 5%/);
+	});
+});
+
+describe("presets and advanced keys", () => {
+	const BALANCED = {
+		preset: "balanced",
+		statusEnabled: true,
+		statusShowMode: true,
+		statusShowCost: false,
+		warningsEnabled: true,
+		lowHitPercent: 50,
+		idleMinutes: 5,
+		minPromptTokens: 4000,
+		warnCanonicalMiss: true,
+		minPrevPromptTokens: 2048,
+		oncePerEpoch: true,
+		historySize: 8,
+		trendSize: 12,
+		showMoney: true,
+		language: "ru",
+	};
+
+	it("resolves each preset to its exact values", () => {
+		assert.deepEqual(normalizeConfig({ preset: "balanced" }), BALANCED);
+		assert.deepEqual(normalizeConfig({ preset: "quiet" }), {
+			...BALANCED,
+			preset: "quiet",
+			statusShowMode: false,
+			warningsEnabled: false,
+			statusShowCost: false,
+		});
+		assert.deepEqual(normalizeConfig({ preset: "verbose" }), {
+			...BALANCED,
+			preset: "verbose",
+			lowHitPercent: 60,
+			idleMinutes: 3,
+			minPromptTokens: 2000,
+			historySize: 12,
+			trendSize: 20,
+			statusShowCost: true,
+			minPrevPromptTokens: 1024,
+			oncePerEpoch: false,
+		});
+		assert.deepEqual(normalizeConfig({ preset: "custom" }), { ...BALANCED, preset: "custom" });
+	});
+
+	it("falls back to balanced for missing or invalid presets", () => {
+		assert.deepEqual(normalizeConfig({}), BALANCED);
+		assert.deepEqual(normalizeConfig({ preset: "BALANCED" }), BALANCED);
+		assert.deepEqual(normalizeConfig({ preset: "loud" }), BALANCED);
+		assert.deepEqual(normalizeConfig({ preset: 1 }), BALANCED);
+	});
+
+	it("lets an explicit key beat the preset and an invalid key fall back to it", () => {
+		assert.equal(
+			normalizeConfig({ preset: "quiet", statusShowMode: true }).statusShowMode,
+			true,
+		);
+		assert.equal(
+			normalizeConfig({ preset: "quiet", statusShowMode: "yes" }).statusShowMode,
+			false,
+		);
+		assert.equal(normalizeConfig({ preset: "verbose", trendSize: "20" }).trendSize, 20);
+		assert.equal(
+			normalizeConfig({ preset: "verbose", minPrevPromptTokens: Number.NaN })
+				.minPrevPromptTokens,
+			1024,
+		);
+		assert.equal(normalizeConfig({ preset: "verbose", language: "en" }).language, "en");
+		assert.equal(normalizeConfig({ preset: "quiet", language: "de" }).language, "ru");
+	});
+
+	it("treats custom as defaults plus explicit keys", () => {
+		assert.deepEqual(
+			normalizeConfig({ preset: "custom", statusShowMode: false, trendSize: 4 }),
+			{ ...BALANCED, preset: "custom", statusShowMode: false, trendSize: 4 },
+		);
+	});
+
+	it("clamps and falls back for advanced numeric keys", () => {
+		assert.equal(normalizeConfig({ trendSize: 999 }).trendSize, 50);
+		assert.equal(normalizeConfig({ trendSize: 0 }).trendSize, 1);
+		assert.equal(normalizeConfig({ minPrevPromptTokens: 2_000_000 }).minPrevPromptTokens, 1_000_000);
+		assert.equal(normalizeConfig({ minPrevPromptTokens: -5 }).minPrevPromptTokens, 0);
+		assert.equal(
+			normalizeConfig({ preset: "verbose", minPrevPromptTokens: null }).minPrevPromptTokens,
+			1024,
+		);
+	});
+
+	it("disables only the canonical-miss toast with warnCanonicalMiss", async () => {
+		const { extension, ctx, notifications } = await started({
+			settings: { warnCanonicalMiss: false },
+		});
+		await turn(extension, ctx, usage(0, 0, 5000), 1);
+		await turn(extension, ctx, usage(0, 0, 5000), 2);
+		assert.equal(notifications.length, 1);
+		assert.match(notifications[0].text, /hit 0%/);
+		assert.doesNotMatch(notifications[0].text, /промах/);
+	});
+
+	it("uses minPrevPromptTokens as the previous-prompt floor", async () => {
+		const high = await started({ settings: { minPrevPromptTokens: 6000 } });
+		await turn(high.extension, high.ctx, usage(0, 0, 5000), 1);
+		await turn(high.extension, high.ctx, usage(0, 0, 5000), 2);
+		assert.equal(high.notifications.filter((n) => /промах/.test(n.text)).length, 0);
+
+		const low = await started({ settings: { minPrevPromptTokens: 1000 } });
+		await turn(low.extension, low.ctx, usage(0, 0, 5000), 1);
+		await turn(low.extension, low.ctx, usage(0, 0, 5000), 2);
+		assert.equal(low.notifications.filter((n) => /промах/.test(n.text)).length, 1);
+	});
+
+	it("applies minPrevPromptTokens when restoring causes from the journal", async () => {
+		const entries = [
+			assistantEntry(usage(0, 0, 5000), 1_000),
+			assistantEntry(usage(0, 0, 5000), 2_000),
+		];
+		const restored = await started({ entries, reason: "resume" });
+		await command(restored.extension, restored.ctx, "history");
+		assert.match(restored.notifications.at(-1).text, /перезапись префикса/);
+
+		const raised = await started({
+			entries,
+			reason: "resume",
+			settings: { minPrevPromptTokens: 6000 },
+		});
+		await command(raised.extension, raised.ctx, "history");
+		assert.doesNotMatch(raised.notifications.at(-1).text, /перезапись префикса/);
+	});
+
+	it("does not publish the cost key on session switch", async () => {
+		const { extension, ctx, statuses } = await started({
+			settings: { statusShowCost: true },
+		});
+		await turn(extension, ctx, usage(1000, 3000, 0, 0.0123));
+		statuses.length = 0;
+		await fire(extension, "session_switch", ctx, { reason: "resume" });
+		assert.deepEqual(statuses, [{ key: "cache-monitor", text: "↺ …" }]);
+	});
+
+	it("warns once per epoch by default and on every turn with oncePerEpoch=false", async () => {
+		const once = await started();
+		for (let i = 1; i <= 3; i += 1) {
+			await turn(once.extension, once.ctx, usage(0, 0, 5000), i);
+		}
+		assert.equal(once.notifications.filter((n) => /промах/.test(n.text)).length, 1);
+
+		const every = await started({ settings: { oncePerEpoch: false } });
+		for (let i = 1; i <= 3; i += 1) {
+			await turn(every.extension, every.ctx, usage(0, 0, 5000), i);
+		}
+		assert.equal(every.notifications.filter((n) => /промах/.test(n.text)).length, 2);
+	});
+
+	it("uses trendSize for the live sparkline and trims on refresh", async () => {
+		const settings = { trendSize: 5 };
+		const { extension, ctx, notifications } = await started({ settings });
+		for (let i = 1; i <= 7; i += 1) {
+			await turn(extension, ctx, usage(1000 - i * 10, i * 10, 0), i);
+		}
+		await command(extension, ctx);
+		assert.equal(spark(notifications.at(-1).text).length, 5);
+
+		settings.trendSize = 2;
+		await command(extension, ctx, "settings");
+		await command(extension, ctx);
+		assert.equal(spark(notifications.at(-1).text).length, 2);
+	});
+
+	it("uses trendSize when restoring from the journal", async () => {
+		const entries = [1, 2, 3, 4, 5, 6, 7].map((i) =>
+			assistantEntry(usage(1000 - i * 10, i * 10, 0)),
+		);
+		const { extension, ctx, notifications } = await started({
+			settings: { trendSize: 3 },
+			entries,
+			reason: "resume",
+		});
+		await command(extension, ctx);
+		assert.equal(spark(notifications.at(-1).text).length, 3);
+	});
+
+	it("publishes cost as a separate status key only when statusShowCost is on", async () => {
+		const off = await started();
+		await turn(off.extension, off.ctx, usage(1000, 3000, 0, 0.0123));
+		assert.equal(off.statuses.filter((s) => s.key === "cache-monitor-cost").length, 0);
+		assert.deepEqual(off.statuses.at(-1), { key: "cache-monitor", text: "↺ 75%" });
+
+		const on = await started({ settings: { statusShowCost: true } });
+		await turn(on.extension, on.ctx, usage(1000, 3000, 0, 0.0123));
+		assert.deepEqual(on.statuses[0], { key: "cache-monitor", text: "↺ …" });
+		assert.deepEqual(on.statuses.at(-2), { key: "cache-monitor", text: "↺ 75%" });
+		assert.deepEqual(on.statuses.at(-1), { key: "cache-monitor-cost", text: "$0.0123" });
+	});
+
+	it("keeps cost out of the status when status is off or the agent is not main TUI", async () => {
+		const disabled = await started({
+			settings: { statusEnabled: false, statusShowCost: true },
+		});
+		await turn(disabled.extension, disabled.ctx, usage(1000, 3000, 0, 0.5));
+		assert.equal(disabled.statuses.length, 0);
+
+		const nonTui = await started({ mode: "json", settings: { statusShowCost: true } });
+		await turn(nonTui.extension, nonTui.ctx, usage(1000, 3000, 0, 0.5));
+		assert.equal(nonTui.statuses.length, 0);
+
+		const sub = await started({ agentKind: "sub", settings: { statusShowCost: true } });
+		await turn(sub.extension, sub.ctx, usage(1000, 3000, 0, 0.5));
+		assert.equal(sub.statuses.length, 0);
+	});
+
+	it("prints all 15 settings rows, the preset group and the changed marker", async () => {
+		const { extension, ctx, notifications } = await started({
+			settings: { preset: "quiet" },
+		});
+		await command(extension, ctx, "settings");
+		const out = notifications.at(-1).text;
+		const rows = out.split("\n").filter((line) => /^  \w+: /.test(line));
+		assert.equal(rows.length, 15);
+		assert.match(out, /^🎛 Пресет$/m);
+		assert.match(out, /^  preset: quiet \(changed\) — набор значений$/m);
+		assert.match(out, /^  statusShowMode: false \(default\) — префикс OMP_MODE$/m);
+		assert.match(
+			out,
+			/^  statusShowCost: false \(default\) — стоимость хода отдельным сегментом$/m,
+		);
+		assert.match(
+			out,
+			/^  warnCanonicalMiss: true \(default\) — warning о каноническом промахе$/m,
+		);
+		assert.match(out, /^  minPrevPromptTokens: 2048 \(default\) — порог предыдущего промпта$/m);
+		assert.match(out, /^  oncePerEpoch: true \(default\) — один warning за эпоху$/m);
+		assert.match(out, /^  trendSize: 12 \(default\) — точек в спарклайне$/m);
 	});
 });
 
@@ -1414,16 +1690,23 @@ describe("english output", () => {
 		assert.equal(
 			out,
 			"⚙ cache-monitor settings\n" +
+				"🎛 Preset\n" +
+				"  preset: balanced (default) — value bundle\n" +
 				"⚙ Status\n" +
 				"  statusEnabled: true (default) — ↺ N% in the status line\n" +
 				"  statusShowMode: true (default) — OMP_MODE prefix\n" +
+				"  statusShowCost: false (default) — turn cost as a separate segment\n" +
 				"⚠️ Warnings\n" +
 				"  warningsEnabled: true (default) — miss warning toasts\n" +
 				"  lowHitPercent: 50 (default) — low-hit threshold\n" +
 				'  idleMinutes: 5 (default) — "idle N min", not TTL\n' +
 				"  minPromptTokens: 4000 (default) — skip small prompts\n" +
+				"  warnCanonicalMiss: true (default) — canonical-miss warning\n" +
+				"  minPrevPromptTokens: 2048 (default) — previous-prompt floor\n" +
+				"  oncePerEpoch: true (default) — one warning per epoch\n" +
 				"📊 Reports\n" +
 				"  historySize: 8 (default) — /cache-monitor history window\n" +
+				"  trendSize: 12 (default) — sparkline points\n" +
 				"  showMoney: true (default) — $ in saved/miss premium\n" +
 				"  language: en (changed) — output language\n" +
 				"💵 model prices: yes\n" +

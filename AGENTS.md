@@ -19,12 +19,13 @@ read-only: не греет кэш, не меняет промпты, не тра
 
 ## Текущее состояние
 
-- Версия `0.9.1`, private GitHub `metapeka/omp-cache-monitor`, `main`.
-- `omp plugin link` → боевой чекаут; `omp plugin list` — `omp-cache-monitor@0.9.1`
+- Версия `0.10.0`, private GitHub `metapeka/omp-cache-monitor`, `main`.
+- `omp plugin link` → боевой чекаут; `omp plugin list` — `omp-cache-monitor@0.10.0`
   и `omp-agent-workflow@0.5.7` (context guard, handoff, supervisor, modes).
-- `npm test` — 68 тестов; `npm run typecheck`; CI зелёный.
-- Настройки: `package.json#omp.settings` (9 ключей, `Group · …` в описаниях),
-  `/cache-monitor settings` (группы и подписи) и `help`, `language: ru|en`;
+- `npm test` — 84 теста; `npm run typecheck`; CI зелёный.
+- Настройки: `package.json#omp.settings` (15 ключей, `Group · …` в описаниях),
+  `/cache-monitor settings` (группы и подписи), `preset` + advanced-ключи,
+  второй статус-ключ `cache-monitor-cost`; `language: ru|en`;
   таблица и риски — `docs/ui-settings.md`, карта документации OMP —
   `docs/omp-docs-map.md`, Powerline — `docs/powerline.md`.
 - Установка одна: `omp plugin link` **или** копия файла, не оба.
@@ -36,7 +37,7 @@ read-only: не греет кэш, не меняет промпты, не тра
 - Править боевой линкованный чекаут под эксперимент: для задач — worktree.
 - Переключать `omp plugin link` на ветку: он всегда смотрит на `main`.
 - Добавлять runtime-зависимости, `any`, фейковый TTL, warming, optimizer.
-- Менять контракт v0.9.0 без решения владельца.
+- Менять контракт v0.10.0 без решения владельца.
 - Коммитить секреты, логи сессий, `node_modules`, временные файлы.
 
 ## Рабочий процесс
@@ -130,7 +131,8 @@ npm run yoda -- --resume=<session.jsonl>
   2.8 (история 8 ходов), 2.11 (разбивка стоимости), 2.12 (настройки и
   справка), 3 (TTL data-gated), 4 (release), 5 (publication).
 - `docs/ui-settings.md` — ключи `omp.settings`, `settings`/`help`, `language`,
-  применение к новой сессии, внутренний `getPluginSettings`, Phase 2 (done)/3/4.
+  `preset`/advanced-ключи, статус-ключ `cache-monitor-cost`, применение к новой
+  сессии, внутренний `getPluginSettings`, Phase 1–3 (done)/4.
 - `docs/research/cache-extensions.md` — рынок и что заимствуем.
 - `HANDOFF.md` — точка продолжения.
 - `~/projects/omp-agent-workflow/docs/yoda-workflow.md` — режимы

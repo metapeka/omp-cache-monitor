@@ -105,78 +105,156 @@ type SessionAggregate = {
 type RegistryHandle = { get(scope: unknown): unknown };
 
 const STATUS_KEY = "cache-monitor";
+/** Стоимость последнего хода — отдельный ключ; hit-строка не меняется. */
+const COST_STATUS_KEY = "cache-monitor-cost";
 const PLUGIN_NAME = "omp-cache-monitor";
-/** Префикс предыдущего хода должен быть достаточно большим для сравнения. */
-const MIN_PREV_PROMPT = 2048;
-/** Сколько последних ходов держим в спарклайне. */
-const TREND_POINTS = 12;
+
+/** Пресет — набор значений остальных ключей; `custom` — defaults + explicit. */
+type Preset = "balanced" | "quiet" | "verbose" | "custom";
 
 /** Настройки плагина; значения и границы объявлены в `package.json#omp.settings`. */
 type Config = {
+	preset: Preset;
 	statusEnabled: boolean;
 	statusShowMode: boolean;
+	statusShowCost: boolean;
 	warningsEnabled: boolean;
 	lowHitPercent: number;
 	idleMinutes: number;
 	minPromptTokens: number;
+	warnCanonicalMiss: boolean;
+	minPrevPromptTokens: number;
+	oncePerEpoch: boolean;
 	historySize: number;
+	trendSize: number;
 	showMoney: boolean;
 	language: Language;
 };
 
 /** Параметры восстановления из журнала; подмножество настроек. */
-type AggregateOptions = Pick<Config, "historySize" | "minPromptTokens" | "idleMinutes">;
+type AggregateOptions = Pick<
+	Config,
+	| "historySize"
+	| "trendSize"
+	| "minPromptTokens"
+	| "minPrevPromptTokens"
+	| "idleMinutes"
+>;
 
 /** Значения по умолчанию; они же — контракт прежнего вывода без настроек. */
 const DEFAULT_CONFIG: Config = {
+	preset: "balanced",
 	statusEnabled: true,
 	statusShowMode: true,
+	statusShowCost: false,
 	warningsEnabled: true,
 	lowHitPercent: 50,
 	idleMinutes: 5,
 	minPromptTokens: 4000,
+	warnCanonicalMiss: true,
+	minPrevPromptTokens: 2048,
+	oncePerEpoch: true,
 	historySize: 8,
+	trendSize: 12,
 	showMoney: true,
 	language: "ru",
+};
+
+/** Значения пресетов поверх defaults; `balanced`/`custom` ничего не меняют. */
+const PRESET_VALUES: Record<Exclude<Preset, "custom" | "balanced">, Partial<Config>> = {
+	quiet: { statusShowMode: false, warningsEnabled: false, statusShowCost: false },
+	verbose: {
+		lowHitPercent: 60,
+		idleMinutes: 3,
+		minPromptTokens: 2000,
+		historySize: 12,
+		trendSize: 20,
+		statusShowCost: true,
+		minPrevPromptTokens: 1024,
+		oncePerEpoch: false,
+	},
 };
 
 /** Настройки из OMP; `settings` задают тесты вместо чтения loader'а. */
 type PluginSource = { settings?: Readonly<Record<string, unknown>> };
 
-/** Число: finite → round → clamp в [min, max]; всё остальное — default. */
-function configNumber(value: unknown, fallback: number, min: number, max: number): number {
-	if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
-	return Math.min(max, Math.max(min, Math.round(value)));
+/**
+ * Bool: boolean, а также строки `"true"`/`"false"` (так их хранит
+ * `omp plugin config set`); остальное — fallback (значение пресета).
+ */
+function configBool(value: unknown, fallback: boolean): boolean {
+	if (typeof value === "boolean") return value;
+	if (typeof value === "string") {
+		const text = value.trim().toLowerCase();
+		if (text === "true") return true;
+		if (text === "false") return false;
+	}
+	return fallback;
 }
 
-/** Привести сырые настройки OMP к валидному `Config`, не доверяя их форме. */
+/**
+ * Число: конечное число или числовая строка (CLI пишет строки) →
+ * round → clamp в [min, max]; всё остальное — fallback.
+ */
+function configNumber(value: unknown, fallback: number, min: number, max: number): number {
+	const numeric =
+		typeof value === "number"
+			? value
+			: typeof value === "string" && value.trim() !== ""
+				? Number(value)
+				: Number.NaN;
+	if (!Number.isFinite(numeric)) return fallback;
+	return Math.min(max, Math.max(min, Math.round(numeric)));
+}
+
+/** База: defaults + значения пресета; `language` пресет не меняет. */
+function presetBase(preset: Preset): Config {
+	if (preset === "quiet" || preset === "verbose") {
+		return { ...DEFAULT_CONFIG, ...PRESET_VALUES[preset], preset };
+	}
+	return { ...DEFAULT_CONFIG, preset };
+}
+
+/**
+ * Привести сырые настройки OMP к валидному `Config`, не доверяя их форме.
+ * Сначала выбирается пресет, затем валидный explicit-ключ перекрывает его;
+ * невалидный explicit-ключ откатывается к значению пресета, а не к default.
+ */
 export function normalizeConfig(raw: unknown): Config {
 	const settings: Record<string, unknown> =
 		raw !== null && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+	// Известные пресеты — как есть; отсутствующий/невалидный — `balanced`.
+	const rawPreset = settings.preset;
+	const preset: Preset =
+		rawPreset === "quiet" || rawPreset === "verbose" || rawPreset === "custom"
+			? rawPreset
+			: "balanced";
+	const base = presetBase(preset);
 	return {
-		statusEnabled:
-			typeof settings.statusEnabled === "boolean"
-				? settings.statusEnabled
-				: DEFAULT_CONFIG.statusEnabled,
-		statusShowMode:
-			typeof settings.statusShowMode === "boolean"
-				? settings.statusShowMode
-				: DEFAULT_CONFIG.statusShowMode,
-		warningsEnabled:
-			typeof settings.warningsEnabled === "boolean"
-				? settings.warningsEnabled
-				: DEFAULT_CONFIG.warningsEnabled,
-		lowHitPercent: configNumber(settings.lowHitPercent, DEFAULT_CONFIG.lowHitPercent, 1, 100),
-		idleMinutes: configNumber(settings.idleMinutes, DEFAULT_CONFIG.idleMinutes, 1, 240),
+		preset,
+		statusEnabled: configBool(settings.statusEnabled, base.statusEnabled),
+		statusShowMode: configBool(settings.statusShowMode, base.statusShowMode),
+		statusShowCost: configBool(settings.statusShowCost, base.statusShowCost),
+		warningsEnabled: configBool(settings.warningsEnabled, base.warningsEnabled),
+		lowHitPercent: configNumber(settings.lowHitPercent, base.lowHitPercent, 1, 100),
+		idleMinutes: configNumber(settings.idleMinutes, base.idleMinutes, 1, 240),
 		minPromptTokens: configNumber(
 			settings.minPromptTokens,
-			DEFAULT_CONFIG.minPromptTokens,
+			base.minPromptTokens,
 			0,
 			1_000_000,
 		),
-		historySize: configNumber(settings.historySize, DEFAULT_CONFIG.historySize, 1, 50),
-		showMoney:
-			typeof settings.showMoney === "boolean" ? settings.showMoney : DEFAULT_CONFIG.showMoney,
+		warnCanonicalMiss: configBool(settings.warnCanonicalMiss, base.warnCanonicalMiss),
+		minPrevPromptTokens: configNumber(
+			settings.minPrevPromptTokens,
+			base.minPrevPromptTokens,
+			0,
+			1_000_000,
+		),
+		oncePerEpoch: configBool(settings.oncePerEpoch, base.oncePerEpoch),
+		historySize: configNumber(settings.historySize, base.historySize, 1, 50),
+		trendSize: configNumber(settings.trendSize, base.trendSize, 1, 50),
+		showMoney: configBool(settings.showMoney, base.showMoney),
 		language: settings.language === "en" ? "en" : "ru",
 	};
 }
@@ -204,6 +282,7 @@ type Texts = {
 	};
 	settings: {
 		title: string;
+		preset: string;
 		status: string;
 		warnings: string;
 		reports: string;
@@ -252,17 +331,24 @@ const TEXTS: Record<Language, Texts> = {
 		},
 		settings: {
 			title: "⚙ настройки cache-monitor",
+			preset: "🎛 Пресет",
 			status: "⚙ Статус",
 			warnings: "⚠️ Предупреждения",
 			reports: "📊 Отчёты",
 			labels: {
+				preset: "набор значений",
 				statusEnabled: "↺ N% в статус-строке",
 				statusShowMode: "префикс OMP_MODE",
+				statusShowCost: "стоимость хода отдельным сегментом",
 				warningsEnabled: "toast о промахах",
 				lowHitPercent: "порог низкого hit",
 				idleMinutes: "«простой N мин», не TTL",
 				minPromptTokens: "не шуметь на мелких промптах",
+				warnCanonicalMiss: "warning о каноническом промахе",
+				minPrevPromptTokens: "порог предыдущего промпта",
+				oncePerEpoch: "один warning за эпоху",
 				historySize: "окно /cache-monitor history",
+				trendSize: "точек в спарклайне",
 				showMoney: "$ в saved/miss premium",
 				language: "язык вывода",
 			},
@@ -316,17 +402,24 @@ const TEXTS: Record<Language, Texts> = {
 		},
 		settings: {
 			title: "⚙ cache-monitor settings",
+			preset: "🎛 Preset",
 			status: "⚙ Status",
 			warnings: "⚠️ Warnings",
 			reports: "📊 Reports",
 			labels: {
+				preset: "value bundle",
 				statusEnabled: "↺ N% in the status line",
 				statusShowMode: "OMP_MODE prefix",
+				statusShowCost: "turn cost as a separate segment",
 				warningsEnabled: "miss warning toasts",
 				lowHitPercent: "low-hit threshold",
 				idleMinutes: '"idle N min", not TTL',
 				minPromptTokens: "skip small prompts",
+				warnCanonicalMiss: "canonical-miss warning",
+				minPrevPromptTokens: "previous-prompt floor",
+				oncePerEpoch: "one warning per epoch",
 				historySize: "/cache-monitor history window",
+				trendSize: "sparkline points",
 				showMoney: "$ in saved/miss premium",
 				language: "output language",
 			},
@@ -558,10 +651,11 @@ function isCanonicalMiss(
 	usage: TurnUsage,
 	prompt: number,
 	minPromptTokens: number,
+	minPrevPromptTokens: number,
 ): boolean {
 	return (
 		prevPrompt !== null &&
-		prevPrompt >= MIN_PREV_PROMPT &&
+		prevPrompt >= minPrevPromptTokens &&
 		usage.cacheRead === 0 &&
 		usage.cacheWrite > 0 &&
 		prompt >= minPromptTokens
@@ -700,7 +794,13 @@ function aggregateEntries(
 					: null;
 			const cause =
 				!firstOfEpoch &&
-				isCanonicalMiss(prevPrompt, usage, prompt, options.minPromptTokens)
+				isCanonicalMiss(
+					prevPrompt,
+					usage,
+					prompt,
+					options.minPromptTokens,
+					options.minPrevPromptTokens,
+				)
 					? missCause(idleMs, options.idleMinutes)
 					: null;
 
@@ -711,7 +811,7 @@ function aggregateEntries(
 			// доказано. Сумма по сессии учитывает только ходы с продолжением.
 			result.last = { ...usage, hit, reBilled: null, reBillCost: null, savedCost: null };
 			result.trend.push(hit);
-			if (result.trend.length > TREND_POINTS) result.trend.shift();
+			if (result.trend.length > options.trendSize) result.trend.shift();
 			// Цены прошлых моделей неизвестны: в истории они `null`, а не выдуманы.
 			result.history.push({
 				hit,
@@ -796,9 +896,9 @@ function sessionEntries(ctx: ExtensionContext): unknown[] {
 }
 
 /** `setStatus` не должен ронять обработчик в режимах без UI. */
-function setStatus(ctx: ExtensionContext, text: string): void {
+function setStatus(ctx: ExtensionContext, text: string, key: string = STATUS_KEY): void {
 	try {
-		ctx.ui.setStatus(STATUS_KEY, text);
+		ctx.ui.setStatus(key, text);
 	} catch {
 		// UI контекст может не поддерживать статус-строку
 	}
@@ -907,6 +1007,7 @@ export default function cacheMonitor(pi: ExtensionAPI, source: PluginSource = {}
 		configuredKeys = new Set(Object.keys(raw));
 		// Команда видит свежее окно: старые записи сверх него не показываем.
 		while (history.length > config.historySize) history.shift();
+		while (trendHits.length > config.trendSize) trendHits.shift();
 	};
 
 	/** Signature активных инструментов: отсортированные имена. */
@@ -1126,6 +1227,10 @@ export default function cacheMonitor(pi: ExtensionAPI, source: PluginSource = {}
 		if (config.statusEnabled && mainTui) {
 			const prefix = config.statusShowMode && mode ? `${mode} ` : "";
 			setStatus(ctx, `${prefix}↺ ${hitPercentText(hit)}`);
+			// Стоимость — отдельный сегмент: hit-строка остаётся прежней.
+			if (config.statusShowCost) {
+				setStatus(ctx, `$${usage.cost.toFixed(4)}`, COST_STATUS_KEY);
+			}
 		}
 
 		// Предыдущий ход той же эпохи (syncEpoch может его сбросить).
@@ -1145,7 +1250,13 @@ export default function cacheMonitor(pi: ExtensionAPI, source: PluginSource = {}
 			usage.cacheRead > 0 ? cacheDeltaCost(ctx.model, usage.cacheRead) : null;
 		const cause =
 			!freshEpoch &&
-			isCanonicalMiss(comparePrompt, usage, prompt, config.minPromptTokens)
+			isCanonicalMiss(
+				comparePrompt,
+				usage,
+				prompt,
+				config.minPromptTokens,
+				config.minPrevPromptTokens,
+			)
 				? missCause(idleMs, config.idleMinutes)
 				: null;
 		history.push({
@@ -1174,7 +1285,7 @@ export default function cacheMonitor(pi: ExtensionAPI, source: PluginSource = {}
 			else sessionSaved += savedCost;
 		}
 		trendHits.push(hit);
-		if (trendHits.length > TREND_POINTS) trendHits.shift();
+		if (trendHits.length > config.trendSize) trendHits.shift();
 
 		const turnIndex = num(field(event, "turnIndex"));
 		const canWarn =
@@ -1188,8 +1299,15 @@ export default function cacheMonitor(pi: ExtensionAPI, source: PluginSource = {}
 
 		// Канонический промах: префикс переписан целиком, кэш не прочитан.
 		if (
-			isCanonicalMiss(comparePrompt, usage, prompt, config.minPromptTokens) &&
-			!epochWarned.has("canonical-miss")
+			config.warnCanonicalMiss &&
+			(!config.oncePerEpoch || !epochWarned.has("canonical-miss")) &&
+			isCanonicalMiss(
+				comparePrompt,
+				usage,
+				prompt,
+				config.minPromptTokens,
+				config.minPrevPromptTokens,
+			)
 		) {
 			epochWarned.add("canonical-miss");
 			const reason = causeText(missCause(idleMs, config.idleMinutes), config.language);
@@ -1201,7 +1319,11 @@ export default function cacheMonitor(pi: ExtensionAPI, source: PluginSource = {}
 		}
 
 		// Низкий hit — не обязательно промах, но признак смены префикса.
-		if (hit !== null && hit < config.lowHitPercent && !epochWarned.has("low-hit")) {
+		if (
+			hit !== null &&
+			hit < config.lowHitPercent &&
+			(!config.oncePerEpoch || !epochWarned.has("low-hit"))
+		) {
 			epochWarned.add("low-hit");
 			notify(
 				ctx,
@@ -1221,13 +1343,19 @@ export default function cacheMonitor(pi: ExtensionAPI, source: PluginSource = {}
 	const settingsReport = (ctx: ExtensionContext): string => {
 		const texts = TEXTS[config.language];
 		const values: Record<string, string> = {
+			preset: config.preset,
 			statusEnabled: String(config.statusEnabled),
 			statusShowMode: String(config.statusShowMode),
+			statusShowCost: String(config.statusShowCost),
 			warningsEnabled: String(config.warningsEnabled),
 			lowHitPercent: String(config.lowHitPercent),
 			idleMinutes: String(config.idleMinutes),
 			minPromptTokens: String(config.minPromptTokens),
+			warnCanonicalMiss: String(config.warnCanonicalMiss),
+			minPrevPromptTokens: String(config.minPrevPromptTokens),
+			oncePerEpoch: String(config.oncePerEpoch),
 			historySize: String(config.historySize),
+			trendSize: String(config.trendSize),
 			showMoney: String(config.showMoney),
 			language: config.language,
 		};
@@ -1235,8 +1363,12 @@ export default function cacheMonitor(pi: ExtensionAPI, source: PluginSource = {}
 		// и префиксом в description, а команда повторяет их явными заголовками.
 		const groups: { title: string; rows: string[] }[] = [
 			{
+				title: texts.settings.preset,
+				rows: ["preset"],
+			},
+			{
 				title: texts.settings.status,
-				rows: ["statusEnabled", "statusShowMode"],
+				rows: ["statusEnabled", "statusShowMode", "statusShowCost"],
 			},
 			{
 				title: texts.settings.warnings,
@@ -1245,11 +1377,14 @@ export default function cacheMonitor(pi: ExtensionAPI, source: PluginSource = {}
 					"lowHitPercent",
 					"idleMinutes",
 					"minPromptTokens",
+					"warnCanonicalMiss",
+					"minPrevPromptTokens",
+					"oncePerEpoch",
 				],
 			},
 			{
 				title: texts.settings.reports,
-				rows: ["historySize", "showMoney", "language"],
+				rows: ["historySize", "trendSize", "showMoney", "language"],
 			},
 		];
 		const prices = cacheDeltaCost(ctx.model, 0) !== null ? texts.settings.yes : texts.settings.no;

@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.10.0 — 2026-11-23
+
+- **Пресеты.** Новый ключ `preset` (`balanced` / `quiet` / `verbose` /
+  `custom`, default `balanced`) задаёт набор значений остальных ключей.
+  `quiet` выключает режим в статусе, warning-и и cost-сегмент; `verbose`
+  повышает плотность сигналов (lowHit 60, idle 3, minPrompt 2000, history 12,
+  trend 20, cost on, minPrev 1024, warning на каждом ходе); `balanced` —
+  текущие defaults; `custom` — только defaults + явные ключи. Явно заданный
+  ключ всегда сильнее пресета; `language` пресет не меняет.
+- **Advanced-ключи.** `warnCanonicalMiss` (только канонический промах),
+  `minPrevPromptTokens` (заменяет константу `MIN_PREV_PROMPT` в сравнении и
+  restore), `oncePerEpoch` (`false` — warning на каждом подходящем ходе),
+  `trendSize` (окно спарклайна live и после resume; `refreshConfig` сразу
+  отрезает лишние точки) и `statusShowCost` (второй статус-ключ
+  `cache-monitor-cost` со стоимостью последнего хода; hit-строка не меняется).
+- **Итого 15 ключей** в `omp.settings`, группы `Preset`/`Status`/`Warnings`/
+  `Reports`. `/cache-monitor settings` печатает 15 строк с новой группой
+  `🎛 Пресет`/`🎛 Preset`; `help` остаётся прежним (8 строк).
+  Отчёт, history и costs не печатают `preset`.
+- **Разрешение настроек.** `normalizeConfig` сначала выбирает пресет, затем
+  валидный explicit-ключ перекрывает его, а невалидный откатывается к
+  значению пресета (не к hard default). Диапазоны: `trendSize` 1–50,
+  `minPrevPromptTokens` 0–1 000 000 (шаг 256 только в схеме).
+- **Исправлено: значения из `omp plugin config set`.** OMP хранит их
+  строками (`"true"`, `"60"`), а нормализация принимала только boolean и
+  число, поэтому CLI-настройки молча не применялись. Теперь bool принимает
+  `"true"`/`"false"` (регистр и пробелы не важны), числа — числовые строки;
+  пустая и нечисловая строка по-прежнему откатывается к пресету/default.
+- **Документация.** `docs/ui-settings.md` — 15 ключей, таблица пресетов,
+  группы `settings`; `docs/powerline.md` — второй `customItem` для
+  `cache-monitor-cost` и ограничение очистки; README (EN), `docs/README.ru.md`,
+  `ROADMAP.md`, `HANDOFF.md`, `AGENTS.md` — версия, контракт и счётчики.
+- Тестов 84 (68 + 16 новых: пресеты, override, `custom`, advanced-ключи,
+  статус cost, `trendSize`, `ru`/`en`, невалидные значения, строковые
+  значения CLI, restore `minPrevPromptTokens`, cost-ключ на `session_switch`);
+  typecheck зелёный, `npm pack` — 4 файла. Defaults без настроек и `ru`-вывод
+  прежние, кроме новых строк `settings`.
+
 ## 0.9.1 — 2026-11-23
 
 - **Powerline-интеграция.** Новый `docs/powerline.md`: статус

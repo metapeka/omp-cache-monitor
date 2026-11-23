@@ -22,7 +22,9 @@ cache-safe ↺ 98%
 
 The mode comes from `OMP_MODE` (set by `omp-mode`); without a mode it is
 `↺ 98%`, before the first turn `↺ …`, and with a zero denominator `↺ n/a`
-(no `%`).
+(no `%`). With `statusShowCost: true` a second key `cache-monitor-cost`
+publishes the last turn cost as `$0.0027` (4 decimals); the hit line is
+unchanged, and the cost segment appears only after a completed turn.
 
 `/cache-monitor` prints one line with the mode, model, thinking level, last
 turn with `saved` and `miss premium`, the trend, and session totals:
@@ -174,8 +176,9 @@ Comparison is epoch-aware: the baseline resets on compaction, model change,
 thinking change, or tool-set change, so a legitimately cold turn after such an
 event is not treated as a mid-session miss.
 
-1. **Canonical miss** — the previous turn's prompt was ≥ 2048 tokens, while the
-   current turn has `cacheRead = 0` and `cacheWrite > 0`: the prefix was fully
+1. **Canonical miss** — the previous turn's prompt was ≥ `minPrevPromptTokens`
+   tokens (2048 by default), while the current turn has `cacheRead = 0` and
+   `cacheWrite > 0`: the prefix was fully
    rewritten or the cache expired. The cause is computed per turn:
    `простой N мин` (`idle N min` with `language: en`) when consecutive
    completed turns are ≥ 5 minutes apart by `message.timestamp`, otherwise
@@ -192,6 +195,11 @@ event is not treated as a mid-session miss.
 A warning is a signal to check what changed 1–2 turns before it, not an error
 by itself.
 
+`warnCanonicalMiss: false` disables only the canonical-miss toast (low hit keeps
+working); `minPrevPromptTokens` moves the previous-prompt floor;
+`oncePerEpoch: false` warns on every qualifying turn instead of once per
+prefix epoch.
+
 ## Settings
 
 The schema lives in `package.json` → `omp.settings`. OMP shows it in
@@ -207,9 +215,10 @@ omp plugin config set omp-cache-monitor showMoney false
 OMP renders plugin settings as a **flat list**: the `description` of the
 selected row appears in the panel footer, and there are no groups, headers or
 icons in the plugin schema (only core settings have those). `omp-cache-monitor`
-therefore encodes groups with key order and a `Status ·` / `Warnings ·` /
-`Reports ·` prefix in every description; `/cache-monitor settings` repeats the
-same headings. Details and the upstream `group`/`icon` proposal —
+therefore encodes groups with key order and a `Preset ·` / `Status ·` /
+`Warnings ·` / `Reports ·` prefix in every description; the
+`/cache-monitor settings` command repeats the same headings. Details and the
+upstream `group`/`icon` proposal —
 [`docs/ui-settings.md`](docs/ui-settings.md). Built-in OMP docs map —
 [`docs/omp-docs-map.md`](docs/omp-docs-map.md).
 
@@ -222,38 +231,62 @@ the model has numeric prices:
 
 ```
 ⚙ настройки cache-monitor
+🎛 Пресет
+  preset: balanced (default) — набор значений
 ⚙ Статус
   statusEnabled: true (default) — ↺ N% в статус-строке
   statusShowMode: true (default) — префикс OMP_MODE
+  statusShowCost: false (default) — стоимость хода отдельным сегментом
 ⚠️ Предупреждения
   warningsEnabled: true (default) — toast о промахах
   lowHitPercent: 50 (default) — порог низкого hit
   idleMinutes: 5 (default) — «простой N мин», не TTL
   minPromptTokens: 4000 (default) — не шуметь на мелких промптах
+  warnCanonicalMiss: true (default) — warning о каноническом промахе
+  minPrevPromptTokens: 2048 (default) — порог предыдущего промпта
+  oncePerEpoch: true (default) — один warning за эпоху
 📊 Отчёты
   historySize: 8 (default) — окно /cache-monitor history
+  trendSize: 12 (default) — точек в спарклайне
   showMoney: true (default) — $ в saved/miss premium
   language: ru (default) — язык вывода
 💵 цены модели: да
 Изменить: omp plugin config set omp-cache-monitor <key> <value>
 ```
 
+`preset` is a value bundle for the other keys; an explicitly set key always
+beats it and `custom` applies no preset values. `balanced` reproduces the
+defaults, `quiet` turns off the mode prefix, warnings and the cost segment,
+`verbose` raises signal density (lowHit 60, idle 3, minPrompt 2000, history 12,
+trend 20, cost on, minPrev 1024, every-turn warnings). Advanced keys
+(`warnCanonicalMiss`, `minPrevPromptTokens`, `oncePerEpoch`, `trendSize`,
+`statusShowCost`) tune individual behaviours on top. `preset` is shown only by
+`settings`; the report, history and costs never print it.
+
 | Key | Default | Range | Effect |
 |---|---|---|---|
+| `preset` | `balanced` | `balanced` / `quiet` / `verbose` / `custom` | Value bundle for the other keys. An explicitly set key beats the preset; `custom` applies no preset values. Never changes `language`. |
 | `statusEnabled` | `true` | boolean | Publish the hit rate in the status line. `false` skips every `setStatus` call; the old status is not cleared. |
 | `statusShowMode` | `true` | boolean | Prefix the status with `OMP_MODE` (`cache-safe ↺ 75%`). `false` prints just `↺ 75%`. |
+| `statusShowCost` | `false` | boolean | Publish the last turn cost as a separate status key `cache-monitor-cost` (`$0.0027`, 4 decimals). The `cache-monitor` hit line is unchanged. |
 | `warningsEnabled` | `true` | boolean | Canonical-miss and low-hit warnings. `false` emits none. |
 | `lowHitPercent` | `50` | 1–100 | Warn when a turn's hit is below this percent. |
 | `idleMinutes` | `5` | 1–240 | Gap named as idle in a miss cause (`простой N мин` / `idle N min`). Empirical heuristic, **not** a provider TTL. |
 | `minPromptTokens` | `4000` | 0–1 000 000 | Do not warn on smaller prompts; the same floor is used by the miss cause and restore. |
+| `warnCanonicalMiss` | `true` | boolean | Canonical-miss toast. `false` disables only it; low hit keeps working. |
+| `minPrevPromptTokens` | `2048` | 0–1 000 000 | Minimum previous-turn prompt for a canonical-miss comparison; replaces the former `MIN_PREV_PROMPT` constant. |
+| `oncePerEpoch` | `true` | boolean | `true` — one warning of each kind per prefix epoch; `false` — on every qualifying turn. |
 | `historySize` | `8` | 1–50 | `/cache-monitor history` window (live and after resume) and the `история (N/M):` / `history (N/M):` denominator. |
+| `trendSize` | `12` | 1–50 | Sparkline length; the live window and the journal restore use the same value. |
 | `showMoney` | `true` | boolean | `saved` and `miss premium` dollar amounts in the report and history. With `false` the tokens stay (`miss premium: 3000 tok` / `miss premium 3000 tok`) and `/cache-monitor costs` still shows money. |
 | `language` | `ru` | `ru` / `en` | Language of user-facing output: report labels, history headers and causes, cost labels, `settings`, `help` and warnings. `ru` keeps the original byte-for-byte output. Manifest `omp.settings` descriptions stay English in both languages. |
 
-Invalid values fall back to the default; numbers are rounded and clamped
-(`lowHitPercent: 500` → `100`, `idleMinutes: 0` → `1`, `historySize: 3.6` → `4`).
-An invalid `language` falls back to `ru`. The default values reproduce the
-pre-0.8.0 output byte for byte, except the new `language` row in `settings`.
+Invalid values fall back to the preset value (or the default without a preset);
+numbers are rounded and clamped (`lowHitPercent: 500` → `100`, `idleMinutes: 0`
+→ `1`, `historySize: 3.6` → `4`, `trendSize: 999` → `50`,
+`minPrevPromptTokens: -5` → `0`). An invalid `language` falls back to `ru` and
+is never changed by a preset. The default values reproduce the pre-0.8.0 output
+byte for byte, except the new rows in `settings`.
 More detail: [`docs/ui-settings.md`](docs/ui-settings.md).
 
 `language: en` translates every user-facing string — report and history labels,
@@ -276,11 +309,11 @@ Applied to new sessions; settings re-reads immediately.
 Docs: README.md, docs/ui-settings.md, docs/omp-docs-map.md.
 ```
 
-`/cache-monitor help` (alias `?`) prints an eight-line reference: what `↺`
+`/cache-monitor help` (alias `?`) prints a nine-line reference: what `↺`
 means (higher is cheaper), that a miss is `cacheRead 0`, the subcommands
-(`отчёт`, `history`, `costs`, `settings`, `help`), where to change settings,
-and links to `README.md`, `docs/ui-settings.md`, `docs/omp-docs-map.md`. It
-makes no TTL promises.
+(`отчёт`, `history`, `costs`, `settings`, `help`), the `preset` bundle and
+advanced keys, where to change settings, and links to `README.md`,
+`docs/ui-settings.md`, `docs/omp-docs-map.md`. It makes no TTL promises.
 
 ## Installation
 

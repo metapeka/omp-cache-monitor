@@ -2,7 +2,9 @@
 
 `omp-cache-monitor` публикует статус через
 `ctx.ui.setStatus("cache-monitor", …)`. Это позволяет вынести hit rate в
-Powerline-строку без второго кода и без runtime-зависимостей.
+Powerline-строку без второго кода и без runtime-зависимостей. При
+`statusShowCost: true` добавляется второй ключ `cache-monitor-cost` со
+стоимостью последнего хода; hit-строка не меняется.
 
 Текст статуса:
 
@@ -18,6 +20,10 @@ cache-safe ↺ 98%
 - До первого хода — `↺ …`; при нулевом знаменателе — `↺ n/a`.
 - При `statusEnabled: false` статус не публикуется, и Powerline-элемент
   скрывается (`hideWhenMissing`).
+- `statusShowCost: true` публикует на `turn_end` второй ключ
+  `cache-monitor-cost` с текстом `$0.0027` (4 знака, без режима и языка).
+  До первого хода и при `statusEnabled: false` этого ключа нет; старый
+  сегмент не очищается — известное ограничение, как и у `cache-monitor`.
 
 ## Вариант 1 — нативная статус-строка OMP
 
@@ -39,9 +45,9 @@ statusLine:
 ## Вариант 2 — `pi-powerline-footer`
 
 Внешний плагин `pi-powerline-footer` читает статусы расширений через
-`customItems`. Наш ключ — `cache-monitor`. Это сторонний пакет: его
-совместимость с конкретной версией OMP проверяйте отдельно; нативный вариант
-выше от него не зависит.
+`customItems`. Наши ключи — `cache-monitor` и `cache-monitor-cost`. Это
+сторонний пакет: его совместимость с конкретной версией OMP проверяйте
+отдельно; нативный вариант выше от него не зависит.
 
 Установка (опционально, сторонний пакет):
 
@@ -65,19 +71,33 @@ omp plugin install npm:pi-powerline-footer
         "position": "right",
         "hideWhenMissing": true,
         "excludeFromExtensionStatuses": true
+      },
+      {
+        "id": "cache-cost",
+        "statusKey": "cache-monitor-cost",
+        "position": "right",
+        "hideWhenMissing": true,
+        "excludeFromExtensionStatuses": true
       }
     ]
   }
 }
 ```
 
-- `statusKey` должен быть ровно `cache-monitor` — это ключ нашего
-  `ctx.ui.setStatus`.
-- `prefix` не нужен: в тексте уже есть `↺`.
+- `statusKey` должен быть ровно `cache-monitor` (hit rate) или
+  `cache-monitor-cost` (стоимость последнего хода при `statusShowCost: true`)
+  — это ключи нашего `ctx.ui.setStatus`.
+- `prefix` не нужен: в тексте уже есть `↺` и `$`.
 - `excludeFromExtensionStatuses: true` убирает дубль из агрегатного сегмента
   `extension_statuses`.
+- `hideWhenMissing: true` скрывает cost-сегмент до первого хода и при
+  `statusShowCost: false`.
 - `position` можно поставить в `secondary`, если основной ряд переполнен.
 - `color`/`selfColorize` не обязательны: наш статус не содержит ANSI.
+
+Нативный вариант показывает оба ключа: сегмент `status` собирает все статусы
+расширений, поэтому при `statusShowCost: true` рядом с `↺ N%` появляется
+`$…`.
 
 ## Проверка
 
@@ -89,6 +109,8 @@ omp plugin install npm:pi-powerline-footer
    `cache` показывает тот же текст, что и статус-строка.
 4. `statusEnabled: false` должен скрывать элемент; `statusShowMode: false`
    оставляет `↺ N%` без режима.
+5. При `statusShowCost: true` после первого хода появляется второй элемент
+   `$0.0027` (`cache-monitor-cost`); при `false` его нет.
 
 Интеграция не меняет метрики, не добавляет запросов и не трогает настройки
 OMP. Это только отображение уже опубликованного статуса.

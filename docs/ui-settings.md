@@ -54,6 +54,11 @@ default. Числа округляются и зажимаются в диапа
 `language` принимает только `ru`/`en`; любое другое значение (включая число)
 откатывается к `ru`.
 
+Статус `cache-monitor` можно вынести в Powerline: нативный OMP-разделитель
+`powerline-thin` или `pi-powerline-footer` через `customItems`. Настройки
+powerline-плагина не входят в `omp.settings` этого пакета; конфигурация и
+проверка — [`powerline.md`](powerline.md).
+
 ## Команды
 
 ### `/cache-monitor settings` (алиас `setting`)

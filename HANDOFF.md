@@ -1,8 +1,8 @@
 # Передача: cache-monitor
 
-Дата: 2026-11-23. Репозиторий: `omp-cache-monitor`; 0.9.0 влит в `main`
-(`774e574` — фича, `a9e94fd` — проверки), `main == origin/main`, worktree
-`feat/i18n` удалён.
+Дата: 2026-11-23. Репозиторий: `omp-cache-monitor`; 0.9.1 — Powerline-
+документация поверх 0.9.0 (`774e574` — фича, `a9e94fd` — проверки),
+`main == origin/main`, worktree `feat/i18n` удалён.
 Это продолжение работы, начатой в docs-репозитории
 `docs-omp-debian-availability` (там же пресеты, `omp-mode` и публичная вики).
 
@@ -10,10 +10,10 @@
 
 | Что | Состояние |
 |---|---|
-| Расширение `index.ts` | v0.9.0, 1370 строк, контракт ниже |
-| Пакет | `package.json` (`omp.extensions` + `omp.settings` из 9 ключей, `pi.extensions`, repository/homepage/bugs/engines), MIT, README (EN) + `docs/README.ru.md`, CHANGELOG 0.9.0, `docs/ui-settings.md`, `docs/omp-docs-map.md` |
-| Установка на машине | `omp plugin list` — `omp-cache-monitor@0.9.0` и `omp-agent-workflow@0.5.4` |
-| Проверки | `npm test` 68/68, typecheck, `npm pack` — 4 файла; 0.9.0: EN-тесты всех подкоманд и warning-ов без кириллицы, смена языка перерисовывает сохранённые причины; runtime TUI с `language: en`: settings/help/report/costs/history без кириллицы (0 совпадений), `language` возвращён в `ru`; TUI settings/help 0.8.1 в силе |
+| Расширение `index.ts` | v0.9.0, 1370 строк, контракт ниже; поведение не менялось |
+| Пакет | `package.json` (`omp.extensions` + `omp.settings` из 9 ключей, `pi.extensions`, repository/homepage/bugs/engines), MIT, README (EN) + `docs/README.ru.md`, CHANGELOG 0.9.1, `docs/ui-settings.md`, `docs/omp-docs-map.md`, `docs/powerline.md` |
+| Установка на машине | `omp plugin list` — `omp-cache-monitor@0.9.1` и `omp-agent-workflow@0.5.7` |
+| Проверки | `npm test` 68/68, typecheck, `npm pack` — 4 файла; 0.9.0: EN-тесты всех подкоманд и warning-ов без кириллицы, смена языка перерисовывает сохранённые причины; runtime TUI с `language: en`: settings/help/report/costs/history без кириллицы (0 совпадений), `language` возвращён в `ru`; TUI settings/help 0.8.1 в силе; 0.9.1 — docs-only, поведение не менялось |
 | Ревью | v0.4/v0.5/v0.6/v0.7/v0.8/v0.8.1/v0.9 — merge |
 | Ревью v0.4 | фоновый usage отделён от hit/ходов; граница resume не даёт ложной пере-оплаты |
 | Ревью v0.5 | reviewer: merge; исправлены пробелы покрытия — граница 5 мин, `/clear`/tree, ход без timestamp разрывает цепочку простоя |
@@ -242,8 +242,9 @@ omp --no-tools --session-dir /tmp/cm-check
 0.8.0 (настройки, `settings`, `help`) и 0.8.1 (группы, docs map) в `main`;
 0.9.0 (`language: ru|en`, 9 ключей, EN-вывод, 68 тестов) влит в
 `main` (`774e574`, `a9e94fd`), проверен unit-тестами и живым TUI. Следующее —
-только по решению владельца: тег/release `v0.9.0` (плюс, при желании,
-`v0.7.0`/`v0.8.0`), этап 5 (npm/marketplace) или P2-бэклог (powerline, панель). Phase 3 —
+только по решению владельца: тег/release `v0.9.1` (плюс, при желании,
+`v0.7.0`/`v0.8.0`), этап 5 (npm/marketplace) или P2-бэклог (панель).
+Powerline-интеграция закрыта в 0.9.1 (`docs/powerline.md`). Phase 3 —
 `preset` (`balanced`/`quiet`/`verbose`/`custom`) и advanced-ключи
 (`warnCanonicalMiss`, `minPrevPromptTokens`, `oncePerEpoch`, `trendSize`,
 `statusShowCost`); Phase 4 — подсказка при первом промахе, скриншоты

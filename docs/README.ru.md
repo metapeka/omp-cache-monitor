@@ -317,6 +317,14 @@ statusLine:
   rightSegments: ["session_name", "token_total", "cost", "context_pct", "status"]
 ```
 
+### Powerline
+
+Тот же ключ `cache-monitor` можно показать как нативный сегмент OMP с
+разделителем `powerline-thin` или вынести в `pi-powerline-footer` через
+`customItems` (`statusKey: "cache-monitor"`). Дополнительный код не нужен.
+Конфигурация обоих вариантов, включая settings-файл внешнего плагина, —
+в [`powerline.md`](powerline.md).
+
 ## Совместимость и конфликты имён
 
 - OMP 19.1.0; проверено на маршруте `cline-pass`.

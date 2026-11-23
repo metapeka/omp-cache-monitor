@@ -22,6 +22,7 @@
 | Настройки: схема, слои, приоритеты, CLI | `settings.md`, `config-usage.md` |
 | Plugin manager, installer, манифест, настройки плагина | `plugin-manager-installer-plumbing.md`, `marketplace.md` |
 | TUI, оверлеи, статус-строка, рендерер | `tui.md`, `tui-core-renderer.md`, `tui-runtime-internals.md` |
+| `statusLine` и `powerline-thin` | `settings.md` (раздел Appearance and terminal) |
 | SDK и RPC-режим | `sdk.md`, `rpc.md` |
 | Skills и готовые примеры расширений | `skills/authoring-extensions.md`, `skills/examples/hello-extension/README.md` |
 | Сессии: resume, switch, export/share/fork | `session.md`, `session-operations-export-share-fork-resume.md` |

@@ -1,6 +1,6 @@
 # Roadmap: omp-cache-monitor
 
-Дата: 2026-11-23. Версия: 0.9.0. GitHub: private.
+Дата: 2026-11-23. Версия: 0.9.1. GitHub: private.
 Цель: довести расширение до релиза, которому можно доверять по цифрам,
 установке и поведению на всех переходах сессии.
 
@@ -18,9 +18,9 @@
 
 | Что | Состояние |
 |---|---|
-| Версия | 0.9.0: Phase 2 — `language: ru \| en` для всех пользовательских строк |
+| Версия | 0.9.1: Phase 2 (`language: ru \| en`) + Powerline-документация |
 | GitHub | `metapeka/omp-cache-monitor`, private, `main` |
-| Установка | `omp plugin link` на боевой чекаут; `omp plugin list` — `omp-cache-monitor@0.9.0` |
+| Установка | `omp plugin link` на боевой чекаут; `omp plugin list` — `omp-cache-monitor@0.9.1` |
 | Проверки | `npm test` 68/68, typecheck, `npm pack` — 4 файла; runtime: `omp plugin config list` с 9 ключами, TUI `/cache-monitor settings`/`help` на `ru` и `en` |
 | Постоянные тесты | `test/extension.test.mjs`, 68 тестов, `npm test` |
 | CI | GitHub Actions, зелёный (`npm ci`, `npm test`, `typecheck`) |
@@ -56,7 +56,7 @@
 | P2 | История последних N запросов | `omp-cache-meter`, `pi-cache-hit-monitor` | Готово в 0.6.0: `/cache-monitor history`, окно 8, без панели. |
 | P2 | Разбивка стоимости по типам записей | `omp-cache-meter` | Готово в 0.7.0: `/cache-monitor costs`, только `cost.total`, `?`/`≥` без оценок. |
 | P2 | UI/настройки и справка | `omp-cache-meter`, OMP plugin settings | Готово в 0.8.0: 8 ключей в `omp.settings`, runtime-чтение, `/cache-monitor settings` и `help`; defaults сохраняют прежний вывод. Phase 1.5 в 0.8.1: группы в описаниях и `settings`, help из 8 строк, `docs/omp-docs-map.md`. Phase 2 в 0.9.0: `language: ru\|en`, 9 ключей, единый словарь строк, EN-тесты без кириллицы. |
-| P2 | Powerline-интеграция | `pi-powerline-footer` | Пример/доки через `customItems`. |
+| P2 | Powerline-интеграция | `pi-powerline-footer` | Готово в 0.9.1: `docs/powerline.md`, нативный `statusLine`/`powerline-thin` и пример `customItems` (`statusKey: "cache-monitor"`); кода не требуется. |
 | P3 | Cold-cache budget | `pi-cache-guard` | Отдельный слой, рядом с warming. |
 | P3 | Warming/optimizer/multi-session | `ubranch`, optimizers, Tern | Не наша read-only ниша сейчас. |
 

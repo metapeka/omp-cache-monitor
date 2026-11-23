@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.9.1 — 2026-11-23
+
+- **Powerline-интеграция.** Новый `docs/powerline.md`: статус
+  `cache-monitor` в нативный `statusLine` OMP с `powerline-thin` и в
+  `pi-powerline-footer` через `customItems` (`statusKey: "cache-monitor"`).
+  Второй код не нужен: расширение уже публикует статус через
+  `ctx.ui.setStatus`. Раздел добавлен в README (EN) и `docs/README.ru.md`,
+  ссылки — в `docs/ui-settings.md` и `docs/omp-docs-map.md`.
+- **Границы.** `statusEnabled: false` скрывает элемент, `statusShowMode`
+  управляет префиксом `OMP_MODE`; настройки powerline-плагина не входят в
+  `omp.settings` и не меняются этим пакетом.
+- Поведение, метрики и defaults не меняются; тестов по-прежнему 68.
+
 ## 0.9.0 — 2026-11-23
 
 - **`language: ru | en`** — девятый ключ `package.json#omp.settings`

@@ -19,7 +19,7 @@
 
 | Что | Состояние |
 |---|---|
-| Версия | 0.10.1: Phase 4 (онбординг, скриншоты, upstream `group`/`icon`) |
+| Версия | 0.10.1: Phase 4 + GitHub release `v0.10.1` |
 | GitHub | `metapeka/omp-cache-monitor`, private, `main` |
 | Установка | `omp plugin link` на боевой чекаут; `omp plugin list` — `omp-cache-monitor@0.10.1` |
 | Проверки | `npm test` 85/85, typecheck, `npm pack` — 4 файла; runtime: `omp plugin config list` с 15 ключами, TUI `/cache-monitor settings`/`help` на `ru` и `en`, онбординг-подсказка |
@@ -31,7 +31,7 @@
 | Automatic handoff | `/handoff-new`, marker, supervisor; 19 тестов, e2e пройден в Orca |
 | Yoda workflow | `~/projects/omp-agent-workflow/docs/yoda-workflow.md` — отдельный продукт |
 | npm / marketplace | не публиковались; публикация отложена владельцем 2026-11-22 — фокус на продукт |
-| Английский README | `README.md` (EN) + `docs/README.ru.md` (RU) |
+| README | `README.md` (EN, main) + `docs/README.zh.md` (ZH) + `docs/README.ru.md` (RU) |
 
 ## Конкурентные приоритеты (2026-11-22)
 
@@ -387,8 +387,10 @@ Settings → Plugins и `settings`, demo-GIF — в README (EN/ZH/RU), файл�
 Русский; таблица конкурентов и Mermaid-схемы. Тестов 85. Метрики и остальные
 warning-и не меняются.
 
-**Следующая задача — release 0.10.1:** тег/GitHub release; TTL — data-gated,
-этап 5 (npm/marketplace) и P2 — только по решению владельца.
+**Релиз v0.10.1 выполнен** —
+<https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1> (tarball
+asset). TTL — data-gated, этап 5 (npm/marketplace) и P2 — только по решению
+владельца.
 
 ## Этап 3. TTL: data-gated (P2)
 

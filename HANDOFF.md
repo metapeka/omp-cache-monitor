@@ -7,11 +7,11 @@
 
 ## Следующая задача (взять первой)
 
-**Release 0.10.1 или TTL/P2 — только по отдельному решению владельца.**
+**Release v0.10.1 выполнен.** Дальше TTL/P2 — только по решению владельца.
 Phase 4 закрыта; новых UI-задач в очереди нет.
 
-- Release `v0.10.1` (тег/release) — только по решению владельца; пакет и
-  CHANGELOG готовы.
+- v0.10.1: <https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1>
+  (tarball `omp-cache-monitor-0.10.1.tgz`).
 - TTL (этап 3) — data-gated: у провайдера `promptCache: null`, без данных не
   начинать.
 - P2-бэклог — только по решению владельца.
@@ -23,6 +23,7 @@ Phase 4 закрыта; новых UI-задач в очереди нет.
 |---|---|
 | Расширение `index.ts` | v0.10.1, контракт ниже: `preset` + advanced-ключи, второй статус-ключ `cache-monitor-cost`, онбординг на первом промахе |
 | Пакет | `package.json` 0.10.1 (`omp.extensions` + `omp.settings` из 15 ключей, `pi.extensions`, repository/homepage/bugs/engines), MIT, README EN (`README.md`) + 中文 (`docs/README.zh.md`) + RU (`docs/README.ru.md`), CHANGELOG 0.10.1, `docs/ui-settings.md`, `docs/omp-docs-map.md`, `docs/powerline.md`, `docs/upstream-settings-groups.md`, `docs/release-notes-0.10.1.md`, скриншоты и demo-GIF `docs/images/` |
+| Релиз | [v0.10.1](https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1) — GitHub release, tarball `omp-cache-monitor-0.10.1.tgz` |
 | Установка на машине | `omp plugin list` — `omp-cache-monitor@0.10.1` и `omp-agent-workflow@0.5.14` |
 | Проверки | `npm test` 85/85, typecheck, `npm pack` — 4 файла; 0.10.1: подсказка только на первом каноническом промахе (RU/EN), скриншоты Settings → Plugins и `settings`, upstream issue #20253 |
 | Ревью | v0.4/v0.5/v0.6/v0.7/v0.8/v0.8.1/v0.9/v0.10.1 — merge |

@@ -39,6 +39,11 @@ read-only: не греет кэш, не меняет промпты, не тра
 - Добавлять runtime-зависимости, `any`, фейковый TTL, warming, optimizer.
 - Менять контракт v0.10.0 без решения владельца.
 - Коммитить секреты, логи сессий, `node_modules`, временные файлы.
+- Удалять ветку (`--delete-branch`, `git branch -D`) без явного разрешения
+  владельца; после merge ветка остаётся ref'ом для аудита и восстановления.
+- Запускать `orca worktree rm` из живой OMP-сессии: Orca может оборвать её
+  SIGTERM'ом. Подтверждено 2026-11-23: `coelacanth` в 08:29 и `ui-presets`
+  в 10:17 — сессия умирала через <0.2 с после старта удаления.
 
 ## Рабочий процесс
 
@@ -56,8 +61,13 @@ omp --no-extensions -e ./index.ts --no-session --no-tools --mode json \
 # финал
 git -C /home/db1/projects/omp-cache-monitor merge --ff-only feat/<slug>
 git -C /home/db1/projects/omp-cache-monitor push
-orca worktree rm --worktree path:/home/db1/orca/workspaces/omp-cache-monitor/<slug> \
-  --delete-branch
+# worktree удалять из отдельного терминала или после выхода из OMP;
+# ветку НЕ удалять — ref остаётся для аудита и восстановления
+orca worktree rm --worktree path:/home/db1/orca/workspaces/omp-cache-monitor/<slug>
+
+# восстановление ветки, если ref всё же удалён
+git -C /home/db1/projects/omp-cache-monitor branch feat/<slug> <sha>
+#   <sha> — tip из reflog (`git reflog`), лога сессии или `git fsck`
 
 # Yoda (опционально): всегда из корня этого чекаута, свой лог supervisor'а
 npm run yoda -- --resume=<session.jsonl>
@@ -68,7 +78,9 @@ npm run yoda -- --resume=<session.jsonl>
 - Коммит — через `commit` namespace, не `git add`/`git commit`.
 - Поведенческое изменение — только с тестом; docs обновлять в том же
   worktree.
-- После merge — проверить `omp plugin list`, TUI и `/cache-monitor`.
+- После merge — сначала `push` и проверки (`omp plugin list`, TUI,
+  `/cache-monitor`), потом очистка worktree; очистку не запускать из живой
+  OMP-сессии.
 
 ## Контекст и handoff
 

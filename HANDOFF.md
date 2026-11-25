@@ -15,7 +15,7 @@ Phase 4 закрыта; новых UI-задач в очереди нет.
 - TTL (этап 3) — data-gated: у провайдера `promptCache: null`, без данных не
   начинать.
 - P2-бэклог — только по решению владельца.
-- Проверки: `npm test`, `npm run typecheck`, `npm pack` 4 файла.
+- Проверки: `npm run verify` (тесты + typecheck), `npm pack` 4 файла.
 
 ## Что уже готово
 

@@ -25,7 +25,7 @@ read-only: не греет кэш, не меняет промпты, не тра
   GitHub release — [v0.10.1](https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1).
 - `omp plugin link` → боевой чекаут; `omp plugin list` — `omp-cache-monitor@0.10.1`
   и `omp-agent-workflow@0.5.14` (context guard, handoff, supervisor, modes).
-- `npm test` — 85 тестов; `npm run typecheck`; CI зелёный.
+- `npm run verify` — 85 тестов и typecheck; CI зелёный.
 - Настройки: `package.json#omp.settings` (15 ключей, `Group · …` в описаниях),
   `/cache-monitor settings` (группы и подписи), `preset` + advanced-ключи,
   второй статус-ключ `cache-monitor-cost`; `language: ru|en`;
@@ -62,8 +62,7 @@ orca worktree create --repo name:omp-cache-monitor --name <slug> \
   --branch feat/<slug> --base-branch main --no-parent --json
 
 # в worktree
-npm test
-npm run typecheck
+npm run verify
 omp --no-extensions -e ./index.ts --no-session --no-tools --mode json \
   -p 'Reply with exactly: OK'        # exit 0, stderr пуст
 

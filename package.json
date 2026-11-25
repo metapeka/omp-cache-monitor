@@ -5,6 +5,7 @@
   "scripts": {
     "test": "node --experimental-strip-types test/extension.test.mjs",
     "typecheck": "tsc --noEmit",
+    "verify": "npm test && npm run typecheck",
     "yoda": "./scripts/yoda"
   },
   "description": "Cache hit-rate monitor and /cache-monitor command for OMP",

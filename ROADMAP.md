@@ -21,7 +21,7 @@
 |---|---|
 | Версия | 0.11.0: CLI `costs --json` (schemaVersion 1) поверх 0.10.1 (Phase 4, release `v0.10.1`) |
 | GitHub | `metapeka/omp-cache-monitor`, public, `main` |
-| Установка | `omp plugin link` на боевой чекаут; `omp plugin list` — `omp-cache-monitor@0.10.1` |
+| Установка | `omp plugin link` на боевой чекаут; `omp plugin list` — `omp-cache-monitor@0.11.0` |
 | Проверки | `npm test` 104/104, typecheck, `npm pack` — 6 файлов; CLI на реальной сессии (`costs --json`), загрузка расширения; runtime: `omp plugin config list` с 15 ключами, TUI `/cache-monitor settings`/`help` на `ru` и `en`, онбординг-подсказка |
 | Постоянные тесты | `test/extension.test.mjs` (85) + `test/costs.test.mjs` (19), 104 теста, `npm test` |
 | CI | GitHub Actions, зелёный (`npm ci`, `npm test`, `typecheck`) |

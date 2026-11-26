@@ -8,9 +8,15 @@
 
 ## Следующая задача (взять первой)
 
-**0.11.0 — CLI `costs --json` готов** (ветка `feat/costs-json`, ждёт merge и
-release по решению владельца). **Release v0.10.1 выполнен.** Дальше TTL/P2 —
-только по решению владельца. Phase 4 закрыта; новых UI-задач в очереди нет.
+**Release v0.11.0 выполнен** (tag/release, CI зелёный; ветка
+`feat/costs-json` слита ff-only). **Release v0.10.1 — предыдущий.** Дальше
+TTL/P2 — только по решению владельца. Phase 4 закрыта; новых UI-задач в
+очереди нет.
+
+- v0.11.0: <https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.11.0>
+  (tarball `omp-cache-monitor-0.11.0.tgz`), release notes —
+  `docs/release-notes-0.11.0.md`; bin доступен как
+  `~/.local/bin/omp-cache-monitor` (симлинк на боевой чекаут).
 
 - 0.11.0: read-only `omp-cache-monitor costs --json` для OAW 0.6 (цена границы
   handoff/компакции); контракт — `lib/costs.mjs`, `bin/`, docs EN/RU/ZH,
@@ -30,9 +36,9 @@ release по решению владельца). **Release v0.10.1 выполн�
 | Что | Состояние |
 |---|---|
 | Расширение `index.ts` | v0.10.1, контракт ниже: `preset` + advanced-ключи, второй статус-ключ `cache-monitor-cost`, онбординг на первом промахе |
-| Пакет | `package.json` 0.11.0 (`omp.extensions` + `omp.settings` из 15 ключей, `pi.extensions`, `bin`, `files` с `bin/`+`lib/`, repository/homepage/bugs/engines), MIT, CLI `lib/costs.mjs` (JSDoc ESM, `checkJs`) + `bin/omp-cache-monitor.mjs` (shebang `#!/usr/bin/env node`), README EN (`README.md`) + 中文 (`docs/README.zh.md`) + RU (`docs/README.ru.md`), логотип `docs/images/logo.png`, CHANGELOG 0.11.0, `docs/ui-settings.md`, `docs/omp-docs-map.md`, `docs/powerline.md`, `docs/upstream-settings-groups.md`, `docs/release-notes-0.10.1.md`, скриншоты и demo-GIF `docs/images/` |
-| Релиз | [v0.10.1](https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1) — GitHub release, tarball `omp-cache-monitor-0.10.1.tgz` |
-| Установка на машине | `omp plugin list` — `omp-cache-monitor@0.10.1` и `omp-agent-workflow@0.5.14` |
+| Пакет | `package.json` 0.11.0 (`omp.extensions` + `omp.settings` из 15 ключей, `pi.extensions`, `bin`, `files` с `bin/`+`lib/`, repository/homepage/bugs/engines), MIT, CLI `lib/costs.mjs` (JSDoc ESM, `checkJs`) + `bin/omp-cache-monitor.mjs` (shebang `#!/usr/bin/env node`), README EN (`README.md`) + 中文 (`docs/README.zh.md`) + RU (`docs/README.ru.md`), логотип `docs/images/logo.png`, CHANGELOG 0.11.0, `docs/ui-settings.md`, `docs/omp-docs-map.md`, `docs/powerline.md`, `docs/upstream-settings-groups.md`, `docs/release-notes-0.10.1.md`, `docs/release-notes-0.11.0.md`, скриншоты и demo-GIF `docs/images/` |
+| Релиз | [v0.11.0](https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.11.0) — GitHub release, tarball `omp-cache-monitor-0.11.0.tgz`, notes `docs/release-notes-0.11.0.md` |
+| Установка на машине | `omp plugin list` — `omp-cache-monitor@0.11.0` и `omp-agent-workflow@0.6.0`; CLI `omp-cache-monitor` — симлинк в `~/.local/bin` |
 | Проверки | `npm test` 104/104, typecheck, `npm pack` — 6 файлов; 0.11.0: `costs --json` на реальной сессии и через `OMP_SESSIONS_DIR`, установка из tarball (`node_modules/.bin/omp-cache-monitor`), запуск из `node_modules` (регресс на запрет type stripping), расширение загружается (`omp --no-extensions -e ./index.ts`); 0.10.1: подсказка только на первом каноническом промахе (RU/EN), скриншоты Settings → Plugins и `settings`, upstream issue #20253 |
 | Ревью | v0.4/v0.5/v0.6/v0.7/v0.8/v0.8.1/v0.9/v0.10.1 — merge |
 | Ревью v0.4 | фоновый usage отделён от hit/ходов; граница resume не даёт ложной пере-оплаты |

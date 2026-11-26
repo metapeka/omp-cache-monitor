@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1"><img alt="release v0.10.1" src="https://img.shields.io/badge/release-v0.10.1-blue?style=flat-square"></a>
+  <a href="https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.11.0"><img alt="release v0.11.0" src="https://img.shields.io/badge/release-v0.11.0-blue?style=flat-square"></a>
   <img alt="104 tests passing" src="https://img.shields.io/badge/tests-104%20passing-brightgreen?style=flat-square">
   <img alt="zero runtime dependencies" src="https://img.shields.io/badge/runtime%20deps-0-brightgreen?style=flat-square">
   <img alt="OMP 19.1.x" src="https://img.shields.io/badge/OMP-19.1.x-8A2BE2?style=flat-square">
@@ -37,7 +37,7 @@
 - **Understand it** — [How it works](#how-it-works) · [Formula](#formula) · [Saved and miss premium](#saved-and-miss-premium)
 - **Use it** — [Status line](#what-it-shows) · [Warnings](#warnings) · [Settings](#settings) · [History](#turn-history) · [Costs](#cost-breakdown) · [CLI costs JSON](#cli-costs---json)
 - **Operate it** — [Installation](#installation) · [Resume](#resume-compaction-and-cache-warming) · [Powerline](#powerline) · [Compatibility](#compatibility-and-name-conflicts)
-- **Compare** — [Competitors](#competitors) · [Research](docs/research/cache-extensions.md) · [Release notes](docs/release-notes-0.10.1.md)
+- **Compare** — [Competitors](#competitors) · [Research](docs/research/cache-extensions.md) · [Release notes](docs/release-notes-0.11.0.md)
 - **Everything else** — [Docs map](docs/omp-docs-map.md) · [Upstream proposal](docs/upstream-settings-groups.md) · [License](#license)
 
 </details>
@@ -89,7 +89,7 @@ warns only when a miss is real, and survives resume without inventing money.
 | **CLI** | `omp-cache-monitor costs --json` — schemaVersion 1 session costs for scripts |
 | **Settings** | 15 keys in `omp.settings`; presets `balanced`/`quiet`/`verbose`/`custom`; `language: ru \| en` |
 | **Docs** | English, 中文, Русский; deep dives in `docs/` |
-| **Release** | [v0.10.1](https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1) — GitHub release with tarball |
+| **Release** | [v0.11.0](https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.11.0) — GitHub release with tarball |
 | **Install** | `omp plugin install …` or `omp plugin link /path`; no runtime deps |
 
 ## How it works
@@ -646,10 +646,12 @@ is in [`docs/powerline.md`](docs/powerline.md).
   (`presets/`, `docs/plan-cache-modes.md`).
 - Competitor sources and caveats —
   [`docs/research/cache-extensions.md`](docs/research/cache-extensions.md).
-- Release notes — [`docs/release-notes-0.10.1.md`](docs/release-notes-0.10.1.md).
+- Release notes — [`docs/release-notes-0.11.0.md`](docs/release-notes-0.11.0.md).
 
 ## Release
 
+- [v0.11.0](https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.11.0) —
+  read-only `costs --json` CLI for session costs and border pricing.
 - [v0.10.1](https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1) —
   presets, onboarding, three-language docs, demo GIF.
 

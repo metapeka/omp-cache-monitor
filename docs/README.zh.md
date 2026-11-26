@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1"><img alt="release v0.10.1" src="https://img.shields.io/badge/release-v0.10.1-blue?style=flat-square"></a>
+  <a href="https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.11.0"><img alt="release v0.11.0" src="https://img.shields.io/badge/release-v0.11.0-blue?style=flat-square"></a>
   <img alt="104 项测试通过" src="https://img.shields.io/badge/tests-104%20passing-brightgreen?style=flat-square">
   <img alt="零运行时依赖" src="https://img.shields.io/badge/runtime%20deps-0-brightgreen?style=flat-square">
   <img alt="OMP 19.1.x" src="https://img.shields.io/badge/OMP-19.1.x-8A2BE2?style=flat-square">
@@ -37,7 +37,7 @@
 - **理解它** — [工作原理](#工作原理) · [计算公式](#计算公式) · [节省金额与未命中溢价](#节省金额与未命中溢价)
 - **使用它** — [状态栏](#显示内容) · [警告](#警告) · [设置](#设置) · [历史](#回合历史) · [成本](#成本明细) · [CLI costs JSON](#cli-costs---json)
 - **运维它** — [安装](#安装) · [恢复](#恢复压缩与缓存预热) · [Powerline](#powerline) · [兼容性](#兼容性与名称冲突)
-- **比较** — [竞品对比](#竞品对比) · [研究](research/cache-extensions.md) · [发布说明](release-notes-0.10.1.md)
+- **比较** — [竞品对比](#竞品对比) · [研究](research/cache-extensions.md) · [发布说明](release-notes-0.11.0.md)
 - **其他** — [文档地图](omp-docs-map.md) · [上游提案](upstream-settings-groups.md) · [许可证](#许可证)
 
 </details>
@@ -87,7 +87,7 @@ OMP 扩展：在状态栏显示前缀缓存命中率、未命中警告，以及 
 | **CLI** | `omp-cache-monitor costs --json` — 供脚本使用的 schemaVersion 1 会话成本 |
 | **设置** | `omp.settings` 中的 15 个键；预设 `balanced`/`quiet`/`verbose`/`custom`；`language: ru \| en` |
 | **文档** | English、中文、Русский；深入说明在 `docs/` |
-| **发布** | [v0.10.1](https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1)——私有 GitHub release，附 tarball |
+| **发布** | [v0.11.0](https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.11.0)——私有 GitHub release，附 tarball |
 | **安装** | `omp plugin install …` 或 `omp plugin link /path`；无运行时依赖 |
 
 ## 工作原理
@@ -606,10 +606,12 @@ statusLine:
   （`presets/`、`docs/plan-cache-modes.md`）。
 - 竞品来源与注意事项——
   [`docs/research/cache-extensions.md`](research/cache-extensions.md)。
-- 发布说明——[`docs/release-notes-0.10.1.md`](release-notes-0.10.1.md)。
+- 发布说明——[`docs/release-notes-0.11.0.md`](release-notes-0.11.0.md)。
 
 ## 发布
 
+- [v0.11.0](https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.11.0)——
+  用于会话成本与边界价格估算的只读 `costs --json` CLI。
 - [v0.10.1](https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1)——
   预设、引导、三语文档、演示 GIF。
 

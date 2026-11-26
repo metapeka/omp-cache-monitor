@@ -23,9 +23,9 @@ read-only: не греет кэш, не меняет промпты, не тра
 
 - Версия `0.11.0` (CLI `costs --json`, schemaVersion 1) поверх 0.10.1, public
   GitHub `metapeka/omp-cache-monitor`, `main`;
-  GitHub release — [v0.10.1](https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1).
-- `omp plugin link` → боевой чекаут; `omp plugin list` — `omp-cache-monitor@0.10.1`
-  и `omp-agent-workflow@0.5.14` (context guard, handoff, supervisor, modes).
+  GitHub release — [v0.11.0](https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.11.0).
+- `omp plugin link` → боевой чекаут; `omp plugin list` — `omp-cache-monitor@0.11.0`
+  и `omp-agent-workflow@0.6.0` (context guard, handoff, supervisor, modes).
 - `npm run verify` — 104 теста (`extension` 85 + `costs` 19) и typecheck; CI
   зелёный.
 - Настройки: `package.json#omp.settings` (15 ключей, `Group · …` в описаниях),

@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1"><img alt="release v0.10.1" src="https://img.shields.io/badge/release-v0.10.1-blue?style=flat-square"></a>
+  <a href="https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.11.0"><img alt="release v0.11.0" src="https://img.shields.io/badge/release-v0.11.0-blue?style=flat-square"></a>
   <img alt="104 теста" src="https://img.shields.io/badge/tests-104%20passing-brightgreen?style=flat-square">
   <img alt="ноль runtime-зависимостей" src="https://img.shields.io/badge/runtime%20deps-0-brightgreen?style=flat-square">
   <img alt="OMP 19.1.x" src="https://img.shields.io/badge/OMP-19.1.x-8A2BE2?style=flat-square">
@@ -37,7 +37,7 @@
 - **Понять** — [Как это работает](#как-это-работает) · [Формула](#формула) · [Saved и miss premium](#saved-и-miss-premium)
 - **Использовать** — [Статус](#что-показывает) · [Предупреждения](#предупреждения) · [Настройки](#настройки) · [История](#история-последних-ходов) · [Стоимость](#разбивка-стоимости) · [CLI costs JSON](#cli-costs---json)
 - **Эксплуатировать** — [Установка](#установка) · [Resume](#resume-компакция-и-cache-warming) · [Powerline](#powerline) · [Совместимость](#совместимость-и-конфликты-имён)
-- **Сравнить** — [Конкуренты](#конкуренты) · [Исследование](research/cache-extensions.md) · [Release notes](release-notes-0.10.1.md)
+- **Сравнить** — [Конкуренты](#конкуренты) · [Исследование](research/cache-extensions.md) · [Release notes](release-notes-0.11.0.md)
 - **Остальное** — [Карта docs](omp-docs-map.md) · [Upstream](upstream-settings-groups.md) · [Лицензия](#лицензия)
 
 </details>
@@ -87,7 +87,7 @@ read-only наблюдатель, который говорит на языке 
 | **CLI** | `omp-cache-monitor costs --json` — стоимость сессии schemaVersion 1 для скриптов |
 | **Настройки** | 15 ключей в `omp.settings`; пресеты `balanced`/`quiet`/`verbose`/`custom`; `language: ru \| en` |
 | **Документация** | English, 中文, Русский; детали в `docs/` |
-| **Релиз** | [v0.10.1](https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1) — GitHub release с tarball |
+| **Релиз** | [v0.11.0](https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.11.0) — GitHub release с tarball |
 | **Установка** | `omp plugin install …` или `omp plugin link /path`; runtime-зависимостей нет |
 
 ## Как это работает
@@ -638,10 +638,12 @@ statusLine:
   решений — репозиторий https://github.com/metapeka/docs-omp-debian-availability
   (`presets/`, `docs/plan-cache-modes.md`).
 - Источники по конкурентам — [`research/cache-extensions.md`](research/cache-extensions.md).
-- Release notes — [`release-notes-0.10.1.md`](release-notes-0.10.1.md).
+- Release notes — [`release-notes-0.11.0.md`](release-notes-0.11.0.md).
 
 ## Релиз
 
+- [v0.11.0](https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.11.0) —
+  read-only CLI `costs --json` для стоимости сессии и цены границы.
 - [v0.10.1](https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1) —
   пресеты, онбординг, документация на трёх языках, demo-GIF.
 

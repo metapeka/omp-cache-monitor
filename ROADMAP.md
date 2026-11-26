@@ -22,8 +22,8 @@
 | Версия | 0.11.0: CLI `costs --json` (schemaVersion 1) поверх 0.10.1 (Phase 4, release `v0.10.1`) |
 | GitHub | `metapeka/omp-cache-monitor`, public, `main` |
 | Установка | `omp plugin link` на боевой чекаут; `omp plugin list` — `omp-cache-monitor@0.10.1` |
-| Проверки | `npm test` 102/102, typecheck, `npm pack` — 6 файлов; CLI на реальной сессии (`costs --json`), загрузка расширения; runtime: `omp plugin config list` с 15 ключами, TUI `/cache-monitor settings`/`help` на `ru` и `en`, онбординг-подсказка |
-| Постоянные тесты | `test/extension.test.mjs` (85) + `test/costs.test.mjs` (17), 102 теста, `npm test` |
+| Проверки | `npm test` 104/104, typecheck, `npm pack` — 6 файлов; CLI на реальной сессии (`costs --json`), загрузка расширения; runtime: `omp plugin config list` с 15 ключами, TUI `/cache-monitor settings`/`help` на `ru` и `en`, онбординг-подсказка |
+| Постоянные тесты | `test/extension.test.mjs` (85) + `test/costs.test.mjs` (19), 104 теста, `npm test` |
 | CI | GitHub Actions, зелёный (`npm ci`, `npm test`, `typecheck`) |
 | Рынок/конкуренты | `docs/research/cache-extensions.md` (2026-11-22) |
 | Инструкции агенту | `AGENTS.md` + глобальный `~/.omp/agent/AGENTS.md` |
@@ -491,8 +491,8 @@ asset). TTL — data-gated, этап 5 (npm/marketplace) и P2 — только 
 9. Этап 2.11 — готово: разбивка стоимости в `/cache-monitor costs`.
 10. Этап 2.12 — готово: настройки Phase 1/1.5, Phase 2 (девятый ключ `language`, EN-вывод), Phase 3 (`preset` + 5 advanced-ключей, 15 ключей; `settings`/`help`, `docs/omp-docs-map.md`) и Phase 4 (онбординг, скриншоты, upstream `group`/`icon`, 85 тестов).
     - **0.11.0 — готово:** CLI `costs --json` (schemaVersion 1) для
-      `omp-agent-workflow` 0.6: `lib/costs.ts`, `bin/omp-cache-monitor.mjs`,
-      17 тестов, docs EN/RU/ZH. Расширение и контракт 0.10.1 не менялись.
+      `omp-agent-workflow` 0.6: `lib/costs.mjs` (JSDoc ESM), `bin/omp-cache-monitor.mjs`,
+      19 тестов, docs EN/RU/ZH. Расширение и контракт 0.10.1 не менялись.
     - **Следующая:** release по решению владельца; scope — `HANDOFF.md`.
 11. Этап 3 — TTL, только data-gated, без реализации на догадках.
 12. Этап 4 — готово (0.6.0): английский README, пакет, tarball, тег/release.

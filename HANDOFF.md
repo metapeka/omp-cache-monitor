@@ -13,9 +13,9 @@ release по решению владельца). **Release v0.10.1 выполн�
 только по решению владельца. Phase 4 закрыта; новых UI-задач в очереди нет.
 
 - 0.11.0: read-only `omp-cache-monitor costs --json` для OAW 0.6 (цена границы
-  handoff/компакции); контракт — `lib/costs.ts`, `bin/`, docs EN/RU/ZH,
+  handoff/компакции); контракт — `lib/costs.mjs`, `bin/`, docs EN/RU/ZH,
   `test/costs.test.mjs`. Расширение и 15 настроек не менялись.
-- Проверки 0.11.0: `npm run verify` — 102 теста и typecheck; CLI на реальной
+- Проверки 0.11.0: `npm run verify` — 104 теста и typecheck; CLI на реальной
   сессии; загрузка расширения; `npm pack` — 6 файлов.
 
 - v0.10.1: <https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1>
@@ -30,10 +30,10 @@ release по решению владельца). **Release v0.10.1 выполн�
 | Что | Состояние |
 |---|---|
 | Расширение `index.ts` | v0.10.1, контракт ниже: `preset` + advanced-ключи, второй статус-ключ `cache-monitor-cost`, онбординг на первом промахе |
-| Пакет | `package.json` 0.11.0 (`omp.extensions` + `omp.settings` из 15 ключей, `pi.extensions`, `bin`, `files` с `bin/`+`lib/`, repository/homepage/bugs/engines), MIT, CLI `lib/costs.ts` + `bin/omp-cache-monitor.mjs`, README EN (`README.md`) + 中文 (`docs/README.zh.md`) + RU (`docs/README.ru.md`), логотип `docs/images/logo.png`, CHANGELOG 0.11.0, `docs/ui-settings.md`, `docs/omp-docs-map.md`, `docs/powerline.md`, `docs/upstream-settings-groups.md`, `docs/release-notes-0.10.1.md`, скриншоты и demo-GIF `docs/images/` |
+| Пакет | `package.json` 0.11.0 (`omp.extensions` + `omp.settings` из 15 ключей, `pi.extensions`, `bin`, `files` с `bin/`+`lib/`, repository/homepage/bugs/engines), MIT, CLI `lib/costs.mjs` (JSDoc ESM, `checkJs`) + `bin/omp-cache-monitor.mjs` (shebang `#!/usr/bin/env node`), README EN (`README.md`) + 中文 (`docs/README.zh.md`) + RU (`docs/README.ru.md`), логотип `docs/images/logo.png`, CHANGELOG 0.11.0, `docs/ui-settings.md`, `docs/omp-docs-map.md`, `docs/powerline.md`, `docs/upstream-settings-groups.md`, `docs/release-notes-0.10.1.md`, скриншоты и demo-GIF `docs/images/` |
 | Релиз | [v0.10.1](https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1) — GitHub release, tarball `omp-cache-monitor-0.10.1.tgz` |
 | Установка на машине | `omp plugin list` — `omp-cache-monitor@0.10.1` и `omp-agent-workflow@0.5.14` |
-| Проверки | `npm test` 102/102, typecheck, `npm pack` — 6 файлов; 0.11.0: `costs --json` на реальной сессии и через `OMP_SESSIONS_DIR`, расширение загружается (`omp --no-extensions -e ./index.ts`); 0.10.1: подсказка только на первом каноническом промахе (RU/EN), скриншоты Settings → Plugins и `settings`, upstream issue #20253 |
+| Проверки | `npm test` 104/104, typecheck, `npm pack` — 6 файлов; 0.11.0: `costs --json` на реальной сессии и через `OMP_SESSIONS_DIR`, установка из tarball (`node_modules/.bin/omp-cache-monitor`), запуск из `node_modules` (регресс на запрет type stripping), расширение загружается (`omp --no-extensions -e ./index.ts`); 0.10.1: подсказка только на первом каноническом промахе (RU/EN), скриншоты Settings → Plugins и `settings`, upstream issue #20253 |
 | Ревью | v0.4/v0.5/v0.6/v0.7/v0.8/v0.8.1/v0.9/v0.10.1 — merge |
 | Ревью v0.4 | фоновый usage отделён от hit/ходов; граница resume не даёт ложной пере-оплаты |
 | Ревью v0.5 | reviewer: merge; исправлены пробелы покрытия — граница 5 мин, `/clear`/tree, ход без timestamp разрывает цепочку простоя |
@@ -49,26 +49,32 @@ release по решению владельца). **Release v0.10.1 выполн�
 
 - `omp-cache-monitor costs --json [--session FILE] [--since ISO8601]` — один
   JSON-документ в stdout, `schemaVersion: 1`, stderr пуст, exit 0. Нет сессии
-  или файл не читается — exit 1 без JSON; неверные аргументы — exit 2.
+  или файл не читается — exit 1 без JSON; неверные аргументы — exit 2. Пустой
+  валидный файл — exit 0 с пустым отчётом: осознанное уточнение прозы спеки,
+  контракт JSON не меняется.
 - Источник — только `type: "message"` + `message.role: "assistant"` с
   `usage`; `model_usage`/`usage`/`compaction`/`branch_summary` не считаются.
-  `at` — `entry.timestamp` (ISO-8601 с зоной, нормализуется в UTC); ход без
-  timestamp пропускается с note.
+  `at` — `entry.timestamp` (ISO-8601 с обязательной зоной, нормализуется в
+  UTC); ход без timestamp или с таймзоной-невалидным значением пропускается с
+  note.
 - `hitPercent = cacheRead / (input + cacheRead)`, 0.1, `null` при нулевом
   знаменателе; `cacheWrite` в знаменатель не входит (отличается от hit
   расширения). `costUsd` — `usage.cost.total`; нет цены — `null` + note, не 0;
   `totals.costUsd = null` только если цен нет ни у одного хода.
 - `models[]` — агрегат по `model` (включая `null` группу) в порядке первого
   появления. `--since` фильтрует ходы, totals и models; `session` не меняется.
-- `notes` детерминированы: `cost missing`, `timestamp missing: turn skipped`,
-  `cold prefix`, `cold prefix after model switch`, `cacheWrite > 0`; одинаковые
-  подряд сворачиваются. Первый ход сессии холодным не считается.
+  Секунды опциональны (`2026-11-26T12:00Z`), зона обязательна; без зоны — exit 2.
+- `notes` детерминированы: `cost missing`, `timestamp invalid or missing: turn
+  skipped`, `cold prefix`, `cold prefix after model switch`, `cacheWrite > 0`;
+  одинаковые подряд сворачиваются. Первый ход сессии холодным не считается.
 - Поиск сессии: самый свежий `*.jsonl` по mtime в `OMP_SESSIONS_DIR` или
   `~/.omp/agent/sessions` — файлы каталога и один уровень подкаталогов,
   `changes.jsonl` и глубже игнорируются.
-- Файлы: `lib/costs.ts` (парсер чанками), `bin/omp-cache-monitor.mjs`, тесты
-  `test/costs.test.mjs`. `schemaVersion` — контракт OAW; ломающее изменение —
-  бамп версии схемы и CHANGELOG.
+- Файлы: `lib/costs.mjs` (типизированный JSDoc ESM, парсер чанками;
+  `// @ts-check` + `checkJs` в `tsconfig`), `bin/omp-cache-monitor.mjs`
+  (plain Node, без `--experimental-strip-types`), тесты `test/costs.test.mjs`
+  (19, включая запуск из `node_modules`). `schemaVersion` — контракт OAW;
+  ломающее изменение — бамп версии схемы и CHANGELOG.
 
 ## Контракт v0.10.1 (v0.10.0 + онбординг; не менять без решения владельца)
 

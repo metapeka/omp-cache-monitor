@@ -12,7 +12,7 @@
 
 <p align="center">
   <code>0.11.0</code> · OMP 19.1.x · 零运行时依赖 · 单个扩展文件
-  <code>index.ts</code> · CLI <code>costs --json</code> · 102 项测试
+  <code>index.ts</code> · CLI <code>costs --json</code> · 104 项测试
 </p>
 
 <p align="center">
@@ -22,7 +22,7 @@
 
 <p align="center">
   <a href="https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1"><img alt="release v0.10.1" src="https://img.shields.io/badge/release-v0.10.1-blue?style=flat-square"></a>
-  <img alt="102 项测试通过" src="https://img.shields.io/badge/tests-102%20passing-brightgreen?style=flat-square">
+  <img alt="104 项测试通过" src="https://img.shields.io/badge/tests-104%20passing-brightgreen?style=flat-square">
   <img alt="零运行时依赖" src="https://img.shields.io/badge/runtime%20deps-0-brightgreen?style=flat-square">
   <img alt="OMP 19.1.x" src="https://img.shields.io/badge/OMP-19.1.x-8A2BE2?style=flat-square">
   <img alt="15 项设置" src="https://img.shields.io/badge/settings-15-blueviolet?style=flat-square">
@@ -72,7 +72,7 @@ OMP 扩展：在状态栏显示前缀缓存命中率、未命中警告，以及 
 | **按前缀 epoch 判断的警告** | canonical miss 或低命中，每个前缀 epoch 只提示一次；首个回合以及模型/思考/工具/压缩/恢复变更后会跳过。原因会被明确命名：`простой N мин` / `idle N min` 或 `перезапись префикса` / `prefix rewrite`。 |
 | **15 项设置，4 个预设** | `balanced`、`quiet`、`verbose`、`custom`；每个键都有取值范围、默认值和英文清单描述。`language: ru \| en` 用于本地化运行时输出。 |
 | **诚实的恢复** | 总计、趋势和 8 回合的历史都从会话日志重建；不会虚构历史价格。恢复后的金额显示为 `≥` 或 `?`，绝不会是伪造的精确数字。 |
-| **零运行时依赖** | 一个 `index.ts` 扩展，加上 `bin/` + `lib/` 的 CLI，102 项确定性测试、CI，`npm pack` = 6 个文件。没有守护进程、没有数据库、没有网络。 |
+| **零运行时依赖** | 一个 `index.ts` 扩展，加上 `bin/` + `lib/` 的 CLI，104 项确定性测试、CI，`npm pack` = 6 个文件。没有守护进程、没有数据库、没有网络。 |
 | **内置上手引导** | 第一次 canonical miss 时会附加一次性提示：`/cache-monitor settings` 在哪里，以及 `preset` 是什么意思。 |
 
 ## 一览
@@ -285,12 +285,13 @@ omp-cache-monitor costs --json [--session FILE] [--since ISO8601]
 npm link   # 在检出目录中把 omp-cache-monitor 放进 PATH
 omp-cache-monitor costs --json --session ~/.omp/agent/sessions/<项目>/<id>.jsonl
 
-# 不 link 时
-node --experimental-strip-types bin/omp-cache-monitor.mjs costs --json
+# 不 link 时（普通 Node；CLI 以 .mjs 发布，无需 type stripping）
+node bin/omp-cache-monitor.mjs costs --json
 ```
 
 退出码：`0` 表示有报告，`1` 表示没有会话或文件不可读，`2` 表示参数错误。
-`--json` 是契约；不加时打印简短的人类可读摘要。
+`--json` 是契约；不加时打印简短的人类可读摘要。缺失或不可读的会话是 exit
+`1` 且没有 JSON；空但有效的文件是 exit `0` 和空报告。
 
 - 没有 `--session` 时，取 `OMP_SESSIONS_DIR`（或 `~/.omp/agent/sessions`）下
   按 mtime 最新的 `*.jsonl`：目录本身的文件和一层项目子目录；忽略
@@ -302,10 +303,11 @@ node --experimental-strip-types bin/omp-cache-monitor.mjs costs --json
 - `costUsd` 是提供方的 `usage.cost.total`；缺失时是 `null` 加一条 note，绝不为
   0。`totals.costUsd` 汇总已知价格，只有当所有回合都没有价格时才为 `null`。
 - `--since` 保留 `at >= since` 的回合；totals 和 models 按过滤后的回合计算，
-  `session` 不变。
-- `notes` 是确定性的：`cost missing`、`timestamp missing: turn skipped`、
-  `cold prefix`、`cold prefix after model switch`、`cacheWrite > 0`；连续的
-  相同 note 会合并。
+  `session` 不变。秒可省略，时区不可省略：`2026-11-26T12:00Z` 有效，没有时区
+  的时间戳会 exit `2`。
+- `notes` 是确定性的：`cost missing`、`timestamp invalid or missing: turn
+  skipped`、`cold prefix`、`cold prefix after model switch`、`cacheWrite > 0`；
+  连续的相同 note 会合并。
 - 未知字段是增量的：读取方忽略不使用的字段。
 - `schemaVersion: 1`；破坏性变更会提升 schema 版本并写入 CHANGELOG。
 

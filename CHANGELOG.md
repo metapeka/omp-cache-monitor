@@ -11,13 +11,21 @@
   Коды выхода: `0` — отчёт, `1` — нет сессии или файл не читается, `2` —
   неверные аргументы. Без `--json` печатается короткая человекочитаемая
   сводка.
-- **Код и пакет.** `lib/costs.ts` — чанковый парсер без загрузки файла целиком
-  (сессии 10–20 MB); `bin/omp-cache-monitor.mjs` — тонкий CLI с shebang
-  `--experimental-strip-types`. `package.json#bin`, `files` включает `bin/` и
-  `lib/` — `npm pack` теперь 6 файлов. Runtime-зависимостей по-прежнему 0.
-- **Тесты.** `test/costs.test.mjs` — 17 тестов через реальный bin (argv, exit
-  code, stdout/stderr, `--since`, поиск сессии, notes); `npm test` запускает
-  оба файла, всего 102 теста; typecheck покрывает `lib/costs.ts`.
+- **Код и пакет.** `lib/costs.mjs` — типизированный JSDoc ESM (`// @ts-check`,
+  `checkJs`) с чанковым парсером без загрузки файла целиком (сессии 10–20 MB);
+  `bin/omp-cache-monitor.mjs` — тонкий CLI с shebang `#!/usr/bin/env node`.
+  Runtime-путь без `.ts`: Node запрещает type stripping под `node_modules`,
+  поэтому установленный пакет работает — регресс-тест и установка из tarball.
+  `package.json#bin`, `files` включает `bin/` и `lib/` — `npm pack` 6 файлов.
+  Runtime-зависимостей по-прежнему 0.
+- **Тесты.** `test/costs.test.mjs` — 19 тестов через реальный bin (argv, exit
+  code, stdout/stderr, `--since`, поиск сессии, notes, граница чанка 1 MiB,
+  запуск из `node_modules`); `npm test` запускает оба файла, всего 104 теста;
+  typecheck покрывает `lib/costs.mjs`.
+- **Уточнение прозы спеки.** Отсутствующая/нечитаемая сессия — exit 1 без
+  JSON; пустой валидный файл — exit 0 с пустым отчётом (осознанное уточнение,
+  не изменение контракта). `--since` требует зону (секунды опциональны), note
+  о пропуске хода — `timestamp invalid or missing: turn skipped`.
 - **Документация.** Раздел CLI в `README.md` (EN), `docs/README.ru.md` и
   `docs/README.zh.md`; версия, бейджи и `npm pack` обновлены.
 - Расширение `/cache-monitor`, 15 настроек и контракт 0.10.1 не меняются.

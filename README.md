@@ -12,7 +12,7 @@
 
 <p align="center">
   <code>0.11.0</code> · OMP 19.1.x · zero runtime dependencies · one extension
-  file <code>index.ts</code> · CLI <code>costs --json</code> · 102 tests
+  file <code>index.ts</code> · CLI <code>costs --json</code> · 104 tests
 </p>
 
 <p align="center">
@@ -22,7 +22,7 @@
 
 <p align="center">
   <a href="https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1"><img alt="release v0.10.1" src="https://img.shields.io/badge/release-v0.10.1-blue?style=flat-square"></a>
-  <img alt="102 tests passing" src="https://img.shields.io/badge/tests-102%20passing-brightgreen?style=flat-square">
+  <img alt="104 tests passing" src="https://img.shields.io/badge/tests-104%20passing-brightgreen?style=flat-square">
   <img alt="zero runtime dependencies" src="https://img.shields.io/badge/runtime%20deps-0-brightgreen?style=flat-square">
   <img alt="OMP 19.1.x" src="https://img.shields.io/badge/OMP-19.1.x-8A2BE2?style=flat-square">
   <img alt="15 settings" src="https://img.shields.io/badge/settings-15-blueviolet?style=flat-square">
@@ -74,7 +74,7 @@ warns only when a miss is real, and survives resume without inventing money.
 | **Epoch-aware warnings** | Canonical miss or low hit, once per prefix epoch, skipped on the first turn and after model/thinking/tool/compaction/resume changes. The cause is named: `простой N мин` / `idle N min` or `перезапись префикса` / `prefix rewrite`. |
 | **15 settings, 4 presets** | `balanced`, `quiet`, `verbose`, `custom`; every key has bounds, defaults and English manifest descriptions. `language: ru \| en` localizes the runtime output. |
 | **Honest resume** | Totals, trend and 8-turn history are restored from the journal; historical prices are not invented. Money after resume is `≥` or `?`, never a fake exact number. |
-| **Zero runtime dependencies** | One extension `index.ts` plus the `bin/` + `lib/` CLI, 102 deterministic tests, CI, `npm pack` = 6 files. No daemon, no database, no network. |
+| **Zero runtime dependencies** | One extension `index.ts` plus the `bin/` + `lib/` CLI, 104 deterministic tests, CI, `npm pack` = 6 files. No daemon, no database, no network. |
 | **Onboarding built in** | The first canonical miss adds a one-time hint: where `/cache-monitor settings` is and what `preset` means. |
 
 ## At a glance
@@ -298,13 +298,14 @@ omp-cache-monitor costs --json [--session FILE] [--since ISO8601]
 npm link   # from a checkout: puts omp-cache-monitor on PATH
 omp-cache-monitor costs --json --session ~/.omp/agent/sessions/<project>/<id>.jsonl
 
-# without linking
-node --experimental-strip-types bin/omp-cache-monitor.mjs costs --json
+# without linking (plain Node; the CLI ships as .mjs, no type stripping)
+node bin/omp-cache-monitor.mjs costs --json
 ```
 
 Exit codes: `0` — report, `1` — no session or the file cannot be read, `2` —
 bad arguments. `--json` is the contract; without it the CLI prints a short
-human summary.
+human summary. A missing or unreadable session is exit `1` without JSON; an
+empty but valid file is exit `0` with an empty report.
 
 - Without `--session` the CLI takes the newest `*.jsonl` by mtime under
   `OMP_SESSIONS_DIR` (or `~/.omp/agent/sessions`): files of the directory and
@@ -319,10 +320,11 @@ human summary.
   plus a note, never `0`. `totals.costUsd` sums the known prices and is `null`
   only when no turn has one.
 - `--since` keeps turns with `at >= since`; totals and models follow the
-  filtered turns, `session` does not change.
-- `notes` are deterministic: `cost missing`, `timestamp missing: turn
-  skipped`, `cold prefix`, `cold prefix after model switch`, `cacheWrite > 0`;
-  consecutive duplicates collapse.
+  filtered turns, `session` does not change. Seconds are optional, the zone is
+  not: `2026-11-26T12:00Z` is valid, a timestamp without a zone exits `2`.
+- `notes` are deterministic: `cost missing`, `timestamp invalid or missing:
+  turn skipped`, `cold prefix`, `cold prefix after model switch`,
+  `cacheWrite > 0`; consecutive duplicates collapse.
 - Unknown fields are additive: a reader ignores what it does not use.
 - `schemaVersion: 1`; a breaking change bumps the schema version and the
   CHANGELOG.

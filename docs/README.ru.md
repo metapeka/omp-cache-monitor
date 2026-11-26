@@ -12,7 +12,7 @@
 
 <p align="center">
   <code>0.11.0</code> · OMP 19.1.x · ноль runtime-зависимостей · один файл
-  расширения <code>index.ts</code> · CLI <code>costs --json</code> · 102 теста
+  расширения <code>index.ts</code> · CLI <code>costs --json</code> · 104 теста
 </p>
 
 <p align="center">
@@ -22,7 +22,7 @@
 
 <p align="center">
   <a href="https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1"><img alt="release v0.10.1" src="https://img.shields.io/badge/release-v0.10.1-blue?style=flat-square"></a>
-  <img alt="102 теста" src="https://img.shields.io/badge/tests-102%20passing-brightgreen?style=flat-square">
+  <img alt="104 теста" src="https://img.shields.io/badge/tests-104%20passing-brightgreen?style=flat-square">
   <img alt="ноль runtime-зависимостей" src="https://img.shields.io/badge/runtime%20deps-0-brightgreen?style=flat-square">
   <img alt="OMP 19.1.x" src="https://img.shields.io/badge/OMP-19.1.x-8A2BE2?style=flat-square">
   <img alt="15 настроек" src="https://img.shields.io/badge/settings-15-blueviolet?style=flat-square">
@@ -72,7 +72,7 @@ read-only наблюдатель, который говорит на языке 
 | **Epoch-aware предупреждения** | Canonical miss или low hit — один раз за эпоху префикса, не на первом ходе и не после смены модели/thinking/tools/компакции/resume. Причина называется: `простой N мин` / `idle N min` или `перезапись префикса` / `prefix rewrite`. |
 | **15 настроек, 4 пресета** | `balanced`, `quiet`, `verbose`, `custom`; у каждого ключа есть границы, defaults и английское описание в манифесте. `language: ru \| en` переводит runtime-вывод. |
 | **Честный resume** | Суммы, тренд и история 8 ходов восстанавливаются из журнала; исторические цены не выдумываются. Деньги после resume — `≥` или `?`, а не фальшивое точное число. |
-| **Ноль runtime-зависимостей** | Один `index.ts` расширения плюс CLI в `bin/` + `lib/`, 102 детерминированных теста, CI, `npm pack` = 6 файлов. Без демона, базы и сети. |
+| **Ноль runtime-зависимостей** | Один `index.ts` расширения плюс CLI в `bin/` + `lib/`, 104 детерминированных теста, CI, `npm pack` = 6 файлов. Без демона, базы и сети. |
 | **Онбординг встроен** | Первый канонический промах добавляет одноразовую подсказку: где `/cache-monitor settings` и что значит `preset`. |
 
 ## Коротко
@@ -295,13 +295,14 @@ omp-cache-monitor costs --json [--session FILE] [--since ISO8601]
 npm link   # в чекауте: кладёт omp-cache-monitor в PATH
 omp-cache-monitor costs --json --session ~/.omp/agent/sessions/<проект>/<id>.jsonl
 
-# без link
-node --experimental-strip-types bin/omp-cache-monitor.mjs costs --json
+# без link (обычный Node; CLI поставляется как .mjs, type stripping не нужен)
+node bin/omp-cache-monitor.mjs costs --json
 ```
 
 Коды выхода: `0` — отчёт, `1` — сессии нет или файл не читается, `2` —
 неверные аргументы. `--json` — контракт; без него печатается короткая
-человекочитаемая сводка.
+человекочитаемая сводка. Отсутствующая/нечитаемая сессия — exit `1` без JSON;
+пустой валидный файл — exit `0` с пустым отчётом.
 
 - Без `--session` берётся самый свежий по mtime `*.jsonl` в
   `OMP_SESSIONS_DIR` (или `~/.omp/agent/sessions`): файлы каталога и один
@@ -316,9 +317,10 @@ node --experimental-strip-types bin/omp-cache-monitor.mjs costs --json
   note, а не 0. `totals.costUsd` — сумма известных цен, `null` только если
   цен нет ни у одного хода.
 - `--since` оставляет ходы с `at >= since`; totals и models считаются по
-  отфильтрованным ходам, `session` не меняется.
-- `notes` детерминированы: `cost missing`, `timestamp missing: turn skipped`,
-  `cold prefix`, `cold prefix after model switch`, `cacheWrite > 0`;
+  отфильтрованным ходам, `session` не меняется. Секунды опциональны, зона —
+  нет: `2026-11-26T12:00Z` валиден, timestamp без зоны даёт exit `2`.
+- `notes` детерминированы: `cost missing`, `timestamp invalid or missing: turn
+  skipped`, `cold prefix`, `cold prefix after model switch`, `cacheWrite > 0`;
   одинаковые подряд сворачиваются.
 - Неизвестные поля читатель игнорирует: схема расширяется аддитивно.
 - `schemaVersion: 1`; ломающее изменение повышает версию схемы и попадает в

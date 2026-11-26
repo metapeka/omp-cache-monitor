@@ -1,8 +1,8 @@
-#!/usr/bin/env -S node --experimental-strip-types
+#!/usr/bin/env node
 /**
  * `omp-cache-monitor costs --json` — read-only session cost report.
  *
- * Thin argv/stdout layer over `lib/costs.ts`: one JSON document on stdout and
+ * Thin argv/stdout layer over `lib/costs.mjs`: one JSON document on stdout and
  * nothing else. Exit codes are part of the contract: 0 ok, 1 no or unreadable
  * session, 2 bad arguments. No network, no writes.
  */
@@ -15,7 +15,7 @@ import {
 	latestSessionFile,
 	parseIsoTimestamp,
 	sessionsDirectory,
-} from "../lib/costs.ts";
+} from "../lib/costs.mjs";
 
 const USAGE = `Usage: omp-cache-monitor costs --json [--session FILE] [--since ISO8601]
 
@@ -26,7 +26,8 @@ Options:
   --json             print the JSON contract (schemaVersion 1)
   --session FILE     session JSONL; default: newest in OMP_SESSIONS_DIR
                      or ~/.omp/agent/sessions
-  --since ISO8601    keep turns at or after the timestamp
+  --since ISO8601    keep turns at or after the timestamp (seconds optional,
+                     UTC offset or Z required)
   -h, --help         this help
 
 Exit codes: 0 ok, 1 no/unreadable session, 2 bad arguments.

@@ -6,7 +6,9 @@
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
+    "allowJs": true,
+    "checkJs": true,
     "types": ["node"]
   },
-  "include": ["index.ts", "lib/costs.ts"]
+  "include": ["index.ts", "lib/costs.mjs"]
 }

@@ -8,6 +8,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import {
+	copyFileSync,
 	mkdirSync,
 	mkdtempSync,
 	readFileSync,
@@ -22,6 +23,8 @@ import { after, before, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
 const BIN = fileURLToPath(new URL("../bin/omp-cache-monitor.mjs", import.meta.url));
+const LIB = fileURLToPath(new URL("../lib/costs.mjs", import.meta.url));
+const PACKAGE = fileURLToPath(new URL("../package.json", import.meta.url));
 
 /** ISO timestamp with a fixed minute; the hour is fixed for readability. */
 function at(minute) {
@@ -70,7 +73,7 @@ function writeSession(dir, entries, name = "session.jsonl") {
 }
 
 function run(args, env = {}) {
-	return spawnSync(process.execPath, ["--experimental-strip-types", BIN, ...args], {
+	return spawnSync(process.execPath, [BIN, ...args], {
 		encoding: "utf8",
 		env: { ...process.env, ...env },
 		timeout: 30_000,
@@ -174,17 +177,19 @@ describe("costs --json CLI", () => {
 			assistant({ at: at(0), cost: 1, model: "old" }),
 			assistant({ at: at(30), cost: 2, model: "new" }),
 		]);
-		const report = expectJson(
-			run(["costs", "--json", "--session", file, "--since", at(10)]),
-		);
-		assert.equal(report.session, file);
-		assert.equal(report.turns.length, 1);
-		assert.equal(report.turns[0].model, "new");
-		assert.equal(report.totals.costUsd, 2);
-		assert.deepEqual(
-			report.models.map((model) => model.model),
-			["new"],
-		);
+		for (const since of [at(10), "2026-11-26T11:30Z"]) {
+			const report = expectJson(
+				run(["costs", "--json", "--session", file, "--since", since]),
+			);
+			assert.equal(report.session, file);
+			assert.equal(report.turns.length, 1);
+			assert.equal(report.turns[0].model, "new");
+			assert.equal(report.totals.costUsd, 2);
+			assert.deepEqual(
+				report.models.map((model) => model.model),
+				["new"],
+			);
+		}
 	});
 
 	it("accepts an empty file as a valid empty report", () => {
@@ -219,6 +224,7 @@ describe("costs --json CLI", () => {
 		for (const args of [
 			["costs", "--json", "--session", file, "--since", "yesterday"],
 			["costs", "--json", "--session", file, "--since", "2026-11-26"],
+			["costs", "--json", "--session", file, "--since", "2026-11-26T12:00"],
 			["costs", "--json", "--session", file, "--bogus"],
 			["costs", "--session"],
 			[],
@@ -331,7 +337,7 @@ describe("costs --json CLI", () => {
 		const report = expectJson(run(["costs", "--json", "--session", file]));
 		assert.equal(report.turns.length, 1);
 		assert.equal(report.totals.costUsd, 2);
-		assert.deepEqual(report.notes, ["timestamp missing: turn skipped"]);
+		assert.deepEqual(report.notes, ["timestamp invalid or missing: turn skipped"]);
 	});
 
 	it("accepts --session=FILE and prints a human summary without --json", () => {
@@ -348,12 +354,61 @@ describe("costs --json CLI", () => {
 		assert.match(result.stdout, /cache hit: 45%\n/);
 	});
 
+	it("reads a line larger than the chunk with a UTF-8 character on the boundary", () => {
+		const prefix =
+			'{"type":"message","timestamp":"2026-11-26T11:00:00.000Z","message":' +
+			'{"role":"assistant","model":"model-a","usage":{"input":1000,' +
+			'"cacheRead":0,"cacheWrite":0,"output":1,"reasoningTokens":0,' +
+			'"cost":{"total":0.1}},"pad":"';
+		const chunk = 1 << 20;
+		const pad = chunk - 1 - Buffer.byteLength(prefix);
+		assert.ok(pad > 0);
+		const line = `${prefix}${"a".repeat(pad)}€tail"}}`;
+		const file = join(dir, "chunk-boundary.jsonl");
+		// CRLF separators, no trailing newline: the tail line is the last chunk.
+		writeFileSync(
+			file,
+			`${line}\r\n${JSON.stringify(assistant({ at: at(2), cost: 0.2 }))}`,
+		);
+		const bytes = Buffer.from(readFileSync(file));
+		assert.equal(bytes.indexOf(Buffer.from("€")), chunk - 1);
+
+		const report = expectJson(run(["costs", "--json", "--session", file]));
+		assert.equal(report.turns.length, 2);
+		assert.equal(report.turns[0].at, at(0));
+		assert.equal(report.turns[1].at, at(2));
+		assert.equal(report.totals.costUsd, 0.30000000000000004);
+	});
+
+	it("runs from node_modules where Node forbids type stripping", () => {
+		const installed = join(dir, "install", "node_modules", "omp-cache-monitor");
+		mkdirSync(join(installed, "bin"), { recursive: true });
+		mkdirSync(join(installed, "lib"), { recursive: true });
+		copyFileSync(PACKAGE, join(installed, "package.json"));
+		copyFileSync(BIN, join(installed, "bin", "omp-cache-monitor.mjs"));
+		copyFileSync(LIB, join(installed, "lib", "costs.mjs"));
+		const session = writeSession(dir, [assistant({ at: at(1), cost: 0.25 })]);
+		const result = spawnSync(
+			process.execPath,
+			[
+				join(installed, "bin", "omp-cache-monitor.mjs"),
+				"costs",
+				"--json",
+				"--session",
+				session,
+			],
+			{ encoding: "utf8", timeout: 30_000 },
+		);
+		assert.equal(result.status, 0, result.stderr);
+		assert.equal(result.stderr, "");
+		const report = JSON.parse(result.stdout);
+		assert.equal(report.schemaVersion, 1);
+		assert.equal(report.totals.costUsd, 0.25);
+	});
+
 	it("is executable and runs through its own shebang", () => {
 		const source = readFileSync(BIN, "utf8");
-		assert.equal(
-			source.split("\n")[0],
-			"#!/usr/bin/env -S node --experimental-strip-types",
-		);
+		assert.equal(source.split("\n")[0], "#!/usr/bin/env node");
 		assert.notEqual(statSync(BIN).mode & 0o111, 0);
 		const file = writeSession(dir, [assistant({ at: at(1), cost: 0.5 })]);
 		const result = spawnSync(BIN, ["costs", "--json", "--session", file], {

@@ -1,14 +1,17 @@
 {
   "name": "omp-cache-monitor",
-  "version": "0.10.1",
+  "version": "0.11.0",
   "type": "module",
   "scripts": {
-    "test": "node --experimental-strip-types test/extension.test.mjs",
+    "test": "node --experimental-strip-types --test",
     "typecheck": "tsc --noEmit",
     "verify": "npm test && npm run typecheck",
     "yoda": "./scripts/yoda"
   },
   "description": "Cache hit-rate monitor and /cache-monitor command for OMP",
+  "bin": {
+    "omp-cache-monitor": "bin/omp-cache-monitor.mjs"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/metapeka/omp-cache-monitor.git"
@@ -29,6 +32,8 @@
   "license": "MIT",
   "files": [
     "index.ts",
+    "bin",
+    "lib",
     "README.md",
     "LICENSE"
   ],

@@ -1,14 +1,22 @@
 # Передача: cache-monitor
 
-Дата: 2026-11-23. Репозиторий: `omp-cache-monitor`; 0.10.1 — Phase 4
-(онбординг, скриншоты, upstream `group`/`icon`) поверх 0.10.0.
+Дата: 2026-11-27. Репозиторий: `omp-cache-monitor`; 0.11.0 — CLI
+`costs --json` (schemaVersion 1) поверх 0.10.1 (Phase 4: онбординг,
+скриншоты, upstream `group`/`icon`), которая лежит поверх 0.10.0.
 Это продолжение работы, начатой в docs-репозитории
 `docs-omp-debian-availability` (там же пресеты, `omp-mode` и публичная вики).
 
 ## Следующая задача (взять первой)
 
-**Release v0.10.1 выполнен.** Дальше TTL/P2 — только по решению владельца.
-Phase 4 закрыта; новых UI-задач в очереди нет.
+**0.11.0 — CLI `costs --json` готов** (ветка `feat/costs-json`, ждёт merge и
+release по решению владельца). **Release v0.10.1 выполнен.** Дальше TTL/P2 —
+только по решению владельца. Phase 4 закрыта; новых UI-задач в очереди нет.
+
+- 0.11.0: read-only `omp-cache-monitor costs --json` для OAW 0.6 (цена границы
+  handoff/компакции); контракт — `lib/costs.ts`, `bin/`, docs EN/RU/ZH,
+  `test/costs.test.mjs`. Расширение и 15 настроек не менялись.
+- Проверки 0.11.0: `npm run verify` — 102 теста и typecheck; CLI на реальной
+  сессии; загрузка расширения; `npm pack` — 6 файлов.
 
 - v0.10.1: <https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1>
   (tarball `omp-cache-monitor-0.10.1.tgz`).
@@ -22,10 +30,10 @@ Phase 4 закрыта; новых UI-задач в очереди нет.
 | Что | Состояние |
 |---|---|
 | Расширение `index.ts` | v0.10.1, контракт ниже: `preset` + advanced-ключи, второй статус-ключ `cache-monitor-cost`, онбординг на первом промахе |
-| Пакет | `package.json` 0.10.1 (`omp.extensions` + `omp.settings` из 15 ключей, `pi.extensions`, repository/homepage/bugs/engines), MIT, README EN (`README.md`) + 中文 (`docs/README.zh.md`) + RU (`docs/README.ru.md`), логотип `docs/images/logo.png`, CHANGELOG 0.10.1, `docs/ui-settings.md`, `docs/omp-docs-map.md`, `docs/powerline.md`, `docs/upstream-settings-groups.md`, `docs/release-notes-0.10.1.md`, скриншоты и demo-GIF `docs/images/` |
+| Пакет | `package.json` 0.11.0 (`omp.extensions` + `omp.settings` из 15 ключей, `pi.extensions`, `bin`, `files` с `bin/`+`lib/`, repository/homepage/bugs/engines), MIT, CLI `lib/costs.ts` + `bin/omp-cache-monitor.mjs`, README EN (`README.md`) + 中文 (`docs/README.zh.md`) + RU (`docs/README.ru.md`), логотип `docs/images/logo.png`, CHANGELOG 0.11.0, `docs/ui-settings.md`, `docs/omp-docs-map.md`, `docs/powerline.md`, `docs/upstream-settings-groups.md`, `docs/release-notes-0.10.1.md`, скриншоты и demo-GIF `docs/images/` |
 | Релиз | [v0.10.1](https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1) — GitHub release, tarball `omp-cache-monitor-0.10.1.tgz` |
 | Установка на машине | `omp plugin list` — `omp-cache-monitor@0.10.1` и `omp-agent-workflow@0.5.14` |
-| Проверки | `npm test` 85/85, typecheck, `npm pack` — 4 файла; 0.10.1: подсказка только на первом каноническом промахе (RU/EN), скриншоты Settings → Plugins и `settings`, upstream issue #20253 |
+| Проверки | `npm test` 102/102, typecheck, `npm pack` — 6 файлов; 0.11.0: `costs --json` на реальной сессии и через `OMP_SESSIONS_DIR`, расширение загружается (`omp --no-extensions -e ./index.ts`); 0.10.1: подсказка только на первом каноническом промахе (RU/EN), скриншоты Settings → Plugins и `settings`, upstream issue #20253 |
 | Ревью | v0.4/v0.5/v0.6/v0.7/v0.8/v0.8.1/v0.9/v0.10.1 — merge |
 | Ревью v0.4 | фоновый usage отделён от hit/ходов; граница resume не даёт ложной пере-оплаты |
 | Ревью v0.5 | reviewer: merge; исправлены пробелы покрытия — граница 5 мин, `/clear`/tree, ход без timestamp разрывает цепочку простоя |
@@ -36,6 +44,31 @@ Phase 4 закрыта; новых UI-задач в очереди нет.
 | Ревью v0.10.1 | reviewer: merge; nits закрыты — новые `docs/images/*` и upstream-doc в commit, Settings → Plugins переснят на 0.10.1 |
 | Ревью docs 0.10.1 | Docs3LangReview: merge with nits; исправлены «8 строк help» (EN/ZH) и ссылка на release notes в RU |
 | Публикация | GitHub: `metapeka/omp-cache-monitor` (public, `main`); npm, marketplace — нет |
+
+## CLI `costs --json` (0.11.0, аддитивно к расширению)
+
+- `omp-cache-monitor costs --json [--session FILE] [--since ISO8601]` — один
+  JSON-документ в stdout, `schemaVersion: 1`, stderr пуст, exit 0. Нет сессии
+  или файл не читается — exit 1 без JSON; неверные аргументы — exit 2.
+- Источник — только `type: "message"` + `message.role: "assistant"` с
+  `usage`; `model_usage`/`usage`/`compaction`/`branch_summary` не считаются.
+  `at` — `entry.timestamp` (ISO-8601 с зоной, нормализуется в UTC); ход без
+  timestamp пропускается с note.
+- `hitPercent = cacheRead / (input + cacheRead)`, 0.1, `null` при нулевом
+  знаменателе; `cacheWrite` в знаменатель не входит (отличается от hit
+  расширения). `costUsd` — `usage.cost.total`; нет цены — `null` + note, не 0;
+  `totals.costUsd = null` только если цен нет ни у одного хода.
+- `models[]` — агрегат по `model` (включая `null` группу) в порядке первого
+  появления. `--since` фильтрует ходы, totals и models; `session` не меняется.
+- `notes` детерминированы: `cost missing`, `timestamp missing: turn skipped`,
+  `cold prefix`, `cold prefix after model switch`, `cacheWrite > 0`; одинаковые
+  подряд сворачиваются. Первый ход сессии холодным не считается.
+- Поиск сессии: самый свежий `*.jsonl` по mtime в `OMP_SESSIONS_DIR` или
+  `~/.omp/agent/sessions` — файлы каталога и один уровень подкаталогов,
+  `changes.jsonl` и глубже игнорируются.
+- Файлы: `lib/costs.ts` (парсер чанками), `bin/omp-cache-monitor.mjs`, тесты
+  `test/costs.test.mjs`. `schemaVersion` — контракт OAW; ломающее изменение —
+  бамп версии схемы и CHANGELOG.
 
 ## Контракт v0.10.1 (v0.10.0 + онбординг; не менять без решения владельца)
 

@@ -11,8 +11,8 @@
 </p>
 
 <p align="center">
-  <code>0.10.1</code> · OMP 19.1.x · zero runtime dependencies · one file
-  <code>index.ts</code> · 85 tests
+  <code>0.11.0</code> · OMP 19.1.x · zero runtime dependencies · one extension
+  file <code>index.ts</code> · CLI <code>costs --json</code> · 102 tests
 </p>
 
 <p align="center">
@@ -22,7 +22,7 @@
 
 <p align="center">
   <a href="https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1"><img alt="release v0.10.1" src="https://img.shields.io/badge/release-v0.10.1-blue?style=flat-square"></a>
-  <img alt="85 tests passing" src="https://img.shields.io/badge/tests-85%20passing-brightgreen?style=flat-square">
+  <img alt="102 tests passing" src="https://img.shields.io/badge/tests-102%20passing-brightgreen?style=flat-square">
   <img alt="zero runtime dependencies" src="https://img.shields.io/badge/runtime%20deps-0-brightgreen?style=flat-square">
   <img alt="OMP 19.1.x" src="https://img.shields.io/badge/OMP-19.1.x-8A2BE2?style=flat-square">
   <img alt="15 settings" src="https://img.shields.io/badge/settings-15-blueviolet?style=flat-square">
@@ -35,7 +35,7 @@
 
 - **Start here** — [Demo](#demo) · [Why omp-cache-monitor?](#why-omp-cache-monitor) · [At a glance](#at-a-glance) · [Quick start](#quick-start)
 - **Understand it** — [How it works](#how-it-works) · [Formula](#formula) · [Saved and miss premium](#saved-and-miss-premium)
-- **Use it** — [Status line](#what-it-shows) · [Warnings](#warnings) · [Settings](#settings) · [History](#turn-history) · [Costs](#cost-breakdown)
+- **Use it** — [Status line](#what-it-shows) · [Warnings](#warnings) · [Settings](#settings) · [History](#turn-history) · [Costs](#cost-breakdown) · [CLI costs JSON](#cli-costs---json)
 - **Operate it** — [Installation](#installation) · [Resume](#resume-compaction-and-cache-warming) · [Powerline](#powerline) · [Compatibility](#compatibility-and-name-conflicts)
 - **Compare** — [Competitors](#competitors) · [Research](docs/research/cache-extensions.md) · [Release notes](docs/release-notes-0.10.1.md)
 - **Everything else** — [Docs map](docs/omp-docs-map.md) · [Upstream proposal](docs/upstream-settings-groups.md) · [License](#license)
@@ -45,7 +45,8 @@
 OMP extension: prefix-cache hit rate in the status line, miss warnings, and the
 `/cache-monitor` command (`history` shows the last 8 turns, `costs` breaks the
 session cost down by journal entry type, `settings` shows plugin settings,
-`help` prints a short reference).
+`help` prints a short reference). The same session is available to scripts as a
+read-only CLI: `omp-cache-monitor costs --json`.
 
 It changes nothing in settings or requests: it reads the completed turn usage
 (`turn_end.message.usage`) and the session journal
@@ -73,7 +74,7 @@ warns only when a miss is real, and survives resume without inventing money.
 | **Epoch-aware warnings** | Canonical miss or low hit, once per prefix epoch, skipped on the first turn and after model/thinking/tool/compaction/resume changes. The cause is named: `простой N мин` / `idle N min` or `перезапись префикса` / `prefix rewrite`. |
 | **15 settings, 4 presets** | `balanced`, `quiet`, `verbose`, `custom`; every key has bounds, defaults and English manifest descriptions. `language: ru \| en` localizes the runtime output. |
 | **Honest resume** | Totals, trend and 8-turn history are restored from the journal; historical prices are not invented. Money after resume is `≥` or `?`, never a fake exact number. |
-| **Zero runtime dependencies** | One `index.ts`, 85 deterministic tests, CI, `npm pack` = 4 files. No daemon, no database, no network. |
+| **Zero runtime dependencies** | One extension `index.ts` plus the `bin/` + `lib/` CLI, 102 deterministic tests, CI, `npm pack` = 6 files. No daemon, no database, no network. |
 | **Onboarding built in** | The first canonical miss adds a one-time hint: where `/cache-monitor settings` is and what `preset` means. |
 
 ## At a glance
@@ -85,6 +86,7 @@ warns only when a miss is real, and survives resume without inventing money.
 | **Commands** | `/cache-monitor`, `history`/`hist`, `costs`/`cost`, `settings`/`setting`, `help`/`?` |
 | **History** | Last 8 completed turns, restored after resume |
 | **Costs** | Session breakdown by `dialog`/`compaction`/`branch`/`other`; `saved` and `miss premium` |
+| **CLI** | `omp-cache-monitor costs --json` — schemaVersion 1 session costs for scripts |
 | **Settings** | 15 keys in `omp.settings`; presets `balanced`/`quiet`/`verbose`/`custom`; `language: ru \| en` |
 | **Docs** | English, 中文, Русский; deep dives in `docs/` |
 | **Release** | [v0.10.1](https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1) — GitHub release with tarball |
@@ -280,6 +282,84 @@ title: $0.0012
   empty map prints `стоимость: нет данных`.
 - The default `/cache-monitor` and `/cache-monitor history` output does not
   change and never contains these lines.
+
+## CLI: `costs --json`
+
+`omp-cache-monitor costs --json` prints one session as a single JSON document
+for scripts, hubs and other agents. It is read-only: it parses the session
+JSONL, never touches the network and never writes a file. The extension and
+`/cache-monitor` are unaffected.
+
+```bash
+omp-cache-monitor costs --json [--session FILE] [--since ISO8601]
+```
+
+```bash
+npm link   # from a checkout: puts omp-cache-monitor on PATH
+omp-cache-monitor costs --json --session ~/.omp/agent/sessions/<project>/<id>.jsonl
+
+# without linking
+node --experimental-strip-types bin/omp-cache-monitor.mjs costs --json
+```
+
+Exit codes: `0` — report, `1` — no session or the file cannot be read, `2` —
+bad arguments. `--json` is the contract; without it the CLI prints a short
+human summary.
+
+- Without `--session` the CLI takes the newest `*.jsonl` by mtime under
+  `OMP_SESSIONS_DIR` (or `~/.omp/agent/sessions`): files of the directory and
+  one level of project subdirectories; `changes.jsonl` and deeper directories
+  are ignored.
+- The source is `message.assistant.usage` only. `model_usage`, `usage`,
+  `compaction` and `branch_summary` are service calls and are not counted.
+- `hitPercent = cacheRead / (input + cacheRead)` at 0.1 resolution, `null`
+  without a denominator. `cacheWrite` is not in that denominator — it differs
+  from the extension's hit rate on purpose.
+- `costUsd` is the provider's `usage.cost.total`; an absent price is `null`
+  plus a note, never `0`. `totals.costUsd` sums the known prices and is `null`
+  only when no turn has one.
+- `--since` keeps turns with `at >= since`; totals and models follow the
+  filtered turns, `session` does not change.
+- `notes` are deterministic: `cost missing`, `timestamp missing: turn
+  skipped`, `cold prefix`, `cold prefix after model switch`, `cacheWrite > 0`;
+  consecutive duplicates collapse.
+- Unknown fields are additive: a reader ignores what it does not use.
+- `schemaVersion: 1`; a breaking change bumps the schema version and the
+  CHANGELOG.
+
+Trimmed response (numbers abbreviated):
+
+```json
+{
+  "schemaVersion": 1,
+  "session": "/home/me/.omp/agent/sessions/-p/2026-11-26T22-05-34Z_id.jsonl",
+  "totals": {
+    "costUsd": 0.0482,
+    "inputTokens": 58055,
+    "cacheReadTokens": 1157632,
+    "cacheWriteTokens": 0,
+    "outputTokens": 19825,
+    "reasoningTokens": 11849
+  },
+  "turns": [
+    {
+      "at": "2026-11-26T22:06:00.918Z",
+      "model": "deepseek-v4.1-flash-1017",
+      "costUsd": 0.0056,
+      "inputTokens": 17513,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "outputTokens": 250,
+      "reasoningTokens": 47,
+      "hitPercent": 0
+    }
+  ],
+  "models": [
+    { "model": "deepseek-v4.1-flash-1017", "turns": 21, "costUsd": 0.0482, "hitPercent": 95.2 }
+  ],
+  "notes": []
+}
+```
 
 ## Resume, compaction, and cache warming
 

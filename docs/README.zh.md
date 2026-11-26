@@ -11,8 +11,8 @@
 </p>
 
 <p align="center">
-  <code>0.10.1</code> · OMP 19.1.x · 零运行时依赖 · 单文件
-  <code>index.ts</code> · 85 项测试
+  <code>0.11.0</code> · OMP 19.1.x · 零运行时依赖 · 单个扩展文件
+  <code>index.ts</code> · CLI <code>costs --json</code> · 102 项测试
 </p>
 
 <p align="center">
@@ -22,7 +22,7 @@
 
 <p align="center">
   <a href="https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1"><img alt="release v0.10.1" src="https://img.shields.io/badge/release-v0.10.1-blue?style=flat-square"></a>
-  <img alt="85 项测试通过" src="https://img.shields.io/badge/tests-85%20passing-brightgreen?style=flat-square">
+  <img alt="102 项测试通过" src="https://img.shields.io/badge/tests-102%20passing-brightgreen?style=flat-square">
   <img alt="零运行时依赖" src="https://img.shields.io/badge/runtime%20deps-0-brightgreen?style=flat-square">
   <img alt="OMP 19.1.x" src="https://img.shields.io/badge/OMP-19.1.x-8A2BE2?style=flat-square">
   <img alt="15 项设置" src="https://img.shields.io/badge/settings-15-blueviolet?style=flat-square">
@@ -35,7 +35,7 @@
 
 - **从这里开始** — [演示](#演示) · [为什么选择 omp-cache-monitor？](#为什么选择-omp-cache-monitor) · [一览](#一览) · [快速开始](#快速开始)
 - **理解它** — [工作原理](#工作原理) · [计算公式](#计算公式) · [节省金额与未命中溢价](#节省金额与未命中溢价)
-- **使用它** — [状态栏](#显示内容) · [警告](#警告) · [设置](#设置) · [历史](#回合历史) · [成本](#成本明细)
+- **使用它** — [状态栏](#显示内容) · [警告](#警告) · [设置](#设置) · [历史](#回合历史) · [成本](#成本明细) · [CLI costs JSON](#cli-costs---json)
 - **运维它** — [安装](#安装) · [恢复](#恢复压缩与缓存预热) · [Powerline](#powerline) · [兼容性](#兼容性与名称冲突)
 - **比较** — [竞品对比](#竞品对比) · [研究](research/cache-extensions.md) · [发布说明](release-notes-0.10.1.md)
 - **其他** — [文档地图](omp-docs-map.md) · [上游提案](upstream-settings-groups.md) · [许可证](#许可证)
@@ -72,7 +72,7 @@ OMP 扩展：在状态栏显示前缀缓存命中率、未命中警告，以及 
 | **按前缀 epoch 判断的警告** | canonical miss 或低命中，每个前缀 epoch 只提示一次；首个回合以及模型/思考/工具/压缩/恢复变更后会跳过。原因会被明确命名：`простой N мин` / `idle N min` 或 `перезапись префикса` / `prefix rewrite`。 |
 | **15 项设置，4 个预设** | `balanced`、`quiet`、`verbose`、`custom`；每个键都有取值范围、默认值和英文清单描述。`language: ru \| en` 用于本地化运行时输出。 |
 | **诚实的恢复** | 总计、趋势和 8 回合的历史都从会话日志重建；不会虚构历史价格。恢复后的金额显示为 `≥` 或 `?`，绝不会是伪造的精确数字。 |
-| **零运行时依赖** | 一个 `index.ts`、85 项确定性测试、CI，`npm pack` = 4 个文件。没有守护进程、没有数据库、没有网络。 |
+| **零运行时依赖** | 一个 `index.ts` 扩展，加上 `bin/` + `lib/` 的 CLI，102 项确定性测试、CI，`npm pack` = 6 个文件。没有守护进程、没有数据库、没有网络。 |
 | **内置上手引导** | 第一次 canonical miss 时会附加一次性提示：`/cache-monitor settings` 在哪里，以及 `preset` 是什么意思。 |
 
 ## 一览
@@ -84,6 +84,7 @@ OMP 扩展：在状态栏显示前缀缓存命中率、未命中警告，以及 
 | **命令** | `/cache-monitor`、`history`/`hist`、`costs`/`cost`、`settings`/`setting`、`help`/`?` |
 | **历史** | 最近 8 个已完成回合，恢复会话后重建 |
 | **成本** | 按 `dialog`/`compaction`/`branch`/`other` 拆分会话成本；`saved` 与 `miss premium` |
+| **CLI** | `omp-cache-monitor costs --json` — 供脚本使用的 schemaVersion 1 会话成本 |
 | **设置** | `omp.settings` 中的 15 个键；预设 `balanced`/`quiet`/`verbose`/`custom`；`language: ru \| en` |
 | **文档** | English、中文、Русский；深入说明在 `docs/` |
 | **发布** | [v0.10.1](https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1)——私有 GitHub release，附 tarball |
@@ -269,6 +270,78 @@ title: $0.0012
   会清空它，空映射会打印 `стоимость: нет данных`。
 - 默认的 `/cache-monitor` 和 `/cache-monitor history` 输出不会改变，也永远
   不会包含这些行。
+
+## CLI: `costs --json`
+
+`omp-cache-monitor costs --json` 将一个会话输出为单个 JSON 文档，供脚本、hub
+和其他 agent 使用。命令是只读的：只解析 session JSONL，不访问网络，也不写
+文件。扩展与 `/cache-monitor` 不受影响。
+
+```bash
+omp-cache-monitor costs --json [--session FILE] [--since ISO8601]
+```
+
+```bash
+npm link   # 在检出目录中把 omp-cache-monitor 放进 PATH
+omp-cache-monitor costs --json --session ~/.omp/agent/sessions/<项目>/<id>.jsonl
+
+# 不 link 时
+node --experimental-strip-types bin/omp-cache-monitor.mjs costs --json
+```
+
+退出码：`0` 表示有报告，`1` 表示没有会话或文件不可读，`2` 表示参数错误。
+`--json` 是契约；不加时打印简短的人类可读摘要。
+
+- 没有 `--session` 时，取 `OMP_SESSIONS_DIR`（或 `~/.omp/agent/sessions`）下
+  按 mtime 最新的 `*.jsonl`：目录本身的文件和一层项目子目录；忽略
+  `changes.jsonl` 和更深的目录。
+- 来源只有 `message.assistant.usage`；`model_usage`、`usage`、`compaction` 和
+  `branch_summary` 是服务调用，不计入。
+- `hitPercent = cacheRead / (input + cacheRead)`，精度 0.1；没有分母时为
+  `null`。`cacheWrite` 不进分母——这一点有意区别于扩展的命中率。
+- `costUsd` 是提供方的 `usage.cost.total`；缺失时是 `null` 加一条 note，绝不为
+  0。`totals.costUsd` 汇总已知价格，只有当所有回合都没有价格时才为 `null`。
+- `--since` 保留 `at >= since` 的回合；totals 和 models 按过滤后的回合计算，
+  `session` 不变。
+- `notes` 是确定性的：`cost missing`、`timestamp missing: turn skipped`、
+  `cold prefix`、`cold prefix after model switch`、`cacheWrite > 0`；连续的
+  相同 note 会合并。
+- 未知字段是增量的：读取方忽略不使用的字段。
+- `schemaVersion: 1`；破坏性变更会提升 schema 版本并写入 CHANGELOG。
+
+截断的响应（数字已简写）：
+
+```json
+{
+  "schemaVersion": 1,
+  "session": "/home/me/.omp/agent/sessions/-p/2026-11-26T22-05-34Z_id.jsonl",
+  "totals": {
+    "costUsd": 0.0482,
+    "inputTokens": 58055,
+    "cacheReadTokens": 1157632,
+    "cacheWriteTokens": 0,
+    "outputTokens": 19825,
+    "reasoningTokens": 11849
+  },
+  "turns": [
+    {
+      "at": "2026-11-26T22:06:00.918Z",
+      "model": "deepseek-v4.1-flash-1017",
+      "costUsd": 0.0056,
+      "inputTokens": 17513,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "outputTokens": 250,
+      "reasoningTokens": 47,
+      "hitPercent": 0
+    }
+  ],
+  "models": [
+    { "model": "deepseek-v4.1-flash-1017", "turns": 21, "costUsd": 0.0482, "hitPercent": 95.2 }
+  ],
+  "notes": []
+}
+```
 
 ## 恢复、压缩与缓存预热
 

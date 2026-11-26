@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.11.0 — 2026-11-27
+
+- **CLI `costs --json` (schemaVersion 1).** Новая read-only команда
+  `omp-cache-monitor costs --json [--session FILE] [--since ISO8601]`: стоимость
+  сессии и каждого хода из `message.assistant.usage`, фактический
+  `usage.cost.total` провайдера, hit rate `cacheRead / (input + cacheRead)`,
+  агрегаты по моделям и детерминированные `notes`. Без `--session` берётся
+  самый свежий `*.jsonl` в `~/.omp/agent/sessions` (или в `OMP_SESSIONS_DIR`).
+  Коды выхода: `0` — отчёт, `1` — нет сессии или файл не читается, `2` —
+  неверные аргументы. Без `--json` печатается короткая человекочитаемая
+  сводка.
+- **Код и пакет.** `lib/costs.ts` — чанковый парсер без загрузки файла целиком
+  (сессии 10–20 MB); `bin/omp-cache-monitor.mjs` — тонкий CLI с shebang
+  `--experimental-strip-types`. `package.json#bin`, `files` включает `bin/` и
+  `lib/` — `npm pack` теперь 6 файлов. Runtime-зависимостей по-прежнему 0.
+- **Тесты.** `test/costs.test.mjs` — 17 тестов через реальный bin (argv, exit
+  code, stdout/stderr, `--since`, поиск сессии, notes); `npm test` запускает
+  оба файла, всего 102 теста; typecheck покрывает `lib/costs.ts`.
+- **Документация.** Раздел CLI в `README.md` (EN), `docs/README.ru.md` и
+  `docs/README.zh.md`; версия, бейджи и `npm pack` обновлены.
+- Расширение `/cache-monitor`, 15 настроек и контракт 0.10.1 не меняются.
+
 ## 0.10.1 — 2026-11-23
 
 - **Онбординг.** Первый канонический промах в процессе добавляет к warning

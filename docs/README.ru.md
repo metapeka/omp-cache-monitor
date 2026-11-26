@@ -11,8 +11,8 @@
 </p>
 
 <p align="center">
-  <code>0.10.1</code> · OMP 19.1.x · ноль runtime-зависимостей · один файл
-  <code>index.ts</code> · 85 тестов
+  <code>0.11.0</code> · OMP 19.1.x · ноль runtime-зависимостей · один файл
+  расширения <code>index.ts</code> · CLI <code>costs --json</code> · 102 теста
 </p>
 
 <p align="center">
@@ -22,7 +22,7 @@
 
 <p align="center">
   <a href="https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1"><img alt="release v0.10.1" src="https://img.shields.io/badge/release-v0.10.1-blue?style=flat-square"></a>
-  <img alt="85 тестов" src="https://img.shields.io/badge/tests-85%20passing-brightgreen?style=flat-square">
+  <img alt="102 теста" src="https://img.shields.io/badge/tests-102%20passing-brightgreen?style=flat-square">
   <img alt="ноль runtime-зависимостей" src="https://img.shields.io/badge/runtime%20deps-0-brightgreen?style=flat-square">
   <img alt="OMP 19.1.x" src="https://img.shields.io/badge/OMP-19.1.x-8A2BE2?style=flat-square">
   <img alt="15 настроек" src="https://img.shields.io/badge/settings-15-blueviolet?style=flat-square">
@@ -35,7 +35,7 @@
 
 - **Начать здесь** — [Демо](#демо) · [Почему omp-cache-monitor?](#почему-omp-cache-monitor) · [Коротко](#коротко) · [Быстрый старт](#быстрый-старт)
 - **Понять** — [Как это работает](#как-это-работает) · [Формула](#формула) · [Saved и miss premium](#saved-и-miss-premium)
-- **Использовать** — [Статус](#что-показывает) · [Предупреждения](#предупреждения) · [Настройки](#настройки) · [История](#история-последних-ходов) · [Стоимость](#разбивка-стоимости)
+- **Использовать** — [Статус](#что-показывает) · [Предупреждения](#предупреждения) · [Настройки](#настройки) · [История](#история-последних-ходов) · [Стоимость](#разбивка-стоимости) · [CLI costs JSON](#cli-costs---json)
 - **Эксплуатировать** — [Установка](#установка) · [Resume](#resume-компакция-и-cache-warming) · [Powerline](#powerline) · [Совместимость](#совместимость-и-конфликты-имён)
 - **Сравнить** — [Конкуренты](#конкуренты) · [Исследование](research/cache-extensions.md) · [Release notes](release-notes-0.10.1.md)
 - **Остальное** — [Карта docs](omp-docs-map.md) · [Upstream](upstream-settings-groups.md) · [Лицензия](#лицензия)
@@ -72,7 +72,7 @@ read-only наблюдатель, который говорит на языке 
 | **Epoch-aware предупреждения** | Canonical miss или low hit — один раз за эпоху префикса, не на первом ходе и не после смены модели/thinking/tools/компакции/resume. Причина называется: `простой N мин` / `idle N min` или `перезапись префикса` / `prefix rewrite`. |
 | **15 настроек, 4 пресета** | `balanced`, `quiet`, `verbose`, `custom`; у каждого ключа есть границы, defaults и английское описание в манифесте. `language: ru \| en` переводит runtime-вывод. |
 | **Честный resume** | Суммы, тренд и история 8 ходов восстанавливаются из журнала; исторические цены не выдумываются. Деньги после resume — `≥` или `?`, а не фальшивое точное число. |
-| **Ноль runtime-зависимостей** | Один `index.ts`, 85 детерминированных тестов, CI, `npm pack` = 4 файла. Без демона, базы и сети. |
+| **Ноль runtime-зависимостей** | Один `index.ts` расширения плюс CLI в `bin/` + `lib/`, 102 детерминированных теста, CI, `npm pack` = 6 файлов. Без демона, базы и сети. |
 | **Онбординг встроен** | Первый канонический промах добавляет одноразовую подсказку: где `/cache-monitor settings` и что значит `preset`. |
 
 ## Коротко
@@ -84,6 +84,7 @@ read-only наблюдатель, который говорит на языке 
 | **Команды** | `/cache-monitor`, `history`/`hist`, `costs`/`cost`, `settings`/`setting`, `help`/`?` |
 | **История** | Последние 8 завершённых ходов; восстанавливается после resume |
 | **Стоимость** | Разбивка сессии по `dialog`/`compaction`/`branch`/`other`; `saved` и `miss premium` |
+| **CLI** | `omp-cache-monitor costs --json` — стоимость сессии schemaVersion 1 для скриптов |
 | **Настройки** | 15 ключей в `omp.settings`; пресеты `balanced`/`quiet`/`verbose`/`custom`; `language: ru \| en` |
 | **Документация** | English, 中文, Русский; детали в `docs/` |
 | **Релиз** | [v0.10.1](https://github.com/metapeka/omp-cache-monitor/releases/tag/v0.10.1) — GitHub release с tarball |
@@ -279,6 +280,83 @@ title: $0.0012
   `стоимость: нет данных`.
 - Дефолтный `/cache-monitor` и `/cache-monitor history` не меняются и этих
   строк не содержат.
+
+## CLI: `costs --json`
+
+`omp-cache-monitor costs --json` отдаёт одну сессию одним JSON-документом для
+скриптов, hub-ов и других агентов. Команда read-only: читает session JSONL, не
+ходит в сеть и ничего не пишет. Расширение и `/cache-monitor` не меняются.
+
+```bash
+omp-cache-monitor costs --json [--session FILE] [--since ISO8601]
+```
+
+```bash
+npm link   # в чекауте: кладёт omp-cache-monitor в PATH
+omp-cache-monitor costs --json --session ~/.omp/agent/sessions/<проект>/<id>.jsonl
+
+# без link
+node --experimental-strip-types bin/omp-cache-monitor.mjs costs --json
+```
+
+Коды выхода: `0` — отчёт, `1` — сессии нет или файл не читается, `2` —
+неверные аргументы. `--json` — контракт; без него печатается короткая
+человекочитаемая сводка.
+
+- Без `--session` берётся самый свежий по mtime `*.jsonl` в
+  `OMP_SESSIONS_DIR` (или `~/.omp/agent/sessions`): файлы каталога и один
+  уровень подкаталогов проектов; `changes.jsonl` и более глубокая вложенность
+  игнорируются.
+- Источник — только `message.assistant.usage`. `model_usage`, `usage`,
+  `compaction` и `branch_summary` — служебные вызовы, в отчёт не входят.
+- `hitPercent = cacheRead / (input + cacheRead)`, 0–100 с шагом 0.1; `null`
+  без знаменателя. `cacheWrite` в знаменатель не входит — это намеренно
+  отличается от hit-метрики расширения.
+- `costUsd` — фактический `usage.cost.total` провайдера; нет поля — `null` и
+  note, а не 0. `totals.costUsd` — сумма известных цен, `null` только если
+  цен нет ни у одного хода.
+- `--since` оставляет ходы с `at >= since`; totals и models считаются по
+  отфильтрованным ходам, `session` не меняется.
+- `notes` детерминированы: `cost missing`, `timestamp missing: turn skipped`,
+  `cold prefix`, `cold prefix after model switch`, `cacheWrite > 0`;
+  одинаковые подряд сворачиваются.
+- Неизвестные поля читатель игнорирует: схема расширяется аддитивно.
+- `schemaVersion: 1`; ломающее изменение повышает версию схемы и попадает в
+  CHANGELOG.
+
+Сокращённый ответ (числа урезаны):
+
+```json
+{
+  "schemaVersion": 1,
+  "session": "/home/me/.omp/agent/sessions/-p/2026-11-26T22-05-34Z_id.jsonl",
+  "totals": {
+    "costUsd": 0.0482,
+    "inputTokens": 58055,
+    "cacheReadTokens": 1157632,
+    "cacheWriteTokens": 0,
+    "outputTokens": 19825,
+    "reasoningTokens": 11849
+  },
+  "turns": [
+    {
+      "at": "2026-11-26T22:06:00.918Z",
+      "model": "deepseek-v4.1-flash-1017",
+      "costUsd": 0.0056,
+      "inputTokens": 17513,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "outputTokens": 250,
+      "reasoningTokens": 47,
+      "hitPercent": 0
+    }
+  ],
+  "models": [
+    { "model": "deepseek-v4.1-flash-1017", "turns": 21, "costUsd": 0.0482, "hitPercent": 95.2 }
+  ],
+  "notes": []
+}
+```
 
 ## Resume, компакция и cache warming
 
